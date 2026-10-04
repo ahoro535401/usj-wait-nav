@@ -64,6 +64,7 @@ function weatherPayload(raw) {
     time: item.time,
     temperature: item.data?.instant?.details?.air_temperature ?? null,
     wind_speed: item.data?.instant?.details?.wind_speed ?? null,
+    wind_gust: item.data?.instant?.details?.wind_speed_of_gust ?? null,
     precipitation: item.data?.next_1_hours?.details?.precipitation_amount ?? null,
     symbol: item.data?.next_1_hours?.summary?.symbol_code ?? null,
   }));
@@ -75,9 +76,10 @@ function weatherPayload(raw) {
 async function getWeather(db) {
   const stored = await readMeta(db, 'weather_payload');
   const cached = stored ? JSON.parse(stored) : null;
-  if (cached?.expires_at && Date.parse(cached.expires_at) > Date.now()) return cached;
+  const needsGust = cached?.periods?.length && !Object.hasOwn(cached.periods[0], 'wind_gust');
+  if (cached?.expires_at && Date.parse(cached.expires_at) > Date.now() && !needsGust) return cached;
   const headers = { Accept: 'application/json', 'User-Agent': WEATHER_AGENT };
-  if (cached?.last_modified) headers['If-Modified-Since'] = cached.last_modified;
+  if (cached?.last_modified && !needsGust) headers['If-Modified-Since'] = cached.last_modified;
   try {
     const response = await fetch(WEATHER_URL, { headers });
     if (response.status !== 304 && !response.ok) throw new Error(`Weather HTTP ${response.status}`);
