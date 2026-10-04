@@ -272,7 +272,7 @@
   <footer>
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a>
-    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックの2件の現在値とショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。10月4日の夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
+    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックの2件の現在値と当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。10月4日の夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
     <p>公表営業時間の前後30分を含む時間帯にサーバーが5分おきに公開データを取得し、毎時0・20・40分の取得値を保存します。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックの2件はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
   <script>
@@ -652,9 +652,14 @@
       showTimeline.replaceChildren();
       showsStatus.replaceChildren();
       if (data.unavailable) {
-        showsStatus.append(data.reason === 'future'
-          ? `${dateLabel(data.day)}の開始時刻は本サイトで未取得です。`
-          : '今日のショー時刻を確認中です。次の5分更新で再試行します。');
+        const message = data.reason === 'unpublished'
+          ? `${dateLabel(data.day)}の開始時刻は公式でまだ公開されていません。`
+          : data.reason === 'source_error'
+            ? `${dateLabel(data.day)}の公式データを取得できませんでした。後で再試行します。`
+            : data.reason === 'external'
+              ? `${dateLabel(data.day)}の開始時刻はUSJ公式の日別スケジュールで確認できます。`
+            : `${dateLabel(data.day)}のショー時刻を確認中です。`;
+        showsStatus.append(message);
         if (data.official_url) {
           const link = document.createElement('a');
           link.href = data.official_url;
