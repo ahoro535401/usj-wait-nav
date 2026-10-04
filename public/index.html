@@ -27,11 +27,18 @@
     #error { color: #a42222; }
     .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .archive-panel, .shows-panel, .weather-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
     .weather-panel h2 { margin: 0 0 7px; font-size: 1.35rem; }
+    .weather-details summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; cursor: pointer; }
+    .weather-details summary::before { content: '▸'; color: #1058a7; font-size: 1.1rem; }
+    .weather-details[open] summary::before { content: '▾'; }
+    .weather-details summary h2 { margin: 0; }
+    .weather-details summary small { color: #526477; font-size: .82rem; }
+    .weather-details-body { padding-top: 8px; }
     .weather-values { display: flex; flex-wrap: wrap; gap: 9px; margin: 12px 0; }
     .weather-values div { flex: 1 1 110px; padding: 10px; background: #eef5ff; border-radius: 8px; }
     .weather-values small { display: block; color: #526477; }
     .weather-values strong { display: block; font-size: 1.18rem; }
     .weather-alert { padding: 10px 12px; border-radius: 8px; background: #fff4d2; color: #654700; }
+    .weather-alert[data-level="high"] { background: #ffe4df; color: #822f27; }
     .ride-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 9px 14px; margin: 12px 0; }
     .ride-filters label { display: grid; gap: 4px; font-size: .85rem; font-weight: 700; }
     .ride-filters .check-filter { display: flex; align-items: center; gap: 4px; min-height: 40px; }
@@ -202,15 +209,20 @@
   </div>
   <main>
   <section class="weather-panel" aria-labelledby="weather-title">
-    <h2 id="weather-title">大阪の天気とUSJ付近の予報</h2>
+    <details class="weather-details">
+      <summary><h2 id="weather-title">大阪の天気とUSJ付近の予報</h2><small id="weather-summary">予報を読み込み中…</small></summary>
+      <div class="weather-details-body">
     <p id="jma-forecast" class="muted">気象庁の大阪府予報を読み込み中…</p>
     <p id="jma-status" class="muted" role="status">大阪観測所の実測値を読み込み中…</p>
     <div class="weather-values" aria-label="大阪観測所の実測値"><div><small>気象庁・実測気温</small><strong id="jma-temperature">—</strong></div><div><small>気象庁・実測風速</small><strong id="jma-wind">—</strong></div><div><small>気象庁・実測1時間降水量</small><strong id="jma-rain">—</strong></div></div>
     <h3>USJ付近の時間別予報</h3>
     <p id="weather-status" class="muted" role="status">予報を読み込み中…</p>
-    <div class="weather-values" aria-label="USJ付近の予報値"><div><small>予報・天気</small><strong id="weather-condition">—</strong></div><div><small>予報・気温</small><strong id="weather-temperature">—</strong></div><div><small>予報・風速</small><strong id="weather-wind">—</strong></div><div><small>予報・1時間降水量</small><strong id="weather-rain">—</strong></div></div>
+    <div class="weather-values" aria-label="USJ付近の予報値"><div><small>予報・天気</small><strong id="weather-condition">—</strong></div><div><small>予報・気温</small><strong id="weather-temperature">—</strong></div><div><small>予報・平均風速</small><strong id="weather-wind">—</strong></div><div id="weather-gust-cell" hidden><small>予報・最大瞬間風速</small><strong id="weather-gust">—</strong></div><div><small>予報・1時間降水量</small><strong id="weather-rain">—</strong></div></div>
+    <p class="muted">気象庁の実測は大阪観測所の値で、USJ現地の測定値ではありません。USJ付近の時間別予報はノルウェー気象研究所の値です。予報の平均風速は地上約10mの10分平均です。<span id="weather-gust-note">最大瞬間風速はこの地点の予報に含まれないため、突風は自動判定できません。</span></p>
+      </div>
+    </details>
     <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
-    <p class="muted">気象庁の実測は大阪観測所の値で、USJ現地の測定値ではありません。USJ付近の時間別予報はノルウェー気象研究所の値です。今後約6時間の風速10m/s以上、または1時間降水量1mm以上を注意目安とします。運休を予測・判定するものではありません。</p>
+    <p class="muted">平均風速7m/s以上で注意、平均風速10m/s以上で強い注意を表示します。最大瞬間風速が取得できる場合は、10m/s以上の突風も強い注意の対象です。これは本サイト独自の目安で、USJの運休基準や運休の予測ではありません。</p>
   </section>
   <section class="heatmap-panel" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
@@ -463,17 +475,35 @@
         document.querySelector('#weather-condition').textContent = condition;
         document.querySelector('#weather-temperature').textContent = Number.isFinite(current.temperature) ? `${current.temperature.toFixed(1)}℃` : '—';
         document.querySelector('#weather-wind').textContent = Number.isFinite(current.wind_speed) ? `${current.wind_speed.toFixed(1)}m/s` : '—';
+        document.querySelector('#weather-gust').textContent = Number.isFinite(current.wind_gust) ? `${current.wind_gust.toFixed(1)}m/s` : '—';
+        const gustAvailable = periods.some(item => Number.isFinite(item.wind_gust));
+        document.querySelector('#weather-gust-cell').hidden = !Number.isFinite(current.wind_gust);
+        document.querySelector('#weather-gust-note').textContent = gustAvailable
+          ? '最大瞬間風速は予報に含まれる場合に限り表示・判定します。'
+          : '最大瞬間風速はこの地点の予報に含まれないため、突風は自動判定できません。';
         document.querySelector('#weather-rain').textContent = Number.isFinite(current.precipitation) ? `${current.precipitation.toFixed(1)}mm` : '—';
+        document.querySelector('#weather-summary').textContent = `USJ付近：${condition}・平均風速${Number.isFinite(current.wind_speed) ? `${current.wind_speed.toFixed(1)}m/s` : '不明'}${data.stale ? '（前回取得値）' : ''}`;
         const forecastTime = hourMinuteFormat.format(new Date(current.time));
         weatherStatus.textContent = `${data.location} · ${forecastTime} JSTの時間別予報${data.stale ? '（前回取得値）' : ''}`;
         const nextSix = periods.slice(0, 6);
-        const windy = nextSix.some(item => Number(item.wind_speed) >= 10);
-        const rainy = nextSix.some(item => Number(item.precipitation) >= 1);
-        weatherAdvice.textContent = windy || rainy
-          ? `今後約6時間に${windy ? '風速10m/s以上' : ''}${windy && rainy ? '・' : ''}${rainy ? '1時間降水量1mm以上' : ''}の予報があります。屋外ライドの運行変更にご注意ください。実際の運行状況はUSJ公式アプリでご確認ください。`
-          : '今後約6時間の予報では、当サイトの風・雨の注意目安に達していません。屋外ライドの運行状況はUSJ公式アプリでご確認ください。';
+        const averageHigh = nextSix.some(item => Number.isFinite(item.wind_speed) && item.wind_speed >= 10);
+        const gustHigh = nextSix.some(item => Number.isFinite(item.wind_gust) && item.wind_gust >= 10);
+        const averageCaution = nextSix.some(item => Number.isFinite(item.wind_speed) && item.wind_speed >= 7);
+        const rainy = nextSix.some(item => Number.isFinite(item.precipitation) && item.precipitation >= 1);
+        const reasons = [];
+        if (averageHigh) reasons.push('平均風速10m/s以上');
+        else if (averageCaution) reasons.push('平均風速7m/s以上');
+        if (gustHigh) reasons.push('最大瞬間風速10m/s以上');
+        if (rainy) reasons.push('1時間降水量1mm以上');
+        const high = averageHigh || gustHigh;
+        weatherAdvice.dataset.level = high ? 'high' : reasons.length ? 'caution' : 'normal';
+        weatherAdvice.textContent = reasons.length
+          ? `${data.stale ? '前回取得の予報です。' : ''}今後約6時間に${reasons.join('、')}の予報があります。${high ? '屋外コースターの一時停止・運休に特にご注意ください。' : '屋外アトラクションの運行変更にご注意ください。'}運行状況はUSJ公式アプリでご確認ください。`
+          : `${data.stale ? '前回取得の予報です。' : ''}今後約6時間の予報では、当サイトの風・雨の注意目安に達していません。屋外アトラクションの運行状況はUSJ公式アプリでご確認ください。`;
       } catch (_) {
         weatherStatus.textContent = '予報を取得できませんでした。';
+        document.querySelector('#weather-summary').textContent = 'USJ付近の予報を取得できませんでした';
+        weatherAdvice.dataset.level = 'normal';
         weatherAdvice.textContent = '屋外ライドの運行状況はUSJ公式アプリでご確認ください。';
       }
     }
