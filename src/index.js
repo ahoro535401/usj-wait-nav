@@ -14,9 +14,11 @@ const SOURCE_MAX_AGE = 15 * 60;
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
 const COLLECTION_TRAIL_SECONDS = 30 * 60;
-const JURASSIC = [
+const DISTINCT_RIDES = [
   { externalId: 'usj.usj.rides.jurassic_park_the_ride', id: 12067, name: 'Jurassic Park – The Ride™' },
   { externalId: 'usj.usj.rides.jurassic_park_the_ride_in_the_dark_2026', id: 15322, name: 'Jurassic Park - The Ride in the Dark' },
+  { externalId: 'usj.usj.rides.jaws', id: 12068, name: 'JAWS' },
+  { externalId: 'usj.usj.rides.jaws_discoveru_version_2026', id: 17894, name: 'JAWS: Red Alert' },
 ];
 const SHOW_NAMES = {
   'usj.usj.shows.minions_belloween_greeting_2026': 'ミニオン・ベロウィーン・グリーティング',
@@ -49,7 +51,7 @@ const jstHour = seconds => Math.floor(((seconds + JST_OFFSET) % 86400) / 3600);
 const jstMinute = seconds => Math.floor(((seconds + JST_OFFSET) % 3600) / 60);
 const hhmm = seconds => new Date((seconds + JST_OFFSET) * 1000).toISOString().slice(11, 16);
 const dayStart = seconds => Math.floor((seconds + JST_OFFSET) / 86400) * 86400 - JST_OFFSET;
-const visibleSample = row => row.ride_id !== 12067 && row.ride_id !== 15322 ||
+const visibleSample = row => ![12067, 15322, 12068, 17894].includes(row.ride_id) ||
   row.source === 'ThemeParks.wiki' || row.ride_id === 15322 && row.source === DARK_ESTIMATE_SOURCE;
 const json = (value, status = 200) => Response.json(value, {
   status,
@@ -251,7 +253,7 @@ function parseRides(queueRaw, wikiRaw, fetchedAt) {
   if (!rides.length) throw new Error('待ち時間データが空です');
   const byId = new Map(rides.map(ride => [ride.id, ride]));
   const byExternal = new Map((wikiRaw?.liveData || []).map(item => [item.externalId, item]));
-  for (const definition of JURASSIC) {
+  for (const definition of DISTINCT_RIDES) {
     const ride = byId.get(definition.id) || { id: definition.id, name: definition.name };
     if (!byId.has(definition.id)) rides.push(ride);
     ride.source = 'ThemeParks.wiki';
