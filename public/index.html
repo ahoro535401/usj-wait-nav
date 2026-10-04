@@ -28,6 +28,9 @@
     .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .archive-panel, .shows-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
     .shows-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
     .shows-panel p { margin: 5px 0 12px; }
+    .show-date-list { display: flex; flex-wrap: wrap; gap: 7px; padding: 3px 1px 10px; margin: 9px 0 5px; }
+    .show-date-list button { flex: 0 0 auto; padding: 8px 11px; border: 1px solid #cbd8e6; background: #fff; color: #1058a7; font-size: .88rem; font-weight: 700; }
+    .show-date-list button[aria-pressed="true"] { background: #1058a7; border-color: #1058a7; color: #fff; }
     .show-timeline-scroll { overflow: auto; max-height: 630px; border: 1px solid #dce4ed; border-radius: 9px; }
     .show-axis, .show-row { display: flex; width: max-content; border-bottom: 1px solid #e4e9ef; }
     .show-axis { position: sticky; top: 0; z-index: 5; background: #eef5ff; }
@@ -90,12 +93,6 @@
     .calendar-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
     .calendar-panel h3 { margin: 19px 0 10px; font-size: 1.03rem; }
     .calendar-panel p { margin: 5px 0 12px; }
-    .week-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 9px; }
-    .day-card { border: 1px solid #dce4ed; border-radius: 10px; padding: 11px; min-height: 80px; background: #f8fafc; }
-    .day-card.today { border-color: #1058a7; background: #eef5ff; }
-    .day-card strong, .day-card span { display: block; }
-    .day-card strong { margin-bottom: 7px; font-size: .91rem; }
-    .day-card span { font-weight: 700; color: #1058a7; }
     .calendar-nav { display: flex; justify-content: space-between; align-items: center; gap: 10px; max-width: 580px; margin: 12px 0; }
     .calendar-nav strong { font-size: 1.08rem; }
     .calendar-nav button { padding: 6px 11px; }
@@ -213,10 +210,11 @@
   <!-- 広告枠1：承認済み広告コードとプライバシー表示を設定してから有効化 -->
   <aside id="ad-slot-1" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-1"></div></aside>
   <section class="shows-panel" aria-labelledby="shows-title">
-    <h2 id="shows-title">今日のショー開始時刻</h2>
+    <h2 id="shows-title">ショー開始時刻</h2>
     <p class="muted">横軸は時刻です。青い印は開始時刻、帯は公表された所要時間または終了時刻の目安です。</p>
+    <div id="show-dates" class="show-date-list" role="group" aria-label="ショーの日付を選択"></div>
     <p id="shows-status" class="muted" role="status">ショー時刻を読み込み中…</p>
-    <div class="show-timeline-scroll" tabindex="0" aria-label="今日のショー開始時刻。左右にスクロールできます">
+    <div class="show-timeline-scroll" tabindex="0" aria-label="選択した日のショー開始時刻。左右にスクロールできます">
       <div id="show-timeline" role="table" aria-label="ショー別の時間軸"></div>
     </div>
     <p class="muted">破線の帯は約分数による目安です。「パーククローズまで」は開催時間帯で、各回の長さではありません。天候などで変更・中止される場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>でご確認ください。</p>
@@ -229,9 +227,7 @@
     <p id="closures-status" class="muted">休止予定を読み込み中…</p>
     <ul id="today-closures" class="closure-list"></ul>
     <p class="muted">休止予定は確認日現在の掲載情報です。急な中止・変更は反映されません。<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure" target="_blank" rel="noopener noreferrer">USJ公式の休止情報</a>で最新情報をご確認ください。</p>
-    <h3>今日から7日間</h3>
-    <div id="week-hours" class="week-grid"></div>
-    <h3>そのほかの日付</h3>
+    <h3>日付から探す</h3>
     <div class="calendar-nav"><button id="month-prev" type="button" aria-label="前の月">‹ 前月</button><strong id="month-label"></strong><button id="month-next" type="button" aria-label="次の月">翌月 ›</button></div>
     <div id="calendar-grid" class="calendar-grid" aria-label="営業時間と休止予定のカレンダー"></div>
     <div id="selected-day" class="selected-day" role="status">カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
@@ -285,6 +281,7 @@
     const error = document.querySelector('#error');
     const showsStatus = document.querySelector('#shows-status');
     const showTimeline = document.querySelector('#show-timeline');
+    const showDates = document.querySelector('#show-dates');
     const rideSelect = document.querySelector('#ride-select');
     const rangeSelect = document.querySelector('#range-select');
     const historyStatus = document.querySelector('#history-status');
@@ -300,7 +297,6 @@
     const scheduleStatus = document.querySelector('#schedule-status');
     const closuresStatus = document.querySelector('#closures-status');
     const todayClosures = document.querySelector('#today-closures');
-    const weekHours = document.querySelector('#week-hours');
     const calendarGrid = document.querySelector('#calendar-grid');
     const monthLabel = document.querySelector('#month-label');
     const monthPrev = document.querySelector('#month-prev');
@@ -441,34 +437,10 @@
         if (!Array.isArray(data.closures) || !data.checked_at) throw new Error('休止予定データの形式が不正です');
         closuresData = data;
         renderTodayClosures();
-        renderWeek();
         if (selectedDate) showSelectedDay(selectedDate);
         else renderCalendar();
       } catch (cause) {
         closuresStatus.textContent = `休止予定を読み込めません: ${cause.message}${closuresData ? ' · 前回読込分を表示中' : ''}`;
-      }
-    }
-
-    function renderWeek() {
-      weekHours.replaceChildren();
-      const today = jstToday();
-      for (let offset = 0; offset < 7; offset++) {
-        const day = addDays(today, offset);
-        const card = document.createElement('div');
-        card.className = `day-card${offset === 0 ? ' today' : ''}`;
-        const title = document.createElement('strong');
-        title.textContent = `${offset === 0 ? '今日 · ' : ''}${dateLabel(day)}`;
-        const hours = document.createElement('span');
-        hours.textContent = hoursLabel(scheduleDays.get(day));
-        card.append(title, hours);
-        const count = closuresFor(day).length;
-        if (count) {
-          const closure = document.createElement('small');
-          closure.className = 'closure-count';
-          closure.textContent = `休止予定 ${count}件`;
-          card.append(closure);
-        }
-        weekHours.append(card);
       }
     }
 
@@ -559,12 +531,10 @@
         }
         const fetched = data.fetched_at ? `${timeFormat.format(new Date(data.fetched_at))} JST` : '未取得';
         scheduleStatus.textContent = `予定データ取得 ${fetched}${data.error ? ' · 更新に失敗したため保存済みの予定を表示中' : ''}`;
-        renderWeek();
         if (selectedDate) showSelectedDay(selectedDate);
         else renderCalendar();
       } catch (cause) {
         scheduleStatus.textContent = `営業時間を読み込めません: ${cause.message}`;
-        renderWeek();
         renderCalendar();
       }
     }
@@ -657,10 +627,42 @@
       ['プレイバック・ゾンビ・デ・ダンス ～ハロウィーン・ホラー・ナイト 15周年～', {url: 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/zombie-de-dance'}],
     ]);
 
+    let showSelectedDate = jstToday();
+    let showRequest = 0;
+    function renderShowDates() {
+      const today = jstToday();
+      if (showSelectedDate < today || showSelectedDate > addDays(today, 6)) showSelectedDate = today;
+      showDates.replaceChildren();
+      for (let offset = 0; offset < 7; offset++) {
+        const day = addDays(today, offset);
+        const dateButton = document.createElement('button');
+        dateButton.type = 'button';
+        dateButton.textContent = `${offset === 0 ? '今日 · ' : ''}${dateLabel(day)}`;
+        dateButton.setAttribute('aria-pressed', String(day === showSelectedDate));
+        dateButton.addEventListener('click', () => {
+          showSelectedDate = day;
+          renderShowDates();
+          loadShows();
+        });
+        showDates.append(dateButton);
+      }
+    }
+
     function renderShows(data) {
       showTimeline.replaceChildren();
+      showsStatus.replaceChildren();
       if (data.unavailable) {
-        showsStatus.textContent = 'ショー時刻の公開データを確認できません。次の5分更新で再試行します。';
+        showsStatus.append(data.reason === 'future'
+          ? `${dateLabel(data.day)}の開始時刻は本サイトで未取得です。`
+          : '今日のショー時刻を確認中です。次の5分更新で再試行します。');
+        if (data.official_url) {
+          const link = document.createElement('a');
+          link.href = data.official_url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'USJ公式の日別スケジュールを見る';
+          showsStatus.append(' ', link);
+        }
         return;
       }
       const shows = data.shows || [];
@@ -682,7 +684,7 @@
       const leftMinute = startHour * 60;
       const trackWidth = (endHour - startHour) * 90 + 48;
       const position = value => (value - leftMinute) / 60 * 90;
-      const nowMinute = (Date.now() - midnight) / 60000;
+      const nowMinute = data.day === jstToday() ? (Date.now() - midnight) / 60000 : -Infinity;
       const makeTrack = (isAxis = false) => {
         const track = document.createElement('div');
         track.className = 'show-track';
@@ -780,17 +782,20 @@
       const upcoming = shows.flatMap(show => show.times.map(slot => ({name: show.name, start: slot.start})))
         .filter(slot => Date.parse(slot.start) >= Date.now())
         .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
-      const next = upcoming.length ? ` · 次の開始 ${hourMinuteFormat.format(new Date(upcoming[0].start))} ${upcoming[0].name}` : '';
+      const next = data.day === jstToday() && upcoming.length ? ` · 次の開始 ${hourMinuteFormat.format(new Date(upcoming[0].start))} ${upcoming[0].name}` : '';
       showsStatus.textContent = `${data.day.replaceAll('-', '/')} JST · ${shows.length}件 · ${shows.reduce((sum, show) => sum + show.times.length, 0)}回の開始時刻 · データ確認 ${timeFormat.format(new Date(data.fetched_at))} JST${next}`;
     }
 
     async function loadShows() {
+      renderShowDates();
+      const requestNumber = ++showRequest;
       try {
-        const response = await fetch('/api/shows', {cache: 'no-store'});
+        const response = await fetch(`/api/shows?date=${encodeURIComponent(showSelectedDate)}`, {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-        renderShows(data);
+        if (requestNumber === showRequest) renderShows(data);
       } catch (cause) {
+        if (requestNumber !== showRequest) return;
         showTimeline.replaceChildren();
         showsStatus.textContent = `ショー時刻を読み込めません: ${cause.message}`;
       }
