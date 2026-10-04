@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "usj-wait-nav",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-04",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "run_worker_first": ["/", "/privacy", "/api/*"]
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *", "2,22,42 * * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "usj-wait-nav-db",
+      "database_id": "56859b57-f992-4bfc-883f-214e3a9dd9b3"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

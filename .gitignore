@@ -1,0 +1,15 @@
+node_modules/
+.npm-cache/
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
+*.sqlite3
+*.db
+data/
+backups/
+*.log
+dist/
+seed.sql
+seed_export.py
