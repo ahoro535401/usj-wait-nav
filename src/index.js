@@ -5,6 +5,8 @@ const OFFICIAL_SHOW_API = 'https://mobile-service.usj.co.jp/api/Web/ShowsAndAttr
 const OFFICIAL_SCHEDULE_URL = 'https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2';
 const WEATHER_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.6654&lon=135.4334';
 const WEATHER_AGENT = 'USJWaitNav/1.0 github.com/ahoro535401/usj-wait-nav';
+const JMA_LATEST_URL = 'https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
+const JMA_FORECAST_URL = 'https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json';
 const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
@@ -90,6 +92,52 @@ async function getWeather(db) {
     return data;
   } catch (error) {
     if (cached?.fetched_at && Date.now() - Date.parse(cached.fetched_at) < 3 * 3600 * 1000)
+      return { ...cached, stale: true };
+    throw error;
+  }
+}
+
+async function getJmaWeather(db) {
+  const stored = await readMeta(db, 'jma_weather_payload');
+  const cached = stored ? JSON.parse(stored) : null;
+  if (cached?.expires_at && Date.parse(cached.expires_at) > Date.now()) return cached;
+  try {
+    const [latestResponse, forecastResponse] = await Promise.all([
+      fetch(JMA_LATEST_URL), fetch(JMA_FORECAST_URL),
+    ]);
+    if (!latestResponse.ok || !forecastResponse.ok) throw new Error('JMA fetch failed');
+    const latest = (await latestResponse.text()).trim();
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+09:00$/.test(latest)) throw new Error('JMA timestamp changed');
+    const date = latest.slice(0, 10).replaceAll('-', '');
+    const hour = Math.floor(Number(latest.slice(11, 13)) / 3) * 3;
+    const pointUrl = `https://www.jma.go.jp/bosai/amedas/data/point/62078/${date}_${String(hour).padStart(2, '0')}.json`;
+    const pointResponse = await fetch(pointUrl);
+    if (!pointResponse.ok) throw new Error('JMA Osaka observation unavailable');
+    const [points, forecast] = await Promise.all([pointResponse.json(), forecastResponse.json()]);
+    const key = Object.keys(points).sort().at(-1);
+    const point = points[key];
+    const measured = value => Array.isArray(value) && value[1] === 0 && Number.isFinite(value[0]) ? value[0] : null;
+    const observedAt = key ? `${key.slice(0,4)}-${key.slice(4,6)}-${key.slice(6,8)}T${key.slice(8,10)}:${key.slice(10,12)}:00+09:00` : null;
+    const today = forecast?.[0];
+    const area = today?.timeSeries?.[0]?.areas?.find(item => item.area?.code === '270000');
+    const data = {
+      location: '大阪府の予報・大阪観測所の実測',
+      observed_at: observedAt,
+      temperature: measured(point?.temp),
+      wind_speed: measured(point?.wind),
+      precipitation_1h: measured(point?.precipitation1h),
+      forecast_text: area?.weathers?.[0] || null,
+      forecast_reported_at: today?.reportDatetime || null,
+      source_url: JMA_FORECAST_URL,
+      observation_url: 'https://www.jma.go.jp/bosai/map.html#contents=amedas',
+      fetched_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    };
+    if (!data.observed_at || !Number.isFinite(data.temperature)) throw new Error('JMA observation format changed');
+    await writeMeta(db, 'jma_weather_payload', JSON.stringify(data));
+    return data;
+  } catch (error) {
+    if (cached?.fetched_at && Date.now() - Date.parse(cached.fetched_at) < 60 * 60 * 1000)
       return { ...cached, stale: true };
     throw error;
   }
@@ -552,7 +600,13 @@ async function route(request, env) {
     url.pathname = url.pathname === '/api/events' ? '/events.json' : '/closures.json';
     return assetFetch(new Request(url, request), env);
   }
-  if (url.pathname === '/api/weather') return json(await getWeather(env.DB));
+  if (url.pathname === '/api/weather') {
+    const [local, jma] = await Promise.allSettled([getWeather(env.DB), getJmaWeather(env.DB)]);
+    if (local.status === 'rejected' && jma.status === 'rejected')
+      return json({ error: '天気情報を取得できません' }, 502);
+    return json({ ...(local.status === 'fulfilled' ? local.value : { periods: [], unavailable: true }),
+      jma: jma.status === 'fulfilled' ? jma.value : null });
+  }
   if (url.pathname === '/api/schedule') {
     const { results } = await env.DB.prepare('SELECT day,opens,closes,status FROM park_days ORDER BY day').all();
     return json({ days: results, fetched_at: await readMeta(env.DB, 'schedule_fetched_at'),
