@@ -20,6 +20,10 @@
     .unofficial { display: inline-block; padding: 2px 7px; border-radius: 4px; background: #eef5ff; color: #526477; font-size: .76rem; font-weight: 700; }
     p { line-height: 1.6; }
     .sub { color: #526477; margin: 0 0 22px; }
+    .today-hours { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 14px; margin: 0 0 18px; padding: 12px 16px; border: 1px solid #bcd2eb; border-radius: 10px; background: #eaf3ff; }
+    .today-hours strong { font-size: .9rem; }
+    .today-hours-time { color: #1058a7; font-size: 1.45rem; font-weight: 800; }
+    .today-hours a { margin-left: auto; font-size: .85rem; }
     .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
     button { border: 0; border-radius: 8px; padding: 10px 18px; color: white; background: #1058a7; font: inherit; cursor: pointer; }
     button:disabled { opacity: .6; cursor: wait; }
@@ -202,6 +206,10 @@
   <h1>USJの待ち時間・混雑状況</h1>
   <p class="sub">掲載する待ち時間は提供元の公開データに基づく値で、現地で実測した待機時間ではありません。本サイトは個人運営の非公式サイトです。</p>
   <!--PUBLIC_SUMMARY-->
+  <div class="today-hours" role="status" aria-label="本日の公表営業時間">
+    <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
+    <a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">公式で確認</a>
+  </div>
   <div class="bar">
     <button id="refresh" type="button">表示を更新</button>
     <span id="status" role="status"></span>
@@ -334,7 +342,7 @@
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
     <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックの2件の現在値と当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。10月4日の夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
-    <p>公表営業時間の前後30分を含む時間帯にサーバーが5分おきに公開データを取得し、毎時0・20・40分の取得値を保存します。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックの2件はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
+    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分の取得値を保存します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックの2件はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
   <script>
     const button = document.querySelector('#refresh');
@@ -356,6 +364,7 @@
     const trend = document.querySelector('#trend');
     const recentRecords = document.querySelector('#recent-records');
     const scheduleStatus = document.querySelector('#schedule-status');
+    const todayHoursTime = document.querySelector('#today-hours-time');
     const closuresStatus = document.querySelector('#closures-status');
     const todayClosures = document.querySelector('#today-closures');
     const calendarGrid = document.querySelector('#calendar-grid');
@@ -756,6 +765,7 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         scheduleDays = new Map(data.days.map(item => [item.day, item]));
+        todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（保存済みの予定）' : ''}`;
         if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length) {
           selectedDate = null;
           selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
@@ -765,6 +775,7 @@
         if (selectedDate) showSelectedDay(selectedDate);
         else renderCalendar();
       } catch (cause) {
+        todayHoursTime.textContent = scheduleDays.size ? `${hoursLabel(scheduleDays.get(jstToday()))}（前回表示）` : '取得できません';
         scheduleStatus.textContent = `営業時間を読み込めません: ${cause.message}`;
         renderCalendar();
       }
