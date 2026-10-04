@@ -39,6 +39,17 @@
     .favorite-button { margin-right: 5px; padding: 1px 4px; background: transparent; color: #637184; border-radius: 4px; font-size: 1.06rem; line-height: 1; }
     .favorite-button[aria-pressed="true"] { color: #b36100; }
     .favorite-button:focus-visible { outline: 2px solid #1058a7; }
+    .sort-note { margin-top: 0 !important; }
+    .mobile-card-list { display: none; }
+    .ride-card { display: flex; align-items: start; gap: 5px; padding: 9px 6px; border-bottom: 1px solid #dce4ed; }
+    .ride-card details { flex: 1; min-width: 0; }
+    .ride-card summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
+    .ride-card-name { min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+    .ride-card-wait { flex: 0 0 auto; min-width: 72px; padding: 5px; border-radius: 5px; text-align: center; font-weight: 700; }
+    .ride-card-history { margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid #e4e9ef; }
+    .ride-card-history a { display: inline-block; margin-bottom: 8px; }
+    .ride-card-record { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+    .ride-card-record strong { min-width: 72px; text-align: center; }
     .shows-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
     .shows-panel p { margin: 5px 0 12px; }
     .show-date-list { display: flex; flex-wrap: wrap; gap: 7px; padding: 3px 1px 10px; margin: 9px 0 5px; }
@@ -171,6 +182,7 @@
       .heatmap-table thead th, .heatmap-table tbody th { position: static; }
       .heatmap-table thead th:first-child, .heatmap-table tbody th { width: 43%; font-size: .72rem; }
       .heatmap-table tbody td { font-size: .72rem; }
+      .mobile-card-list:not([hidden]) { display: grid; border: 1px solid #dce4ed; border-radius: 9px; }
       .show-label { flex-basis: 175px; width: 175px; }
     }
   </style>
@@ -208,16 +220,20 @@
       <label>身長の目安 <select id="height-filter"><option value="all">指定なし</option><option value="0">身長制限なし</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
       <label class="check-filter"><input id="child-switch-filter" type="checkbox">チャイルドスイッチ対応のみ</label>
       <label class="check-filter"><input id="favorites-filter" type="checkbox">お気に入りのみ</label>
+      <label>並び順 <select id="ride-sort"><option value="wait-desc">現在の待ち時間が長い順</option><option value="wait-asc">現在の待ち時間が短い順</option><option value="name">名前順</option></select></label>
     </div>
-    <p class="muted">★でお気に入り登録すると上部に表示します。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
+    <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
+    <p class="muted">★でお気に入り登録できます。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <div class="heatmap-legend" aria-label="待ち時間の色分け">
       <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
     </div>
     <label class="mobile-heatmap-controls" for="heatmap-range">保存時刻 <select id="heatmap-range" aria-label="表示する保存時刻"></select></label>
-    <div class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
+    <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="スマホでの表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
+    <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
     </div>
+    <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
     <p class="muted">色は待ち時間の長さを示します。</p>
   </section>
   <section class="archive-panel" aria-labelledby="archive-title">
@@ -234,6 +250,7 @@
       <div><small>記録がある時刻</small><strong id="archive-coverage">—</strong></div>
     </div>
     <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
+    <p class="muted">過去の表は★お気に入りを先頭に表示し、それぞれ選択日の記録平均が長い順で並べます。</p>
     <div class="heatmap-scroll" tabindex="0" aria-label="過去のアトラクション別・時間帯別待ち時間表">
       <table class="heatmap-table"><thead><tr id="archive-head"></tr></thead><tbody id="archive-body"></tbody></table>
     </div>
@@ -342,6 +359,11 @@
     const heatmapHead = document.querySelector('#heatmap-head');
     const heatmapBody = document.querySelector('#heatmap-body');
     const heatmapRange = document.querySelector('#heatmap-range');
+    const todayTable = document.querySelector('#today-table');
+    const mobileCards = document.querySelector('#mobile-cards');
+    const mobileView = document.querySelector('#mobile-view');
+    const rideSort = document.querySelector('#ride-sort');
+    const sortNote = document.querySelector('#sort-note');
     const archiveDate = document.querySelector('#archive-date');
     const archiveHours = document.querySelector('#archive-hours');
     const archiveStatus = document.querySelector('#archive-status');
@@ -520,8 +542,7 @@
       [15322, 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/jurassic-park-the-ride-in-the-dark'],
     ]);
 
-    function setAttractionName(cell, id, label) {
-      cell.title = label;
+    function favoriteButton(id, label) {
       const favorite = document.createElement('button');
       favorite.type = 'button';
       favorite.className = 'favorite-button';
@@ -529,6 +550,12 @@
       favorite.setAttribute('aria-pressed', String(favorites.has(Number(id))));
       favorite.setAttribute('aria-label', `${label}をお気に入り${favorites.has(Number(id)) ? 'から外す' : 'に登録'}`);
       favorite.addEventListener('click', () => toggleFavorite(id));
+      return favorite;
+    }
+
+    function setAttractionName(cell, id, label) {
+      cell.title = label;
+      const favorite = favoriteButton(id, label);
       const url = officialAttractionUrls.get(Number(id));
       if (!url) {
         cell.replaceChildren(favorite, document.createTextNode(label));
@@ -1219,12 +1246,29 @@
         heatmapRange.disabled = pages < 2;
         visibleSnapshots = snapshots.slice(heatmapPage * pageSize, (heatmapPage + 1) * pageSize);
       }
+      const currentCells = new Map(currentData.rides.map(ride => [ride.id, heatCell(ride, '現在', true)]));
+      const isWaitCell = cell => /^heat-[0-4]$/.test(cell.className);
+      const currentRank = ride => {
+        const cell = currentCells.get(ride.id);
+        if (cell.textContent === '休') return 2;
+        return isWaitCell(cell) ? 0 : 1;
+      };
       const rides = [...currentData.rides].filter(ride => matchesRide(ride.id)).sort((a, b) => {
         const favoriteOrder = favoriteFirst(a.id, b.id);
         if (favoriteOrder) return favoriteOrder;
-        if (a.is_open !== b.is_open) return a.is_open ? -1 : 1;
-        return (b.wait_time || 0) - (a.wait_time || 0);
+        const nameOrder = rideName(a).localeCompare(rideName(b), 'ja');
+        if (rideSort.value === 'name') return nameOrder;
+        const rankOrder = currentRank(a) - currentRank(b);
+        if (rankOrder) return rankOrder;
+        if (currentRank(a) === 0) {
+          const waitOrder = Number.parseFloat(currentCells.get(a.id).textContent) - Number.parseFloat(currentCells.get(b.id).textContent);
+          if (waitOrder) return rideSort.value === 'wait-asc' ? waitOrder : -waitOrder;
+        }
+        return nameOrder;
       });
+      sortNote.textContent = rideSort.value === 'name'
+        ? '★お気に入りを先頭に表示し、それぞれ名前順で並べます。'
+        : `★お気に入りを先頭に表示し、それぞれ現在の待ち時間が${rideSort.value === 'wait-asc' ? '短い' : '長い'}順で並べます。未取得・休止中は末尾です。`;
       heatmapHead.replaceChildren();
       heatmapBody.replaceChildren();
       for (const label of ['アトラクション', '現在', ...visibleSnapshots.map(item => hourMinuteFormat.format(new Date(item.captured_at * 1000)))]) {
@@ -1238,13 +1282,59 @@
         const name = document.createElement('th');
         name.scope = 'row';
         setAttractionName(name, ride.id, rideName(ride));
-        row.append(name, heatCell(ride, '現在', true));
+        row.append(name, currentCells.get(ride.id));
         for (const snapshot of visibleSnapshots) {
           const label = `${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}の保存値`;
           row.append(heatCell(snapshot.rides[String(ride.id)], label));
         }
         heatmapBody.append(row);
       }
+      mobileCards.replaceChildren();
+      if (mobileHeatmap.matches) for (const ride of rides) {
+        const card = document.createElement('div');
+        card.className = 'ride-card';
+        const label = rideName(ride);
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        const name = document.createElement('span');
+        name.className = 'ride-card-name';
+        name.textContent = label;
+        const current = currentCells.get(ride.id);
+        const wait = document.createElement('strong');
+        wait.className = `ride-card-wait ${current.className}`;
+        wait.textContent = isWaitCell(current) ? `${current.textContent}分` : current.textContent;
+        wait.title = current.title;
+        summary.append(name, wait);
+        const history = document.createElement('div');
+        history.className = 'ride-card-history';
+        const url = officialAttractionUrls.get(Number(ride.id));
+        if (url) {
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'USJ公式の施設情報を見る';
+          history.append(link);
+        }
+        if (visibleSnapshots.length) for (const snapshot of visibleSnapshots) {
+          const time = hourMinuteFormat.format(new Date(snapshot.captured_at * 1000));
+          const sample = heatCell(snapshot.rides[String(ride.id)], `${time}の保存値`);
+          const record = document.createElement('div');
+          record.className = 'ride-card-record';
+          const timeLabel = document.createElement('span');
+          timeLabel.textContent = time;
+          const value = document.createElement('strong');
+          value.className = sample.className;
+          value.textContent = isWaitCell(sample) ? `${sample.textContent}分` : sample.textContent;
+          value.title = sample.title;
+          record.append(timeLabel, value);
+          history.append(record);
+        } else history.append(document.createTextNode('この時間帯の保存記録はありません。'));
+        details.append(summary, history);
+        card.append(favoriteButton(ride.id, label), details);
+        mobileCards.append(card);
+      }
+      if (mobileHeatmap.matches && !rides.length) mobileCards.textContent = '絞り込みに一致するアトラクションはありません。';
       if (!rides.length) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
@@ -1255,6 +1345,13 @@
       }
       const day = data.day ? data.day.replaceAll('-', '/') : '今日';
       heatmapStatus.textContent = `${day} JST · ${rides.length}/${currentData.rides.length}件表示 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存値は毎時0・20・40分に更新`;
+      syncMobileView();
+    }
+
+    function syncMobileView() {
+      const showCards = mobileHeatmap.matches && mobileView.value === 'cards';
+      todayTable.hidden = showCards;
+      mobileCards.hidden = !showCards;
     }
 
     async function loadToday() {
@@ -1462,6 +1559,8 @@
       if (todayData) renderToday(todayData);
       if (archiveData) renderArchive(archiveData);
     });
+    rideSort.addEventListener('change', () => { if (todayData) renderToday(todayData); });
+    mobileView.addEventListener('change', syncMobileView);
     heatmapRange.addEventListener('change', () => {
       heatmapPage = Number(heatmapRange.value) || 0;
       if (todayData) renderToday(todayData);
