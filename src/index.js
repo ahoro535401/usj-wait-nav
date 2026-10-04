@@ -328,7 +328,7 @@ async function archiveDates(db, seconds) {
   const { results } = await db.prepare(
     "SELECT date(captured_at + 32400, 'unixepoch') AS day, COUNT(*) AS snapshots, " +
     'MIN(captured_at) AS first_at, MAX(captured_at) AS last_at FROM snapshots ' +
-    'WHERE captured_at < ? GROUP BY day ORDER BY day DESC LIMIT 730'
+    'WHERE captured_at < ? GROUP BY day ORDER BY day DESC'
   ).bind(dayStart(seconds)).all();
   return { days: results };
 }
