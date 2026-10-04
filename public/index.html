@@ -59,6 +59,7 @@
     .heatmap-table tbody th { position: sticky; left: 0; z-index: 2; min-width: 230px; max-width: 230px; background: white; text-align: left; font-weight: 600; line-height: 1.3; }
     .heatmap-table tbody td { min-width: 67px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
     .heatmap-table tbody tr:hover th { background: #f2f6fa; }
+    .mobile-heatmap-controls, .mobile-heatmap-hint { display: none; }
     .heat-0 { background: #e6f6f2; color: #174c44; }
     .heat-1 { background: #bee8cf; color: #164b32; }
     .heat-2 { background: #fff0ad; color: #654700; }
@@ -123,7 +124,26 @@
     .ad-slot[hidden] { display: none; }
     .ad-label { display: block; margin-bottom: 8px; color: #526477; font-size: .8rem; }
     a { color: #1058a7; }
-    @media (max-width: 620px) { .metrics { grid-template-columns: 1fr; } .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .shows-panel { padding: 15px; } .calendar-grid button { min-height: 54px; } .calendar-grid small { font-size: .58rem; } .heatmap-table thead th:first-child, .heatmap-table tbody th { min-width: 155px; max-width: 155px; } .show-label { flex-basis: 175px; width: 175px; } }
+    @media (max-width: 620px) {
+      .metrics { grid-template-columns: 1fr; }
+      .history-panel, .calendar-panel, .events-panel, .shows-panel { padding: 15px; }
+      .heatmap-panel { padding: 12px; }
+      .calendar-grid button { min-height: 54px; }
+      .calendar-grid small { font-size: .58rem; }
+      .desktop-heatmap-hint { display: none; }
+      .mobile-heatmap-hint { display: block; }
+      .mobile-heatmap-controls { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: .82rem; font-weight: 700; }
+      .mobile-heatmap-controls select { flex: 1; min-width: 0; padding: 6px; font-size: .82rem; }
+      .heatmap-legend { gap: 4px; font-size: .72rem; }
+      .heatmap-legend span { padding: 2px 4px; }
+      .heatmap-scroll { max-height: none; overflow: visible; border: 0; }
+      .heatmap-table { width: 100%; min-width: 0; table-layout: fixed; font-size: .72rem; }
+      .heatmap-table th, .heatmap-table td { box-sizing: border-box; min-width: 0 !important; max-width: none !important; padding: 6px 3px; overflow-wrap: anywhere; }
+      .heatmap-table thead th, .heatmap-table tbody th { position: static; }
+      .heatmap-table thead th:first-child, .heatmap-table tbody th { width: 43%; font-size: .72rem; }
+      .heatmap-table tbody td { font-size: .72rem; }
+      .show-label { flex-basis: 175px; width: 175px; }
+    }
   </style>
 </head>
 <body>
@@ -142,12 +162,14 @@
   <main>
   <section class="heatmap-panel" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
-    <p class="muted">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted mobile-heatmap-hint">全アトラクションの現在値と直近の保存値を一覧できます。過去の時間帯は下で切り替えられます。数値の単位は分です。</p>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <div class="heatmap-legend" aria-label="待ち時間の色分け">
       <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
     </div>
-    <div class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表。左右にスクロールできます">
+    <label class="mobile-heatmap-controls" for="heatmap-range">保存時刻 <select id="heatmap-range" aria-label="表示する保存時刻"></select></label>
+    <div class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
     </div>
     <p class="muted">色は待ち時間の長さを示します。</p>
@@ -255,11 +277,16 @@
     const heatmapStatus = document.querySelector('#heatmap-status');
     const heatmapHead = document.querySelector('#heatmap-head');
     const heatmapBody = document.querySelector('#heatmap-body');
+    const heatmapRange = document.querySelector('#heatmap-range');
+    const mobileHeatmap = window.matchMedia('(max-width: 620px)');
+    const narrowHeatmap = window.matchMedia('(max-width: 360px)');
     const timeFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
     const hourMinuteFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'});
     let currentData = null;
     let historyRequest = 0;
     let todayRequest = 0;
+    let todayData = null;
+    let heatmapPage = 0;
     let scheduleDays = new Map();
     let closuresData = null;
     let calendarMonth = null;
@@ -777,14 +804,38 @@
 
     function renderToday(data) {
       if (!currentData) return;
+      todayData = data;
       const snapshots = data.snapshots || [];
+      let visibleSnapshots = snapshots;
+      if (mobileHeatmap.matches) {
+        const pageSize = narrowHeatmap.matches ? 2 : 3;
+        const pages = Math.max(1, Math.ceil(snapshots.length / pageSize));
+        if (heatmapPage >= pages) heatmapPage = 0;
+        heatmapRange.replaceChildren();
+        for (let page = 0; page < pages; page++) {
+          const group = snapshots.slice(page * pageSize, (page + 1) * pageSize);
+          const option = document.createElement('option');
+          option.value = String(page);
+          if (group.length) {
+            const newest = hourMinuteFormat.format(new Date(group[0].captured_at * 1000));
+            const oldest = hourMinuteFormat.format(new Date(group.at(-1).captured_at * 1000));
+            option.textContent = `${page === 0 ? '直近' : '過去'} ${newest}${newest === oldest ? '' : `〜${oldest}`}`;
+          } else {
+            option.textContent = '保存記録なし';
+          }
+          heatmapRange.append(option);
+        }
+        heatmapRange.value = String(heatmapPage);
+        heatmapRange.disabled = pages < 2;
+        visibleSnapshots = snapshots.slice(heatmapPage * pageSize, (heatmapPage + 1) * pageSize);
+      }
       const rides = [...currentData.rides].sort((a, b) => {
         if (a.is_open !== b.is_open) return a.is_open ? -1 : 1;
         return (b.wait_time || 0) - (a.wait_time || 0);
       });
       heatmapHead.replaceChildren();
       heatmapBody.replaceChildren();
-      for (const label of ['アトラクション', '現在', ...snapshots.map(item => hourMinuteFormat.format(new Date(item.captured_at * 1000)))]) {
+      for (const label of ['アトラクション', '現在', ...visibleSnapshots.map(item => hourMinuteFormat.format(new Date(item.captured_at * 1000)))]) {
         const heading = document.createElement('th');
         heading.scope = 'col';
         heading.textContent = label;
@@ -795,8 +846,9 @@
         const name = document.createElement('th');
         name.scope = 'row';
         name.textContent = rideName(ride);
+        name.title = rideName(ride);
         row.append(name, heatCell(ride, '現在', true));
-        for (const snapshot of snapshots) {
+        for (const snapshot of visibleSnapshots) {
           const label = `${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}の保存値`;
           row.append(heatCell(snapshot.rides[String(ride.id)], label));
         }
@@ -1003,6 +1055,16 @@
     }
 
     button.addEventListener('click', refresh);
+    heatmapRange.addEventListener('change', () => {
+      heatmapPage = Number(heatmapRange.value) || 0;
+      if (todayData) renderToday(todayData);
+    });
+    for (const breakpoint of [mobileHeatmap, narrowHeatmap]) {
+      breakpoint.addEventListener('change', () => {
+        heatmapPage = 0;
+        if (todayData) renderToday(todayData);
+      });
+    }
     monthPrev.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, -1); renderCalendar(); });
     monthNext.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, 1); renderCalendar(); });
     rideSelect.addEventListener('change', () => { updateMetrics(); loadHistory(); });
