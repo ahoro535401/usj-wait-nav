@@ -324,6 +324,73 @@ async function todayMatrix(db, seconds) {
   return { day: jstDay(seconds), snapshots };
 }
 
+async function archiveDates(db, seconds) {
+  const { results } = await db.prepare(
+    "SELECT date(captured_at + 32400, 'unixepoch') AS day, COUNT(*) AS snapshots, " +
+    'MIN(captured_at) AS first_at, MAX(captured_at) AS last_at FROM snapshots ' +
+    'WHERE captured_at < ? GROUP BY day ORDER BY day DESC LIMIT 730'
+  ).bind(dayStart(seconds)).all();
+  return { days: results };
+}
+
+async function archiveDay(db, day) {
+  const start = Date.parse(`${day}T00:00:00+09:00`) / 1000;
+  const { results } = await db.prepare(
+    'SELECT h.slot,h.captured_at,s.ride_id,s.wait_minutes,s.is_open,s.source ' +
+    'FROM snapshots h LEFT JOIN ride_samples s USING(slot) ' +
+    'WHERE h.captured_at>=? AND h.captured_at<? ORDER BY h.slot,s.ride_id'
+  ).bind(start, start + 86400).all();
+  const slots = new Set();
+  const hours = new Map();
+  let totalWait = 0;
+  let openSamples = 0;
+  let firstAt = null;
+  let lastAt = null;
+  for (const row of results) {
+    slots.add(row.slot);
+    firstAt = firstAt == null ? row.captured_at : Math.min(firstAt, row.captured_at);
+    lastAt = lastAt == null ? row.captured_at : Math.max(lastAt, row.captured_at);
+    const at = Math.floor((row.captured_at + JST_OFFSET) / 3600) * 3600 - JST_OFFSET;
+    const hour = hours.get(at) || { at, slots: new Set(), rides: new Map(), totalWait: 0, openSamples: 0, rideIds: new Set() };
+    hour.slots.add(row.slot);
+    hours.set(at, hour);
+    if (row.ride_id == null || !visibleSample(row)) continue;
+    const ride = hour.rides.get(row.ride_id) || {
+      samples: 0, open_samples: 0, closed_samples: 0, estimated_samples: 0, total_wait: 0,
+    };
+    ride.samples++;
+    if (row.is_open && Number.isInteger(row.wait_minutes)) {
+      ride.open_samples++;
+      ride.total_wait += row.wait_minutes;
+      if (row.source === DARK_ESTIMATE_SOURCE) ride.estimated_samples++;
+      else {
+        hour.totalWait += row.wait_minutes;
+        hour.openSamples++;
+        hour.rideIds.add(row.ride_id);
+        totalWait += row.wait_minutes;
+        openSamples++;
+      }
+    } else if (!row.is_open) ride.closed_samples++;
+    hour.rides.set(row.ride_id, ride);
+  }
+  if (!slots.size) return null;
+  const mean = (total, count) => count ? Math.round(total / count * 10) / 10 : null;
+  return {
+    day, snapshots: slots.size, first_at: firstAt, last_at: lastAt,
+    average_wait: mean(totalWait, openSamples), open_samples: openSamples,
+    hours: [...hours.values()].map(hour => ({
+      at: hour.at, snapshots: hour.slots.size,
+      average_wait: mean(hour.totalWait, hour.openSamples),
+      open_samples: hour.openSamples, ride_count: hour.rideIds.size,
+      rides: Object.fromEntries([...hour.rides].map(([id, ride]) => [String(id), {
+        samples: ride.samples, open_samples: ride.open_samples,
+        closed_samples: ride.closed_samples, estimated_samples: ride.estimated_samples,
+        average_wait: mean(ride.total_wait, ride.open_samples),
+      }])),
+    })),
+  };
+}
+
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
@@ -371,6 +438,15 @@ async function route(request, env) {
     return json(parsed);
   }
   if (url.pathname === '/api/today') return json(await todayMatrix(env.DB, epoch()));
+  if (url.pathname === '/api/archive/days') return json(await archiveDates(env.DB, epoch()));
+  if (url.pathname === '/api/archive/day') {
+    const day = url.searchParams.get('date') || '';
+    const start = Date.parse(`${day}T00:00:00+09:00`) / 1000;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(start) ||
+        jstDay(start) !== day || day >= jstDay(epoch())) return json({ error: '過去の日付を指定してください' }, 400);
+    const data = await archiveDay(env.DB, day);
+    return data ? json(data) : json({ error: 'この日の記録はありません' }, 404);
+  }
   if (url.pathname === '/api/history') {
     const rideId = Number(url.searchParams.get('ride_id'));
     const days = Number(url.searchParams.get('days') || 1);
