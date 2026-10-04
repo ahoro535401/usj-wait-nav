@@ -135,6 +135,7 @@ async function refreshLive(env, capturedAt = epoch(), save = false) {
   try {
     wikiRaw = await fetchJson(WIKI_LIVE_URL);
     await writeMeta(env.DB, 'shows_payload', JSON.stringify(parseShows(wikiRaw, new Date().toISOString())));
+    await writeMeta(env.DB, 'shows_error', '');
   } catch (error) {
     await writeMeta(env.DB, 'shows_error', String(error));
   }
@@ -227,7 +228,25 @@ async function scheduled(event, env) {
       await writeMeta(env.DB, 'schedule_error', String(error));
     }
   }
-  if (!(await inCollectionWindow(env.DB, seconds))) return;
+  if (!(await inCollectionWindow(env.DB, seconds))) {
+    // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
+    const saved = await readMeta(env.DB, 'shows_payload');
+    let current = null;
+    try { current = saved && JSON.parse(saved); } catch (_) { /* 再取得する */ }
+    if (current?.day !== jstDay(seconds) || !current.shows?.length) {
+      try {
+        const raw = await fetchJson(WIKI_LIVE_URL);
+        const parsed = parseShows(raw, new Date().toISOString());
+        if (parsed.shows.length) {
+          await writeMeta(env.DB, 'shows_payload', JSON.stringify(parsed));
+          await writeMeta(env.DB, 'shows_error', '');
+        }
+      } catch (error) {
+        await writeMeta(env.DB, 'shows_error', String(error));
+      }
+    }
+    return;
+  }
   if (retry) {
     const slot = Math.floor(seconds / SNAPSHOT_SECONDS);
     if (await env.DB.prepare('SELECT slot FROM snapshots WHERE slot=?').bind(slot).first()) return;
@@ -431,10 +450,18 @@ async function route(request, env) {
       error: await readMeta(env.DB, 'schedule_error'), source: 'ThemeParks.wiki', official_url: OFFICIAL_SCHEDULE_URL });
   }
   if (url.pathname === '/api/shows') {
+    const day = url.searchParams.get('date') || jstDay(epoch());
+    const today = jstDay(epoch());
+    const start = Date.parse(`${day}T00:00:00+09:00`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(start) ||
+        jstDay(start / 1000) !== day || day < today ||
+        day > jstDay(epoch() + 6 * 86400)) return json({ error: '今日から7日間の日付を指定してください' }, 400);
+    if (day !== today) return json({ day, shows: [], unavailable: true, reason: 'future',
+      official_url: `https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule?date=${encodeURIComponent(day)}` });
     const payload = await readMeta(env.DB, 'shows_payload');
-    if (!payload) return json({ day: jstDay(epoch()), shows: [], unavailable: true }, 503);
+    if (!payload) return json({ day, shows: [], unavailable: true, reason: 'pending' });
     const parsed = JSON.parse(payload);
-    if (parsed.day !== jstDay(epoch())) return json({ day: jstDay(epoch()), shows: [], unavailable: true });
+    if (parsed.day !== today) return json({ day, shows: [], unavailable: true, reason: 'pending' });
     return json(parsed);
   }
   if (url.pathname === '/api/today') return json(await todayMatrix(env.DB, epoch()));
