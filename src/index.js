@@ -256,6 +256,7 @@ function parseRides(queueRaw, wikiRaw, fetchedAt) {
   for (const definition of DISTINCT_RIDES) {
     const ride = byId.get(definition.id) || { id: definition.id, name: definition.name };
     if (!byId.has(definition.id)) rides.push(ride);
+    ride.name = definition.name;
     ride.source = 'ThemeParks.wiki';
     ride.data_unavailable = true;
     ride.is_open = false;
