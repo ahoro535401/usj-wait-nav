@@ -60,6 +60,8 @@
     .heatmap-table thead th { position: sticky; top: 0; z-index: 3; min-width: 67px; background: #eef5ff; white-space: nowrap; }
     .heatmap-table thead th:first-child { left: 0; z-index: 4; min-width: 230px; max-width: 230px; text-align: left; }
     .heatmap-table tbody th { position: sticky; left: 0; z-index: 2; min-width: 230px; max-width: 230px; background: white; text-align: left; font-weight: 600; line-height: 1.3; }
+    .heatmap-table tbody th a { color: #1058a7; text-decoration: underline; text-underline-offset: 2px; }
+    .heatmap-table tbody th a:focus-visible { outline: 2px solid #1058a7; outline-offset: 2px; }
     .heatmap-table tbody td { min-width: 67px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
     .heatmap-table tbody tr:hover th { background: #f2f6fa; }
     .mobile-heatmap-controls, .mobile-heatmap-hint { display: none; }
@@ -368,6 +370,55 @@
       [17893, 'ファクトリー・オブ・フィアー ～絶望のゾンビ・ツアー～'],
       [15322, 'ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～'],
     ]);
+
+    // 確認済みのUSJ公式個別ページ。IDで区別し、通常版と夜間版を取り違えない。
+    const officialAttractionUrls = new Map([
+      [12066, 'https://www.usj.co.jp/web/ja/jp/attractions/despicable-me-minion-mayhem'],
+      [13005, 'https://www.usj.co.jp/web/ja/jp/attractions/detective-conan-4d-live-show'],
+      [12073, 'https://www.usj.co.jp/web/ja/jp/attractions/flight-of-the-hippogriff'],
+      [12072, 'https://www.usj.co.jp/web/ja/jp/attractions/freeze-ray-sliders'],
+      [12065, 'https://www.usj.co.jp/web/ja/jp/attractions/harry-potter-and-the-forbidden-journey'],
+      [7065, 'https://www.usj.co.jp/web/ja/jp/attractions/hello-kittys-cupcake-dream'],
+      [7063, 'https://www.usj.co.jp/web/ja/jp/attractions/hello-kittys-ribbon-collection'],
+      [7077, 'https://www.usj.co.jp/web/ja/jp/attractions/hollywood-dream-the-ride'],
+      [12070, 'https://www.usj.co.jp/web/ja/jp/attractions/hollywood-dream-the-ride-backdrop'],
+      [14918, 'https://www.usj.co.jp/web/ja/jp/attractions/illuminations-villain-con-minion-blast/'],
+      [12068, 'https://www.usj.co.jp/web/ja/jp/attractions/jaws'],
+      [17894, 'https://www.usj.co.jp/web/ja/jp/attractions/jaws'],
+      [12067, 'https://www.usj.co.jp/web/ja/jp/attractions/jurassic-park-the-ride'],
+      [12061, 'https://www.usj.co.jp/web/ja/jp/attractions/mario-kart-koopas-challenge'],
+      [14402, 'https://www.usj.co.jp/web/ja/jp/attractions/donkey-kong-country-ride'],
+      [12197, 'https://www.usj.co.jp/web/ja/jp/attractions/ollivanders'],
+      [12091, 'https://www.usj.co.jp/web/ja/jp/attractions/playing-with-curious-george'],
+      [12324, 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/sadako'],
+      [12083, 'https://www.usj.co.jp/web/ja/jp/attractions/sesame-street-4-d-movie-magic'],
+      [12084, 'https://www.usj.co.jp/web/ja/jp/attractions/shreks-4-d-adventure'],
+      [7214, 'https://www.usj.co.jp/web/ja/jp/attractions/sing-on-tour'],
+      [14919, 'https://www.usj.co.jp/web/ja/jp/attractions/snoopys-flying-ace-adventure'],
+      [12082, 'https://www.usj.co.jp/web/ja/jp/attractions/space-fantasy-the-ride'],
+      [7092, 'https://www.usj.co.jp/web/ja/jp/attractions/the-flying-dinosaur'],
+      [12075, 'https://www.usj.co.jp/web/ja/jp/attractions/the-flying-snoopy'],
+      [12071, 'https://www.usj.co.jp/web/ja/jp/attractions/yoshis-adventure'],
+      [13925, 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/chainsaw-man-the-chaos-4d'],
+      [17893, 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/factory-of-fear'],
+      [15322, 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/jurassic-park-the-ride-in-the-dark'],
+    ]);
+
+    function setAttractionName(cell, id, label) {
+      cell.title = label;
+      const url = officialAttractionUrls.get(Number(id));
+      if (!url) {
+        cell.textContent = label;
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = label;
+      link.setAttribute('aria-label', `${label}（USJ公式サイト、新しいタブで開きます）`);
+      cell.replaceChildren(link);
+    }
 
     const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -959,7 +1010,7 @@
         const row = document.createElement('tr');
         const name = document.createElement('th');
         name.scope = 'row';
-        name.textContent = nameOf(id);
+        setAttractionName(name, id, nameOf(id));
         row.append(name);
         for (const hour of visibleHours) row.append(archiveCell(hour.rides[id], `${hourMinuteFormat.format(new Date(hour.at * 1000))}時台`));
         archiveBody.append(row);
@@ -1051,8 +1102,7 @@
         const row = document.createElement('tr');
         const name = document.createElement('th');
         name.scope = 'row';
-        name.textContent = rideName(ride);
-        name.title = rideName(ride);
+        setAttractionName(name, ride.id, rideName(ride));
         row.append(name, heatCell(ride, '現在', true));
         for (const snapshot of visibleSnapshots) {
           const label = `${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}の保存値`;
