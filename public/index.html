@@ -190,11 +190,15 @@
   </div>
   <main>
   <section class="weather-panel" aria-labelledby="weather-title">
-    <h2 id="weather-title">USJ付近の天気・気温・風速予報</h2>
+    <h2 id="weather-title">大阪の天気とUSJ付近の予報</h2>
+    <p id="jma-forecast" class="muted">気象庁の大阪府予報を読み込み中…</p>
+    <p id="jma-status" class="muted" role="status">大阪観測所の実測値を読み込み中…</p>
+    <div class="weather-values" aria-label="大阪観測所の実測値"><div><small>気象庁・実測気温</small><strong id="jma-temperature">—</strong></div><div><small>気象庁・実測風速</small><strong id="jma-wind">—</strong></div><div><small>気象庁・実測1時間降水量</small><strong id="jma-rain">—</strong></div></div>
+    <h3>USJ付近の時間別予報</h3>
     <p id="weather-status" class="muted" role="status">予報を読み込み中…</p>
-    <div class="weather-values" aria-label="予報値"><div><small>天気</small><strong id="weather-condition">—</strong></div><div><small>気温</small><strong id="weather-temperature">—</strong></div><div><small>風速</small><strong id="weather-wind">—</strong></div><div><small>1時間降水量</small><strong id="weather-rain">—</strong></div></div>
+    <div class="weather-values" aria-label="USJ付近の予報値"><div><small>予報・天気</small><strong id="weather-condition">—</strong></div><div><small>予報・気温</small><strong id="weather-temperature">—</strong></div><div><small>予報・風速</small><strong id="weather-wind">—</strong></div><div><small>予報・1時間降水量</small><strong id="weather-rain">—</strong></div></div>
     <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
-    <p class="muted">予報値は現地の実測ではありません。今後約6時間の風速10m/s以上、または1時間降水量1mm以上を注意目安とします。運休を予測・判定するものではありません。</p>
+    <p class="muted">気象庁の実測は大阪観測所の値で、USJ現地の測定値ではありません。USJ付近の時間別予報はノルウェー気象研究所の値です。今後約6時間の風速10m/s以上、または1時間降水量1mm以上を注意目安とします。運休を予測・判定するものではありません。</p>
   </section>
   <section class="heatmap-panel" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
@@ -299,7 +303,7 @@
   </main>
   <footer>
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
-    <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 天気予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
+    <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
     <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックの2件の現在値と当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。10月4日の夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
     <p>公表営業時間の前後30分を含む時間帯にサーバーが5分おきに公開データを取得し、毎時0・20・40分の取得値を保存します。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックの2件はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
@@ -415,6 +419,17 @@
         const response = await fetch('/api/weather');
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        const jma = data.jma;
+        if (jma) {
+          document.querySelector('#jma-forecast').textContent = `気象庁・大阪府の天気予報：${jma.forecast_text || '天気情報なし'}${jma.stale ? '（前回取得値）' : ''}`;
+          document.querySelector('#jma-status').textContent = `大阪観測所 ${timeFormat.format(new Date(jma.observed_at))} JSTの実測値。USJとは異なる地点です。`;
+          document.querySelector('#jma-temperature').textContent = Number.isFinite(jma.temperature) ? `${jma.temperature.toFixed(1)}℃` : '—';
+          document.querySelector('#jma-wind').textContent = Number.isFinite(jma.wind_speed) ? `${jma.wind_speed.toFixed(1)}m/s` : '—';
+          document.querySelector('#jma-rain').textContent = Number.isFinite(jma.precipitation_1h) ? `${jma.precipitation_1h.toFixed(1)}mm` : '—';
+        } else {
+          document.querySelector('#jma-forecast').textContent = '気象庁の大阪府予報を取得できませんでした。';
+          document.querySelector('#jma-status').textContent = '大阪観測所の実測値を取得できませんでした。';
+        }
         const now = Date.now();
         const periods = (data.periods || []).filter(item => Date.parse(item.time) >= now - 60 * 60 * 1000);
         const current = periods[0];
