@@ -1,0 +1,34 @@
+{
+  "checked_at": "2026-10-04",
+  "source_url": "https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure",
+  "closures": [
+    {
+      "title": "セサミストリート 4-D ムービーマジック™",
+      "start": "2026-01-08",
+      "end": null,
+      "end_note": "当面の間",
+      "queue_times_id": 12083
+    },
+    {
+      "title": "シュレック 4-D アドベンチャー",
+      "start": "2026-01-08",
+      "end": null,
+      "end_note": "当面の間",
+      "queue_times_id": 12084
+    },
+    {
+      "title": "スペース・ファンタジー・ザ・ライド",
+      "start": "2025-06-02",
+      "end": null,
+      "end_note": "当面の間",
+      "queue_times_id": 12082
+    },
+    {
+      "title": "ウォーターワールド",
+      "start": "2026-11-28",
+      "end": "2026-12-27",
+      "end_note": null,
+      "queue_times_id": null
+    }
+  ]
+}

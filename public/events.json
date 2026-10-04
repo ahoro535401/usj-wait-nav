@@ -1,0 +1,67 @@
+{
+  "checked_at": "2026-10-04",
+  "source_url": "https://www.usj.co.jp/web/ja/jp/search-results/filtered?attraction_experience=events&attraction_location=&attraction_interest=&filters=usj.place_types;events",
+  "events": [
+    {
+      "title": "25周年“Discover U!!!” ユニバーサル・スタジオ・ジャパン",
+      "start": "2026-03-04",
+      "end": "2027-03-30",
+      "url": "https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u"
+    },
+    {
+      "title": "NO LIMIT! カウントダウン 2027 ～Discover U!!!～",
+      "start": "2026-12-31",
+      "end": "2027-01-01",
+      "time_note": "12/31 19:00〜1/1 21:00",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/countdown-2027/no-limit-countdown-2027"
+    },
+    {
+      "title": "『ウィキッド 永遠の約束』セレブレーション",
+      "start": "2026-02-20",
+      "end": null,
+      "url": "https://www.usj.co.jp/web/ja/jp/events/wicked-celebration-2026"
+    },
+    {
+      "title": "ハロウィーン・ホラー・ナイト",
+      "start": "2026-09-11",
+      "end": "2026-11-08",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights"
+    },
+    {
+      "title": "ユニバーサル・エクストリーム・オータム ～Discover U!!!～",
+      "start": "2026-09-10",
+      "end": "2026-11-08",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026"
+    },
+    {
+      "title": "ユニバーサル・ホリデー・ワンダーズ ～Discover U!!!～",
+      "start": "2026-11-13",
+      "end": "2027-01-17",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/christmas-2026/universal-holiday-wonders"
+    },
+    {
+      "title": "ワンピース・プレミア・サマー 2026",
+      "start": "2026-07-30",
+      "end": "2026-11-19",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/onepiece/summer-2026"
+    },
+    {
+      "title": "葬送のフリーレン ストーリー・ウォーク ～追憶の旅～",
+      "start": "2026-05-30",
+      "end": "2027-01-11",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/universal-cool-japan-2026/frieren"
+    },
+    {
+      "title": "美少女戦士セーラームーン・ザ・ミラクル 4-D ～ムーン・パレス編 デラックス～",
+      "start": "2026-12-02",
+      "end": "2027-04-05",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/universal-cool-japan-2027/prettyguardiansailormoon"
+    },
+    {
+      "title": "薬屋のひとりごと",
+      "start": "2027-02-10",
+      "end": null,
+      "url": "https://www.usj.co.jp/web/ja/jp/events/universal-cool-japan-2027/kusuriyanohitorigoto"
+    }
+  ]
+}

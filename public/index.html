@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>USJの待ち時間・混雑状況｜USJ待ち時間ナビ</title>
+  <meta name="description" content="USJのアトラクション別待ち時間を、現在の掲載値と20分ごとの履歴で比較。営業時間、ショー開始時刻、イベント情報も確認できる個人運営の非公式サイトです。">
+  <link rel="canonical" href="https://usj-wait-nav.kotaro-7436.workers.dev/">
+  <meta property="og:url" content="https://usj-wait-nav.kotaro-7436.workers.dev/">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"USJ待ち時間ナビ","url":"https://usj-wait-nav.kotaro-7436.workers.dev/","description":"USJの待ち時間・履歴・営業時間・ショー開始時刻を確認できる個人運営の非公式サイト"}</script>
+  <meta property="og:site_name" content="USJ待ち時間ナビ">
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #172332; background: #f4f7fa; }
+    body { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { margin: 0 0 8px; font-size: clamp(1.7rem, 5vw, 2.4rem); }
+    .site-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .text-logo { display: inline-flex; align-items: center; color: #172332; font-size: clamp(1.1rem, 3vw, 1.35rem); font-weight: 800; letter-spacing: .02em; text-decoration: none; }
+    .text-logo:hover { text-decoration: underline; }
+    .logo-usj { display: inline-block; margin-right: 5px; padding: 2px 7px; border-radius: 5px; background: #1058a7; color: #fff; letter-spacing: .05em; }
+    .unofficial { display: inline-block; padding: 2px 7px; border-radius: 4px; background: #eef5ff; color: #526477; font-size: .76rem; font-weight: 700; }
+    p { line-height: 1.6; }
+    .sub { color: #526477; margin: 0 0 22px; }
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
+    button { border: 0; border-radius: 8px; padding: 10px 18px; color: white; background: #1058a7; font: inherit; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status { color: #526477; }
+    #error { color: #a42222; }
+    .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .shows-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
+    .shows-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
+    .shows-panel p { margin: 5px 0 12px; }
+    .show-timeline-scroll { overflow: auto; max-height: 630px; border: 1px solid #dce4ed; border-radius: 9px; }
+    .show-axis, .show-row { display: flex; width: max-content; border-bottom: 1px solid #e4e9ef; }
+    .show-axis { position: sticky; top: 0; z-index: 5; background: #eef5ff; }
+    .show-label { position: sticky; left: 0; z-index: 2; box-sizing: border-box; flex: 0 0 245px; width: 245px; padding: 9px 11px; background: white; font-size: .84rem; font-weight: 600; line-height: 1.25; }
+    .show-label a { color: #1058a7; text-decoration: underline; text-underline-offset: 2px; }
+    .show-label small { display: block; margin-top: 4px; color: #526477; font-size: .74rem; font-weight: 400; }
+    .show-axis .show-label { z-index: 6; background: #eef5ff; }
+    .show-track { position: relative; flex: none; min-height: 54px; background: repeating-linear-gradient(to right, #dce4ed 0 1px, transparent 1px 90px); }
+    .show-axis .show-track { height: 37px; background: repeating-linear-gradient(to right, #c5d3e4 0 1px, transparent 1px 90px); }
+    .show-hour { position: absolute; top: 10px; transform: translateX(-50%); font-size: .75rem; color: #526477; white-space: nowrap; }
+    .show-point { position: absolute; top: 11px; box-sizing: border-box; transform: translateX(-50%); min-width: 36px; padding: 4px 2px 3px; border-top: 4px solid #1058a7; border-radius: 3px; background: #eef5ff; color: #1058a7; font-size: .72rem; font-weight: 700; text-align: center; white-space: nowrap; }
+    .show-point.past { border-color: #8b9aaa; background: #f2f4f6; color: #687584; }
+    .show-range { position: absolute; top: 11px; box-sizing: border-box; height: 17px; border-radius: 5px; background: #bedbe9; }
+    .show-range.approx { border: 1px dashed #5684aa; background: #d8eaf4; }
+    .show-time-label { position: absolute; top: 30px; transform: translateX(-50%); color: #1058a7; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+    .show-now { position: absolute; top: 0; bottom: 0; width: 2px; background: #cf5d46; opacity: .7; pointer-events: none; }
+    .closure-list { margin: 8px 0 16px; padding-left: 22px; line-height: 1.6; }
+    .closure-list li { margin: 4px 0; }
+    .closure-count { color: #9a3f3f; font-size: .78rem; font-weight: 700; }
+    .heatmap-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
+    .heatmap-panel p { margin: 5px 0 12px; }
+    .heatmap-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 12px 0; font-size: .83rem; }
+    .heatmap-legend span { padding: 3px 7px; border-radius: 5px; border: 1px solid #dce4ed; }
+    .heatmap-scroll { max-height: 650px; overflow: auto; border: 1px solid #dce4ed; border-radius: 9px; }
+    .heatmap-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: .86rem; }
+    .heatmap-table th, .heatmap-table td { border-right: 1px solid #e4e9ef; border-bottom: 1px solid #e4e9ef; padding: 9px 6px; }
+    .heatmap-table thead th { position: sticky; top: 0; z-index: 3; min-width: 67px; background: #eef5ff; white-space: nowrap; }
+    .heatmap-table thead th:first-child { left: 0; z-index: 4; min-width: 230px; max-width: 230px; text-align: left; }
+    .heatmap-table tbody th { position: sticky; left: 0; z-index: 2; min-width: 230px; max-width: 230px; background: white; text-align: left; font-weight: 600; line-height: 1.3; }
+    .heatmap-table tbody td { min-width: 67px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+    .heatmap-table tbody tr:hover th { background: #f2f6fa; }
+    .heat-0 { background: #e6f6f2; color: #174c44; }
+    .heat-1 { background: #bee8cf; color: #164b32; }
+    .heat-2 { background: #fff0ad; color: #654700; }
+    .heat-3 { background: #ffd09b; color: #733d00; }
+    .heat-4 { background: #f5a5a5; color: #722525; }
+    .heat-empty { background: #f4f6f8; color: #687584; }
+    .heat-unknown { background: repeating-linear-gradient(135deg, #fff, #fff 6px, #f0f2f5 6px, #f0f2f5 12px); color: #5d6873; }
+    .events-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
+    .events-panel h3 { margin: 20px 0 9px; font-size: 1rem; }
+    .events-panel p { margin: 5px 0 12px; }
+    .event-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+    .event-card { border: 1px solid #dce4ed; border-radius: 10px; padding: 13px; background: #fafbfd; }
+    .event-card a { display: block; font-weight: 700; line-height: 1.45; }
+    .event-card small { display: block; margin-top: 8px; color: #526477; }
+    .event-count { color: #526477; font-weight: 400; }
+    .calendar-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
+    .calendar-panel h3 { margin: 19px 0 10px; font-size: 1.03rem; }
+    .calendar-panel p { margin: 5px 0 12px; }
+    .week-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 9px; }
+    .day-card { border: 1px solid #dce4ed; border-radius: 10px; padding: 11px; min-height: 80px; background: #f8fafc; }
+    .day-card.today { border-color: #1058a7; background: #eef5ff; }
+    .day-card strong, .day-card span { display: block; }
+    .day-card strong { margin-bottom: 7px; font-size: .91rem; }
+    .day-card span { font-weight: 700; color: #1058a7; }
+    .calendar-nav { display: flex; justify-content: space-between; align-items: center; gap: 10px; max-width: 580px; margin: 12px 0; }
+    .calendar-nav strong { font-size: 1.08rem; }
+    .calendar-nav button { padding: 6px 11px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; max-width: 580px; }
+    .calendar-grid .weekday { text-align: center; color: #526477; font-size: .84rem; padding: 5px 0; }
+    .calendar-grid .weekday:first-child { color: #9a3f3f; }
+    .calendar-grid .weekday:last-child { color: #315b97; }
+    .calendar-grid button { display: grid; gap: 3px; align-content: center; min-height: 62px; padding: 5px 2px; border: 1px solid #dce4ed; border-radius: 7px; color: #172332; background: #fff; font-size: .9rem; }
+    .calendar-grid button.has-hours { background: #eef5ff; border-color: #b7d0f0; }
+    .calendar-grid button.has-closure:not(.has-hours) { background: #fff8eb; border-color: #e8d4a8; }
+    .calendar-grid button.today { outline: 2px solid #1058a7; outline-offset: -2px; }
+    .calendar-grid button.selected { color: #fff; background: #1058a7; }
+    .calendar-grid button.selected.has-closure { color: #fff; background: #1058a7; }
+    .calendar-grid button.selected .closure-count { color: #fff; }
+    .calendar-grid button:disabled { opacity: .48; cursor: default; }
+    .calendar-grid small { font-size: .67rem; }
+    .selected-day { margin-top: 14px; padding: 13px; background: #eef5ff; border-radius: 9px; max-width: 554px; }
+    .selected-day strong, .selected-day span { display: block; }
+    .history-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
+    .history-panel h3 { margin: 18px 0 8px; font-size: 1rem; }
+    .history-panel p { margin: 4px 0 14px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 16px 0; }
+    .controls label { display: grid; gap: 5px; font-weight: 600; }
+    select { font: inherit; color: inherit; border: 1px solid #a9b9c9; border-radius: 8px; background: white; padding: 9px; max-width: min(100%, 460px); }
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .metric { border: 1px solid #e0e6ec; border-radius: 10px; padding: 12px; min-width: 0; }
+    .metric small { display: block; color: #526477; }
+    .metric strong { display: block; font-size: clamp(1.1rem, 3vw, 1.5rem); margin: 3px 0; }
+    .metric span { color: #526477; font-size: .88rem; }
+    .chart-wrap { overflow-x: auto; }
+    #trend { display: block; width: 100%; min-width: 480px; height: auto; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    .history-table th, .history-table td { border-bottom: 1px solid #e4e9ef; padding: 8px; text-align: left; }
+    .history-table th { color: #526477; font-weight: 600; }
+    .muted { color: #526477; font-size: .9rem; }
+    footer { margin-top: 28px; border-top: 1px solid #dce4ed; padding-top: 16px; font-size: .9rem; }
+    .ad-slot { margin: 10px 0 28px; min-height: 120px; border: 1px solid #dce4ed; border-radius: 12px; background: white; padding: 12px; }
+    .ad-slot[hidden] { display: none; }
+    .ad-label { display: block; margin-bottom: 8px; color: #526477; font-size: .8rem; }
+    a { color: #1058a7; }
+    @media (max-width: 620px) { .metrics { grid-template-columns: 1fr; } .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .shows-panel { padding: 15px; } .calendar-grid button { min-height: 54px; } .calendar-grid small { font-size: .58rem; } .heatmap-table thead th:first-child, .heatmap-table tbody th { min-width: 155px; max-width: 155px; } .show-label { flex-basis: 175px; width: 175px; } }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
+    <span class="unofficial">非公式</span>
+  </header>
+  <h1>USJの待ち時間・混雑状況</h1>
+  <p class="sub">掲載する待ち時間は提供元の公開データに基づく値で、現地で実測した待機時間ではありません。本サイトは個人運営の非公式サイトです。</p>
+  <!--PUBLIC_SUMMARY-->
+  <div class="bar">
+    <button id="refresh" type="button">表示を更新</button>
+    <span id="status" role="status"></span>
+    <span id="error" role="alert"></span>
+  </div>
+  <main>
+  <section class="heatmap-panel" aria-labelledby="heatmap-title">
+    <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
+    <p class="muted">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
+    <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
+    <div class="heatmap-legend" aria-label="待ち時間の色分け">
+      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
+    </div>
+    <div class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表。左右にスクロールできます">
+      <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
+    </div>
+    <p class="muted">色は待ち時間の長さを示します。</p>
+  </section>
+  <!-- 広告枠1：承認済み広告コードとプライバシー表示を設定してから有効化 -->
+  <aside id="ad-slot-1" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-1"></div></aside>
+  <section class="shows-panel" aria-labelledby="shows-title">
+    <h2 id="shows-title">今日のショー開始時刻</h2>
+    <p class="muted">横軸は時刻です。青い印は開始時刻、帯は公表された所要時間または終了時刻の目安です。</p>
+    <p id="shows-status" class="muted" role="status">ショー時刻を読み込み中…</p>
+    <div class="show-timeline-scroll" tabindex="0" aria-label="今日のショー開始時刻。左右にスクロールできます">
+      <div id="show-timeline" role="table" aria-label="ショー別の時間軸"></div>
+    </div>
+    <p class="muted">破線の帯は約分数による目安です。「パーククローズまで」は開催時間帯で、各回の長さではありません。天候などで変更・中止される場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>でご確認ください。</p>
+  </section>
+  <section class="calendar-panel" aria-labelledby="calendar-title">
+    <h2 id="calendar-title">パーク営業時間</h2>
+    <p class="muted">予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
+    <p id="schedule-status" class="muted">営業時間を読み込み中…</p>
+    <h3>今日のショー＆アトラクション休止予定</h3>
+    <p id="closures-status" class="muted">休止予定を読み込み中…</p>
+    <ul id="today-closures" class="closure-list"></ul>
+    <p class="muted">休止予定は確認日現在の掲載情報です。急な中止・変更は反映されません。<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure" target="_blank" rel="noopener noreferrer">USJ公式の休止情報</a>で最新情報をご確認ください。</p>
+    <h3>今日から7日間</h3>
+    <div id="week-hours" class="week-grid"></div>
+    <h3>そのほかの日付</h3>
+    <div class="calendar-nav"><button id="month-prev" type="button" aria-label="前の月">‹ 前月</button><strong id="month-label"></strong><button id="month-next" type="button" aria-label="次の月">翌月 ›</button></div>
+    <div id="calendar-grid" class="calendar-grid" aria-label="営業時間と休止予定のカレンダー"></div>
+    <div id="selected-day" class="selected-day" role="status">カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
+  </section>
+  <section class="events-panel" aria-labelledby="events-title">
+    <h2 id="events-title">イベント情報</h2>
+    <p id="events-status" class="muted">公式掲載情報を読み込み中…</p>
+    <p class="muted">掲載日程は変更される場合があります。各イベント名から公式ページで最新情報をご確認ください。</p>
+    <h3>開催期間中 <span id="ongoing-count" class="event-count"></span></h3>
+    <div id="ongoing-events" class="event-grid"></div>
+    <h3>今後のイベント <span id="upcoming-count" class="event-count"></span></h3>
+    <div id="upcoming-events" class="event-grid"></div>
+    <h3>終了日が未掲載 <span id="undated-count" class="event-count"></span></h3>
+    <div id="undated-events" class="event-grid"></div>
+    <p class="muted"><a href="https://www.usj.co.jp/web/ja/jp/search-results/filtered?attraction_experience=events&amp;attraction_location=&amp;attraction_interest=&amp;filters=usj.place_types;events" target="_blank" rel="noopener noreferrer">USJ公式のイベント一覧</a>もご覧ください。</p>
+  </section>
+  <section class="history-panel" aria-labelledby="history-title">
+    <h2 id="history-title">待ち時間の履歴と比較</h2>
+    <p id="history-status" class="muted">記録を確認中…</p>
+    <div class="controls">
+      <label>アトラクション<select id="ride-select" aria-label="履歴を見るアトラクション"></select></label>
+      <label>表示期間<select id="range-select" aria-label="履歴の表示期間">
+        <option value="1">過去24時間</option>
+        <option value="7">過去7日間</option>
+        <option value="30">過去30日間</option>
+      </select></label>
+    </div>
+    <div class="metrics">
+      <div class="metric"><small>現在の掲載値</small><strong id="current-value">—</strong><span id="current-detail"></span></div>
+      <div class="metric"><small>直前の記録との差</small><strong id="previous-value">—</strong><span id="previous-detail">記録待ち</span></div>
+      <div class="metric"><small>過去7日の同じ時間帯平均との差</small><strong id="average-value">—</strong><span id="average-detail">記録待ち</span></div>
+    </div>
+    <h3>1時間ごとの平均待ち時間</h3>
+    <p id="chart-note" class="muted">履歴を読み込み中…</p>
+    <div class="chart-wrap"><svg id="trend" viewBox="0 0 760 260" role="img" aria-label="選択したアトラクションの待ち時間推移"></svg></div>
+    <h3>最近の時間平均</h3>
+    <table class="history-table"><thead><tr><th scope="col">時間帯</th><th scope="col">平均待ち時間</th><th scope="col">記録数</th></tr></thead><tbody id="recent-records"></tbody></table>
+  </section>
+  <!-- 広告枠2：関連するアフィリエイト紹介のみ。広告であることを表示してから有効化 -->
+  <aside id="ad-slot-2" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-2"></div></aside>
+  </main>
+  <footer>
+    <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
+    <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a>
+    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックの2件の現在値とショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。10月4日の夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
+    <p>公表営業時間の前後30分を含む時間帯にサーバーが5分おきに公開データを取得し、毎時0・20・40分の取得値を保存します。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックの2件はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
+  </footer>
+  <script>
+    const button = document.querySelector('#refresh');
+    const status = document.querySelector('#status');
+    const error = document.querySelector('#error');
+    const showsStatus = document.querySelector('#shows-status');
+    const showTimeline = document.querySelector('#show-timeline');
+    const rideSelect = document.querySelector('#ride-select');
+    const rangeSelect = document.querySelector('#range-select');
+    const historyStatus = document.querySelector('#history-status');
+    const currentValue = document.querySelector('#current-value');
+    const currentDetail = document.querySelector('#current-detail');
+    const previousValue = document.querySelector('#previous-value');
+    const previousDetail = document.querySelector('#previous-detail');
+    const averageValue = document.querySelector('#average-value');
+    const averageDetail = document.querySelector('#average-detail');
+    const chartNote = document.querySelector('#chart-note');
+    const trend = document.querySelector('#trend');
+    const recentRecords = document.querySelector('#recent-records');
+    const scheduleStatus = document.querySelector('#schedule-status');
+    const closuresStatus = document.querySelector('#closures-status');
+    const todayClosures = document.querySelector('#today-closures');
+    const weekHours = document.querySelector('#week-hours');
+    const calendarGrid = document.querySelector('#calendar-grid');
+    const monthLabel = document.querySelector('#month-label');
+    const monthPrev = document.querySelector('#month-prev');
+    const monthNext = document.querySelector('#month-next');
+    const selectedDay = document.querySelector('#selected-day');
+    const eventsStatus = document.querySelector('#events-status');
+    const ongoingEvents = document.querySelector('#ongoing-events');
+    const upcomingEvents = document.querySelector('#upcoming-events');
+    const undatedEvents = document.querySelector('#undated-events');
+    const heatmapStatus = document.querySelector('#heatmap-status');
+    const heatmapHead = document.querySelector('#heatmap-head');
+    const heatmapBody = document.querySelector('#heatmap-body');
+    const timeFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    const hourMinuteFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'});
+    let currentData = null;
+    let historyRequest = 0;
+    let todayRequest = 0;
+    let scheduleDays = new Map();
+    let closuresData = null;
+    let calendarMonth = null;
+    let selectedDate = null;
+    let eventsData = null;
+    // Queue-TimesのIDをキーに、USJ公式サイトの日本語名を表示する。
+    const japaneseNames = new Map([
+      [12066, 'ミニオン・ハチャメチャ・ライド'],
+      [13005, '名探偵コナン 4-D ライブ・ショー ～星空の宝石（ジュエル）～'],
+      [12073, 'フライト・オブ・ザ・ヒッポグリフ™'],
+      [12072, 'ミニオン・ハチャメチャ・アイス'],
+      [12065, 'ハリー・ポッター・アンド・ザ・フォービドゥン・ジャーニー™'],
+      [7065, 'ハローキティのカップケーキ・ドリーム'],
+      [7063, 'ハローキティのリボン・コレクション'],
+      [7077, 'ハリウッド・ドリーム・ザ・ライド'],
+      [12070, 'ハリウッド・ドリーム・ザ・ライド ～バックドロップ～'],
+      [14918, 'ミニオン・ハチャメチャ・ミッション ～大悪党への道～'],
+      [12068, 'ジョーズ'],
+      [12067, 'ジュラシック・パーク・ザ・ライド'],
+      [12061, 'マリオカート ～クッパの挑戦状～™'],
+      [14402, 'ドンキーコングのクレイジー・トロッコ™'],
+      [12197, 'オリバンダーの店™'],
+      [12091, 'プレイング・ウィズおさるのジョージ™'],
+      [12324, '貞子の呪い ～ダーク・ホラー・ライド～'],
+      [12083, 'セサミストリート 4-D ムービーマジック™'],
+      [12084, 'シュレック 4-D アドベンチャー'],
+      [7214, 'シング・オン・ツアー'],
+      [14919, 'スヌーピーのフライング・エース・アドベンチャー'],
+      [12082, 'スペース・ファンタジー・ザ・ライド'],
+      [7092, 'ザ・フライング・ダイナソー'],
+      [12075, 'フライング・スヌーピー'],
+      [12071, 'ヨッシー・アドベンチャー™'],
+      [13925, 'チェンソーマン・ザ・カオス 4-D'],
+      [17893, 'ファクトリー・オブ・フィアー ～絶望のゾンビ・ツアー～'],
+      [15322, 'ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～'],
+    ]);
+
+    const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+
+    function jstToday() {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date());
+      const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+      return `${value.year}-${value.month}-${value.day}`;
+    }
+
+    function addDays(day, amount) {
+      const date = new Date(`${day}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() + amount);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function dateLabel(day) {
+      const date = new Date(`${day}T00:00:00Z`);
+      return `${Number(day.slice(5, 7))}/${Number(day.slice(8))}（${weekdays[date.getUTCDay()]}）`;
+    }
+
+    function monthShift(month, amount) {
+      const date = new Date(`${month}-01T00:00:00Z`);
+      date.setUTCMonth(date.getUTCMonth() + amount);
+      return date.toISOString().slice(0, 7);
+    }
+
+    function hoursLabel(item) {
+      if (!item) return '未掲載';
+      if (item.status === 'CLOSED') return '休園';
+      return item.opens && item.closes ? `${item.opens}〜${item.closes}` : '未掲載';
+    }
+
+    function closuresFor(day) {
+      if (!closuresData) return [];
+      return closuresData.closures.filter(item => item.start <= day && (!item.end || day <= item.end));
+    }
+
+    function closurePeriod(item) {
+      return `${formatEventDate(item.start)}〜${item.end ? formatEventDate(item.end) : item.end_note}`;
+    }
+
+    function renderTodayClosures() {
+      todayClosures.replaceChildren();
+      if (!closuresData) return;
+      const items = closuresFor(jstToday());
+      if (!items.length) {
+        const empty = document.createElement('li');
+        empty.textContent = '確認済みの掲載予定はありません。';
+        todayClosures.append(empty);
+      } else {
+        for (const item of items) {
+          const entry = document.createElement('li');
+          entry.textContent = `${item.title}（${closurePeriod(item)}）`;
+          todayClosures.append(entry);
+        }
+      }
+      closuresStatus.textContent = `USJ公式ページを${formatEventDate(closuresData.checked_at)}に確認 · 手動更新 · 今日の掲載 ${items.length}件`;
+    }
+
+    async function loadClosures() {
+      try {
+        const response = await fetch('/api/closures', {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        if (!Array.isArray(data.closures) || !data.checked_at) throw new Error('休止予定データの形式が不正です');
+        closuresData = data;
+        renderTodayClosures();
+        renderWeek();
+        if (selectedDate) showSelectedDay(selectedDate);
+        else renderCalendar();
+      } catch (cause) {
+        closuresStatus.textContent = `休止予定を読み込めません: ${cause.message}${closuresData ? ' · 前回読込分を表示中' : ''}`;
+      }
+    }
+
+    function renderWeek() {
+      weekHours.replaceChildren();
+      const today = jstToday();
+      for (let offset = 0; offset < 7; offset++) {
+        const day = addDays(today, offset);
+        const card = document.createElement('div');
+        card.className = `day-card${offset === 0 ? ' today' : ''}`;
+        const title = document.createElement('strong');
+        title.textContent = `${offset === 0 ? '今日 · ' : ''}${dateLabel(day)}`;
+        const hours = document.createElement('span');
+        hours.textContent = hoursLabel(scheduleDays.get(day));
+        card.append(title, hours);
+        const count = closuresFor(day).length;
+        if (count) {
+          const closure = document.createElement('small');
+          closure.className = 'closure-count';
+          closure.textContent = `休止予定 ${count}件`;
+          card.append(closure);
+        }
+        weekHours.append(card);
+      }
+    }
+
+    function showSelectedDay(day) {
+      selectedDate = day;
+      selectedDay.replaceChildren();
+      const heading = document.createElement('strong');
+      heading.textContent = `${day.slice(0, 4)}年${Number(day.slice(5, 7))}月${Number(day.slice(8))}日（${weekdays[new Date(`${day}T00:00:00Z`).getUTCDay()]}）`;
+      const hours = document.createElement('span');
+      hours.textContent = `営業時間：${hoursLabel(scheduleDays.get(day))}`;
+      selectedDay.append(heading, hours);
+      const closures = closuresFor(day);
+      const closureHeading = document.createElement('span');
+      closureHeading.textContent = closuresData ? `公式掲載の休止予定：${closures.length}件` : '休止予定：未読込';
+      selectedDay.append(closureHeading);
+      if (closures.length) {
+        const list = document.createElement('ul');
+        list.className = 'closure-list';
+        for (const item of closures) {
+          const entry = document.createElement('li');
+          entry.textContent = `${item.title}（${closurePeriod(item)}）`;
+          list.append(entry);
+        }
+        selectedDay.append(list);
+      }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      calendarGrid.replaceChildren();
+      const today = jstToday();
+      if (!calendarMonth) calendarMonth = today.slice(0, 7);
+      monthLabel.textContent = `${calendarMonth.slice(0, 4)}年${Number(calendarMonth.slice(5))}月`;
+      const knownMonths = [...scheduleDays.keys()].map(day => day.slice(0, 7));
+      if (closuresData) {
+        for (const closure of closuresData.closures) {
+          if (closure.end) knownMonths.push(closure.end.slice(0, 7));
+          else if (closure.start > today) knownMonths.push(closure.start.slice(0, 7));
+        }
+      }
+      const lastMonth = knownMonths.length ? knownMonths.sort().at(-1) : calendarMonth;
+      monthPrev.disabled = monthShift(calendarMonth, -1) < today.slice(0, 7);
+      monthNext.disabled = monthShift(calendarMonth, 1) > lastMonth;
+      for (const name of weekdays) {
+        const label = document.createElement('div');
+        label.className = 'weekday';
+        label.textContent = name;
+        calendarGrid.append(label);
+      }
+      const [year, month] = calendarMonth.split('-').map(Number);
+      const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      for (let blank = 0; blank < firstWeekday; blank++) calendarGrid.append(document.createElement('div'));
+      for (let date = 1; date <= daysInMonth; date++) {
+        const day = `${calendarMonth}-${String(date).padStart(2, '0')}`;
+        const item = scheduleDays.get(day);
+        const button = document.createElement('button');
+        button.type = 'button';
+        const closureCount = closuresFor(day).length;
+        button.disabled = day < today || (!item && !closureCount);
+        button.className = `${item ? 'has-hours ' : ''}${closureCount ? 'has-closure ' : ''}${day === today ? 'today ' : ''}${day === selectedDate ? 'selected' : ''}`.trim();
+        button.setAttribute('aria-label', `${dateLabel(day)} ${hoursLabel(item)}${closureCount ? ` 休止予定${closureCount}件` : ''}`);
+        const number = document.createElement('span');
+        number.textContent = String(date);
+        const hours = document.createElement('small');
+        hours.textContent = item ? (item.status === 'CLOSED' ? '休園' : `${item.opens}〜${item.closes}`) : (closureCount ? '時間未掲載' : '');
+        button.append(number, hours);
+        if (closureCount) {
+          const closure = document.createElement('small');
+          closure.className = 'closure-count';
+          closure.textContent = `休止${closureCount}件`;
+          button.append(closure);
+        }
+        button.addEventListener('click', () => showSelectedDay(day));
+        calendarGrid.append(button);
+      }
+    }
+
+    async function loadSchedule() {
+      try {
+        const response = await fetch('/api/schedule', {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        scheduleDays = new Map(data.days.map(item => [item.day, item]));
+        if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length) {
+          selectedDate = null;
+          selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
+        }
+        const fetched = data.fetched_at ? `${timeFormat.format(new Date(data.fetched_at))} JST` : '未取得';
+        scheduleStatus.textContent = `予定データ取得 ${fetched}${data.error ? ' · 更新に失敗したため保存済みの予定を表示中' : ''}`;
+        renderWeek();
+        if (selectedDate) showSelectedDay(selectedDate);
+        else renderCalendar();
+      } catch (cause) {
+        scheduleStatus.textContent = `営業時間を読み込めません: ${cause.message}`;
+        renderWeek();
+        renderCalendar();
+      }
+    }
+
+    function formatEventDate(day) {
+      return `${day.slice(0, 4)}/${Number(day.slice(5, 7))}/${Number(day.slice(8))}`;
+    }
+
+    function makeEventCard(event) {
+      const card = document.createElement('div');
+      card.className = 'event-card';
+      const link = document.createElement('a');
+      const url = new URL(event.url);
+      if (url.origin !== 'https://www.usj.co.jp') return card;
+      link.href = url.href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = event.title;
+      const date = document.createElement('small');
+      date.textContent = event.time_note || `${formatEventDate(event.start)}〜${event.end ? formatEventDate(event.end) : '終了日未掲載'}`;
+      card.append(link, date);
+      return card;
+    }
+
+    function fillEvents(container, countElement, events) {
+      container.replaceChildren();
+      countElement.textContent = `（${events.length}件）`;
+      if (!events.length) {
+        const empty = document.createElement('p');
+        empty.className = 'muted';
+        empty.textContent = '該当するイベントはありません。';
+        container.append(empty);
+      } else {
+        container.append(...events.map(makeEventCard));
+      }
+    }
+
+    function renderEvents() {
+      if (!eventsData) return;
+      const today = jstToday();
+      const current = [], future = [], noEnd = [];
+      for (const event of eventsData.events) {
+        if (event.end && event.end < today) continue;
+        if (event.start > today) future.push(event);
+        else if (!event.end) noEnd.push(event);
+        else current.push(event);
+      }
+      current.sort((a, b) => a.end.localeCompare(b.end));
+      future.sort((a, b) => a.start.localeCompare(b.start));
+      noEnd.sort((a, b) => a.start.localeCompare(b.start));
+      fillEvents(ongoingEvents, document.querySelector('#ongoing-count'), current);
+      fillEvents(upcomingEvents, document.querySelector('#upcoming-count'), future);
+      fillEvents(undatedEvents, document.querySelector('#undated-count'), noEnd);
+      eventsStatus.textContent = `公式一覧を${formatEventDate(eventsData.checked_at)}に確認 · 日程は手動更新`;
+    }
+
+    async function loadEvents() {
+      try {
+        const response = await fetch('/api/events', {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        eventsData = data;
+        renderEvents();
+      } catch (cause) {
+        eventsStatus.textContent = `イベント情報を読み込めません: ${cause.message}`;
+      }
+    }
+
+    const showDetails = new Map([
+      ['ホグズミード・マジカル・クリーチャーズ・ミート', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/hogsmeade-magical-creatures-meet', durationMinutes: 10, note: '所要 約10分'}],
+      ['ユニバーサル・ワンダーランド ～レッツ・スマイル・トゥギャザー！～', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/universal-wonderland-lets-smile-together'}],
+      ['ウィキッド ～オズの魔女たち～', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/wicked-greeting'}],
+      ['ジュラシック・パーク・ダイナソー・ミート ＆ グリート', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/jurassic-park-dinosaur-meet-greet'}],
+      ['スヌーピー・フォト・オポチュニティ', {url: 'https://www.usj.co.jp/web/ja/jp/shopping/snoopy-photo-opportunity'}],
+      ['ヒッポグリフ・マジカル・レッスン', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/hippogriff-magical-lesson'}],
+      ['ユニバーサル・モンスター・ライブ・ロックンロール・ショー', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/universal-monster-live-rock-and-roll-show', durationMinutes: 30, note: '所要 約30分'}],
+      ['パワー・オブ・ロック ～ユー・ロック！～', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/power-of-rock'}],
+      ['ミニオン・ベロウィーン・グリーティング', {url: 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/minions-belloween-greeting'}],
+      ['クロミ・ライブ ～ Discover Me Discover U!!! ～', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/kuromi-live'}],
+      ['フロッグ・クワイア', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/frog-choir'}],
+      ['Discover U!!! タイム', {url: 'https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/other-events#hash-id-gdsothereventsarticledetail001discoveru-gdsarticledetailcenter'}],
+      ['ウォーターワールド', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/waterworld', durationMinutes: 20, note: '所要 約20分'}],
+      ['トライウィザード・スピリット・ラリー', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/triwizard-spirit-rally'}],
+      ['NO LIMIT! パレード ～Discover U!!! バージョン～', {url: 'https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/parade', durationMinutes: 40, note: '走行 約40分'}],
+      ['アルティメット・ブルース・バッシュ ～音楽の色～', {url: 'https://www.usj.co.jp/web/ja/jp/attractions/the-ultimate-blues-bash'}],
+      ['ストリート・ゾンビ', {url: 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/street-zombies', note: '開催 パーククローズまで'}],
+      ['ゾンビ・デ・ダンス', {url: 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/zombie-de-dance', note: '開催 パーククローズまで'}],
+      ['ハロウィーン・ホラー・ナイト・アカデミー ～絶叫の15年～', {url: 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/halloween-horror-nights-academy-15years-of-screams'}],
+      ['ワンピース・プレミアショー 2026', {url: 'https://www.usj.co.jp/web/ja/jp/events/onepiece/summer-2026/show', durationMinutes: 80, note: '上演 約80分'}],
+      ['プレイバック・ゾンビ・デ・ダンス ～ハロウィーン・ホラー・ナイト 15周年～', {url: 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/zombie-de-dance'}],
+    ]);
+
+    function renderShows(data) {
+      showTimeline.replaceChildren();
+      if (data.unavailable) {
+        showsStatus.textContent = 'ショー時刻の公開データを確認できません。次の5分更新で再試行します。';
+        return;
+      }
+      const shows = data.shows || [];
+      if (!shows.length) {
+        showsStatus.textContent = `${data.day || '今日'}のショー開始時刻は未掲載です。`;
+        return;
+      }
+      const midnight = Date.parse(`${data.day}T00:00:00+09:00`);
+      const minute = iso => (Date.parse(iso) - midnight) / 60000;
+      const allStarts = shows.flatMap(show => show.times.map(slot => minute(slot.start)));
+      const allEnds = shows.flatMap(show => show.times.map(slot => {
+        const start = minute(slot.start);
+        const providedEnd = slot.end ? minute(slot.end) : null;
+        if (Number.isFinite(providedEnd) && providedEnd > start) return providedEnd;
+        return start + (showDetails.get(show.name)?.durationMinutes || 0);
+      }));
+      const startHour = Math.min(8, Math.floor(Math.min(...allStarts) / 60));
+      const endHour = Math.max(22, Math.ceil(Math.max(...allStarts, ...allEnds) / 60));
+      const leftMinute = startHour * 60;
+      const trackWidth = (endHour - startHour) * 90 + 48;
+      const position = value => (value - leftMinute) / 60 * 90;
+      const nowMinute = (Date.now() - midnight) / 60000;
+      const makeTrack = (isAxis = false) => {
+        const track = document.createElement('div');
+        track.className = 'show-track';
+        track.style.width = `${trackWidth}px`;
+        track.setAttribute('role', isAxis ? 'columnheader' : 'cell');
+        if (nowMinute >= leftMinute && nowMinute <= endHour * 60) {
+          const line = document.createElement('span');
+          line.className = 'show-now';
+          line.style.left = `${position(nowMinute)}px`;
+          line.title = '現在時刻';
+          track.append(line);
+        }
+        return track;
+      };
+      const axis = document.createElement('div');
+      axis.className = 'show-axis';
+      axis.setAttribute('role', 'row');
+      const axisLabel = document.createElement('div');
+      axisLabel.className = 'show-label';
+      axisLabel.textContent = 'ショー・パレード';
+      axisLabel.setAttribute('role', 'columnheader');
+      const axisTrack = makeTrack(true);
+      for (let hour = startHour; hour <= endHour; hour++) {
+        const tick = document.createElement('span');
+        tick.className = 'show-hour';
+        tick.style.left = `${position(hour * 60)}px`;
+        if (hour === startHour) tick.style.transform = 'none';
+        if (hour === endHour) tick.style.transform = 'translateX(-100%)';
+        tick.textContent = `${String(hour).padStart(2, '0')}:00`;
+        axisTrack.append(tick);
+      }
+      axis.append(axisLabel, axisTrack);
+      showTimeline.append(axis);
+      for (const show of shows) {
+        const row = document.createElement('div');
+        row.className = 'show-row';
+        row.setAttribute('role', 'row');
+        const name = document.createElement('div');
+        name.className = 'show-label';
+        name.setAttribute('role', 'rowheader');
+        const detail = showDetails.get(show.name);
+        if (detail?.url) {
+          const link = document.createElement('a');
+          link.href = detail.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = show.name;
+          name.append(link);
+        } else {
+          name.textContent = show.name;
+        }
+        if (detail?.note) {
+          const note = document.createElement('small');
+          note.textContent = detail.note;
+          name.append(note);
+        }
+        const track = makeTrack();
+        for (const slot of show.times) {
+          const start = minute(slot.start);
+          if (!Number.isFinite(start)) continue;
+          const startText = hourMinuteFormat.format(new Date(slot.start));
+          const providedEnd = slot.end ? minute(slot.end) : null;
+          const hasProvidedEnd = Number.isFinite(providedEnd) && providedEnd > start;
+          const approximate = !hasProvidedEnd && Number.isFinite(detail?.durationMinutes);
+          const end = hasProvidedEnd ? providedEnd : approximate ? start + detail.durationMinutes : null;
+          if (Number.isFinite(end) && end > start) {
+            const range = document.createElement('span');
+            range.className = `show-range${approximate ? ' approx' : ''}`;
+            range.style.left = `${position(start)}px`;
+            range.style.width = `${position(end) - position(start)}px`;
+            range.title = hasProvidedEnd
+              ? `${show.name}：${startText}〜${hourMinuteFormat.format(new Date(slot.end))}`
+              : `${show.name}：${startText}開始、${detail.note}（終了は目安）`;
+            range.setAttribute('aria-label', range.title);
+            track.append(range);
+            const timeLabel = document.createElement('span');
+            timeLabel.className = 'show-time-label';
+            timeLabel.style.left = `${position(start)}px`;
+            timeLabel.textContent = startText;
+            timeLabel.setAttribute('aria-hidden', 'true');
+            track.append(timeLabel);
+          } else {
+            const point = document.createElement('span');
+            point.className = `show-point${start < nowMinute ? ' past' : ''}`;
+            point.style.left = `${position(start)}px`;
+            point.textContent = startText;
+            point.title = `${show.name}：${startText} 開始（終了時刻未掲載）`;
+            point.setAttribute('aria-label', point.title);
+            track.append(point);
+          }
+        }
+        row.append(name, track);
+        showTimeline.append(row);
+      }
+      const upcoming = shows.flatMap(show => show.times.map(slot => ({name: show.name, start: slot.start})))
+        .filter(slot => Date.parse(slot.start) >= Date.now())
+        .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+      const next = upcoming.length ? ` · 次の開始 ${hourMinuteFormat.format(new Date(upcoming[0].start))} ${upcoming[0].name}` : '';
+      showsStatus.textContent = `${data.day.replaceAll('-', '/')} JST · ${shows.length}件 · ${shows.reduce((sum, show) => sum + show.times.length, 0)}回の開始時刻 · データ確認 ${timeFormat.format(new Date(data.fetched_at))} JST${next}`;
+    }
+
+    async function loadShows() {
+      try {
+        const response = await fetch('/api/shows', {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        renderShows(data);
+      } catch (cause) {
+        showTimeline.replaceChildren();
+        showsStatus.textContent = `ショー時刻を読み込めません: ${cause.message}`;
+      }
+    }
+
+    function heatClass(wait) {
+      if (wait < 20) return 'heat-0';
+      if (wait < 40) return 'heat-1';
+      if (wait < 60) return 'heat-2';
+      if (wait < 90) return 'heat-3';
+      return 'heat-4';
+    }
+
+    function heatCell(sample, label, isCurrent = false) {
+      const cell = document.createElement('td');
+      if (!sample) {
+        cell.className = 'heat-empty';
+        cell.textContent = '—';
+        cell.title = `${label}：記録なし`;
+        return cell;
+      }
+      if (sample.data_unavailable) {
+        cell.className = 'heat-unknown';
+        cell.textContent = '未取得/不明';
+        cell.title = `${label}：現在の待ち時間を取得できません`;
+        return cell;
+      }
+      if (isCurrent) {
+        const updated = new Date(sample.verified_at || sample.last_updated);
+        const age = Date.now() - updated.getTime();
+        if (Number.isNaN(updated.getTime()) || age > 15 * 60 * 1000 || age < -2 * 60 * 1000) {
+          cell.className = 'heat-unknown';
+          cell.textContent = '未取得/不明';
+          cell.title = Number.isNaN(updated.getTime())
+            ? `${label}：提供元の更新時刻を確認できません`
+            : `${label}：提供元の更新時刻が15分以上前のため、現在値を確認できません`;
+          return cell;
+        }
+      }
+      if (!sample.is_open) {
+        cell.className = 'heat-empty';
+        cell.textContent = '休';
+        cell.title = `${label}：休止中`;
+        return cell;
+      }
+      const wait = isCurrent ? sample.wait_time : sample.wait_minutes;
+      if (!Number.isFinite(wait)) {
+        cell.className = 'heat-empty';
+        cell.textContent = '—';
+        cell.title = `${label}：待ち時間の記録なし`;
+        return cell;
+      }
+      cell.className = heatClass(wait);
+      cell.textContent = `${wait}${sample.estimated ? '※' : ''}`;
+      cell.title = sample.estimated
+        ? `${label}：${wait}分。旧通常版IDの値を夜間版へ推定振替（公式確認値ではありません）`
+        : `${label}：${wait}分`;
+      return cell;
+    }
+
+    function renderToday(data) {
+      if (!currentData) return;
+      const snapshots = data.snapshots || [];
+      const rides = [...currentData.rides].sort((a, b) => {
+        if (a.is_open !== b.is_open) return a.is_open ? -1 : 1;
+        return (b.wait_time || 0) - (a.wait_time || 0);
+      });
+      heatmapHead.replaceChildren();
+      heatmapBody.replaceChildren();
+      for (const label of ['アトラクション', '現在', ...snapshots.map(item => hourMinuteFormat.format(new Date(item.captured_at * 1000)))]) {
+        const heading = document.createElement('th');
+        heading.scope = 'col';
+        heading.textContent = label;
+        heatmapHead.append(heading);
+      }
+      for (const ride of rides) {
+        const row = document.createElement('tr');
+        const name = document.createElement('th');
+        name.scope = 'row';
+        name.textContent = rideName(ride);
+        row.append(name, heatCell(ride, '現在', true));
+        for (const snapshot of snapshots) {
+          const label = `${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}の保存値`;
+          row.append(heatCell(snapshot.rides[String(ride.id)], label));
+        }
+        heatmapBody.append(row);
+      }
+      const day = data.day ? data.day.replaceAll('-', '/') : '今日';
+      heatmapStatus.textContent = `${day} JST · ${rides.length}件 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存値は毎時0・20・40分に更新`;
+    }
+
+    async function loadToday() {
+      const requestNumber = ++todayRequest;
+      try {
+        const response = await fetch('/api/today', {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        if (requestNumber === todayRequest) renderToday(data);
+      } catch (cause) {
+        if (requestNumber === todayRequest) heatmapStatus.textContent = `当日の記録を読み込めません: ${cause.message}`;
+      }
+    }
+
+    function rideName(ride) {
+      return japaneseNames.get(Number(ride.id)) ?? ride.name;
+    }
+
+    function updateMetrics() {
+      if (!currentData) return;
+      const ride = currentData.rides.find(item => String(item.id) === rideSelect.value);
+      if (!ride) return;
+      const comparison = currentData.comparisons?.[ride.id] ?? {};
+      const open = !ride.data_unavailable && ride.is_open && Number.isFinite(ride.wait_time);
+      currentValue.textContent = ride.data_unavailable ? '確認できません' : open ? `${ride.wait_time}分` : '休止中';
+      const isWiki = ride.source === 'ThemeParks.wiki';
+      const updated = new Date(isWiki ? ride.verified_at : ride.last_updated);
+      currentDetail.textContent = Number.isNaN(updated.getTime()) ? '提供元の時刻不明'
+        : `${isWiki ? 'ライブ情報確認' : '提供元更新'} ${timeFormat.format(updated)} JST`;
+
+      if (open && comparison.previous_open && Number.isFinite(comparison.previous_wait)) {
+        const difference = ride.wait_time - comparison.previous_wait;
+        previousValue.textContent = `${difference > 0 ? '+' : difference < 0 ? '' : '±'}${difference}分${comparison.previous_estimated ? '※' : ''}`;
+        previousDetail.textContent = `前回 ${comparison.previous_wait}分（${timeFormat.format(new Date(comparison.previous_at * 1000))} JST${comparison.previous_estimated ? '・推定振替' : ''}）`;
+      } else {
+        previousValue.textContent = '—';
+        previousDetail.textContent = comparison.previous_at ? '営業状態が異なるため比較できません' : '次の20分記録から比較できます';
+      }
+
+      if (open && Number.isFinite(comparison.same_time_avg)) {
+        const difference = Math.round((ride.wait_time - comparison.same_time_avg) * 10) / 10;
+        averageValue.textContent = `${difference > 0 ? '+' : difference < 0 ? '' : '±'}${difference}分`;
+        averageDetail.textContent = `過去7日の時間平均 ${comparison.same_time_avg}分（${comparison.same_time_count}日・${comparison.same_time_samples}記録）`;
+      } else {
+        averageValue.textContent = '—';
+        averageDetail.textContent = '過去7日の同時間帯の記録を蓄積中';
+      }
+    }
+
+    function svgElement(tag, attributes, parent = trend) {
+      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+      parent.append(element);
+      return element;
+    }
+
+    function svgText(label, x, y, anchor = 'start') {
+      const element = svgElement('text', {x, y, 'text-anchor': anchor, fill: '#526477', 'font-size': 13});
+      element.textContent = label;
+    }
+
+    function renderHistory(hours, days) {
+      trend.replaceChildren();
+      recentRecords.replaceChildren();
+      const recent = [...hours].reverse().slice(0, 8);
+      for (const hour of recent) {
+        const row = document.createElement('tr');
+        const at = document.createElement('td');
+        at.textContent = `${timeFormat.format(new Date(hour.at * 1000))}～ JST`;
+        const wait = document.createElement('td');
+        wait.textContent = Number.isFinite(hour.average_wait) ? `${hour.average_wait}分${hour.estimated_samples ? '※' : ''}` : '休止中';
+        const count = document.createElement('td');
+        count.textContent = `${hour.open_samples}/3件${hour.estimated_samples ? `・推定${hour.estimated_samples}件` : ''}${hour.samples < 3 ? '（記録不足）' : ''}`;
+        row.append(at, wait, count);
+        recentRecords.append(row);
+      }
+      if (!hours.length) {
+        chartNote.textContent = 'この期間の記録はまだありません。毎時0・20・40分の取得時に蓄積します。';
+        return;
+      }
+      chartNote.textContent = hours.length === 1
+        ? '時間平均は1時間帯です。0・20・40分のうち取得できた記録で計算しています。'
+        : `${hours.length}時間帯の平均値。1時間につき最大3記録で計算し、記録数は下表に表示します。線の途切れは未記録または休止中、破線は現在値です。`;
+      if (hours.some(hour => hour.estimated_samples)) chartNote.textContent += ' ※と橙点は旧通常版IDからの推定振替を含みます。';
+
+      const now = Date.now();
+      const from = now - days * 86400000;
+      const left = 65, right = 720, top = 16, bottom = 207;
+      const ride = currentData.rides.find(item => String(item.id) === rideSelect.value);
+      const currentWait = ride?.is_open && Number.isFinite(ride.wait_time) ? ride.wait_time : null;
+      const openHours = hours.filter(hour => Number.isFinite(hour.average_wait));
+      const maximum = Math.max(10, ...openHours.map(hour => hour.average_wait), currentWait ?? 0);
+      const ceiling = Math.ceil(maximum / 10) * 10;
+      const x = at => left + Math.max(0, Math.min(1, (at * 1000 - from) / (now - from))) * (right - left);
+      const y = wait => bottom - wait / ceiling * (bottom - top);
+
+      for (const value of [0, ceiling / 2, ceiling]) {
+        svgElement('line', {x1: left, x2: right, y1: y(value), y2: y(value), stroke: '#e1e7ed'});
+        svgText(`${Math.round(value)}分`, left - 8, y(value) + 4, 'end');
+      }
+      if (currentWait !== null) {
+        svgElement('line', {x1: left, x2: right, y1: y(currentWait), y2: y(currentWait), stroke: '#b36b00', 'stroke-width': 2, 'stroke-dasharray': '6 5'});
+        const marker = svgElement('text', {x: right - 4, y: Math.max(12, y(currentWait) - 5), 'text-anchor': 'end', fill: '#8b5300', 'font-size': 13});
+        marker.textContent = `現在 ${currentWait}分`;
+      }
+      let path = '';
+      let previous = null;
+      for (const hour of hours) {
+        if (!Number.isFinite(hour.average_wait)) { previous = null; continue; }
+        const command = previous && hour.at - previous.at <= 3600 ? 'L' : 'M';
+        path += `${command}${x(hour.at).toFixed(1)},${y(hour.average_wait).toFixed(1)} `;
+        previous = hour;
+      }
+      svgElement('path', {d: path, fill: 'none', stroke: '#1058a7', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'});
+      if (hours.length <= 100) {
+        for (const hour of hours) {
+          if (!Number.isFinite(hour.average_wait)) continue;
+          const point = svgElement('circle', {cx: x(hour.at), cy: y(hour.average_wait), r: 4, fill: hour.estimated_samples ? '#b36b00' : '#1058a7'});
+          const title = svgElement('title', {}, point);
+          title.textContent = `${timeFormat.format(new Date(hour.at * 1000))}時台・平均${hour.average_wait}分・${hour.open_samples}/3件${hour.estimated_samples ? `・推定振替${hour.estimated_samples}件` : ''}`;
+        }
+      }
+      svgText(timeFormat.format(new Date(from)), left, 244);
+      svgText(timeFormat.format(new Date(now)), right, 244, 'end');
+    }
+
+    async function loadHistory() {
+      if (!currentData || !rideSelect.value) return;
+      const requestNumber = ++historyRequest;
+      chartNote.textContent = '履歴を読み込み中…';
+      try {
+        const days = Number(rangeSelect.value);
+        const response = await fetch(`/api/history?ride_id=${encodeURIComponent(rideSelect.value)}&days=${days}`, {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        if (requestNumber === historyRequest) renderHistory(data.hours, days);
+      } catch (cause) {
+        if (requestNumber === historyRequest) chartNote.textContent = `履歴を読み込めません: ${cause.message}`;
+      }
+    }
+
+    async function refresh() {
+      if (button.disabled) return;
+      loadSchedule();
+      loadClosures();
+      loadEvents();
+      loadShows();
+      button.disabled = true;
+      error.textContent = '';
+      status.textContent = '取得中…';
+      try {
+        const response = await fetch('/api/waits', {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        const rides = [...data.rides].sort((a, b) => {
+          if (a.is_open !== b.is_open) return a.is_open ? -1 : 1;
+          return (b.wait_time || 0) - (a.wait_time || 0);
+        });
+        currentData = data;
+        loadToday();
+        const selected = rideSelect.value;
+        rideSelect.replaceChildren();
+        for (const ride of rides) {
+          const option = document.createElement('option');
+          option.value = String(ride.id);
+          option.textContent = rideName(ride);
+          rideSelect.append(option);
+        }
+        if (rides.some(ride => String(ride.id) === selected)) rideSelect.value = selected;
+        updateMetrics();
+        loadHistory();
+        const fetched = new Date(data.fetched_at);
+        const fetchedText = Number.isNaN(fetched.getTime()) ? '不明' : `${timeFormat.format(fetched)} JST`;
+        status.textContent = `アトラクション${rides.length}件 · サーバー取得 ${fetchedText} · 画面確認 ${timeFormat.format(new Date())} JST`;
+        if (data.history) {
+          const since = data.history.first_at ? `${timeFormat.format(new Date(data.history.first_at * 1000))} JST` : '未記録';
+          const latest = data.history.last_at ? `${timeFormat.format(new Date(data.history.last_at * 1000))} JST` : '未記録';
+          historyStatus.textContent = `毎時0・20・40分に保存 · ${data.history.snapshots}回記録 · 最終記録 ${latest} · 記録開始 ${since}`;
+        } else {
+          historyStatus.textContent = '履歴の状態を確認できません';
+        }
+        if (data.refresh_error) {
+          error.textContent = '最新データの取得に失敗したため、前回のデータを表示しています。';
+        }
+        if (data.archive_error) {
+          error.textContent += ' 履歴の保存に失敗しています。';
+        }
+        if (rides.some(ride => ride.data_unavailable)) {
+          error.textContent += ' 一部アトラクションのライブ情報を確認できません。';
+        }
+      } catch (cause) {
+        status.textContent = '取得できませんでした';
+        error.textContent = cause.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    button.addEventListener('click', refresh);
+    monthPrev.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, -1); renderCalendar(); });
+    monthNext.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, 1); renderCalendar(); });
+    rideSelect.addEventListener('change', () => { updateMetrics(); loadHistory(); });
+    rangeSelect.addEventListener('change', loadHistory);
+    refresh();
+    setInterval(refresh, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refresh();
+    });
+  </script>
+</body>
+</html>
