@@ -3,6 +3,8 @@ const WIKI_LIVE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-
 const WIKI_SCHEDULE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/schedule';
 const OFFICIAL_SHOW_API = 'https://mobile-service.usj.co.jp/api/Web/ShowsAndAttractions';
 const OFFICIAL_SCHEDULE_URL = 'https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2';
+const WEATHER_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.6654&lon=135.4334';
+const WEATHER_AGENT = 'USJWaitNav/1.0 github.com/ahoro535401/usj-wait-nav';
 const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
@@ -54,6 +56,44 @@ const writeMeta = (db, key, value) => db.prepare(
   'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
 ).bind(key, value).run();
 const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : embeddedFetch(request);
+
+function weatherPayload(raw) {
+  const periods = (raw.properties?.timeseries || []).slice(0, 24).map(item => ({
+    time: item.time,
+    temperature: item.data?.instant?.details?.air_temperature ?? null,
+    wind_speed: item.data?.instant?.details?.wind_speed ?? null,
+    precipitation: item.data?.next_1_hours?.details?.precipitation_amount ?? null,
+    symbol: item.data?.next_1_hours?.summary?.symbol_code ?? null,
+  }));
+  if (!periods.length || !Number.isFinite(periods[0].temperature)) throw new Error('Weather data unavailable');
+  return { periods, source: 'MET Norway / Norwegian Meteorological Institute',
+    location: '大阪市此花区・USJ付近の予報地点', fetched_at: new Date().toISOString() };
+}
+
+async function getWeather(db) {
+  const stored = await readMeta(db, 'weather_payload');
+  const cached = stored ? JSON.parse(stored) : null;
+  if (cached?.expires_at && Date.parse(cached.expires_at) > Date.now()) return cached;
+  const headers = { Accept: 'application/json', 'User-Agent': WEATHER_AGENT };
+  if (cached?.last_modified) headers['If-Modified-Since'] = cached.last_modified;
+  try {
+    const response = await fetch(WEATHER_URL, { headers });
+    if (response.status !== 304 && !response.ok) throw new Error(`Weather HTTP ${response.status}`);
+    const expires = Date.parse(response.headers.get('Expires') || '');
+    const expiresAt = new Date(Number.isFinite(expires) && expires > Date.now()
+      ? expires : Date.now() + 30 * 60 * 1000).toISOString();
+    const data = response.status === 304 && cached ? { ...cached } : weatherPayload(await response.json());
+    data.expires_at = expiresAt;
+    data.last_modified = response.headers.get('Last-Modified') || cached?.last_modified || null;
+    delete data.stale;
+    await writeMeta(db, 'weather_payload', JSON.stringify(data));
+    return data;
+  } catch (error) {
+    if (cached?.fetched_at && Date.now() - Date.parse(cached.fetched_at) < 3 * 3600 * 1000)
+      return { ...cached, stale: true };
+    throw error;
+  }
+}
 
 async function fetchJson(url) {
   const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'USJWaitNav/1.0' } });
@@ -512,6 +552,7 @@ async function route(request, env) {
     url.pathname = url.pathname === '/api/events' ? '/events.json' : '/closures.json';
     return assetFetch(new Request(url, request), env);
   }
+  if (url.pathname === '/api/weather') return json(await getWeather(env.DB));
   if (url.pathname === '/api/schedule') {
     const { results } = await env.DB.prepare('SELECT day,opens,closes,status FROM park_days ORDER BY day').all();
     return json({ days: results, fetched_at: await readMeta(env.DB, 'schedule_fetched_at'),
