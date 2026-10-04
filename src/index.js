@@ -1,6 +1,7 @@
 const QUEUE_URL = 'https://queue-times.com/parks/284/queue_times.json';
 const WIKI_LIVE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/live';
 const WIKI_SCHEDULE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/schedule';
+const OFFICIAL_SHOW_API = 'https://mobile-service.usj.co.jp/api/Web/ShowsAndAttractions';
 const OFFICIAL_SCHEDULE_URL = 'https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2';
 const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
@@ -31,6 +32,7 @@ const SHOW_NAMES = {
   'usj.usj.shows.kuromi_live_discover_me_discover_u_2026': 'クロミ・ライブ ～ Discover Me Discover U!!! ～',
   'usj.usj.shows.onepiece_premier_show_2026': 'ワンピース・プレミアショー 2026',
   'usj.usj.shows.discover_u_time_2026': 'Discover U!!! タイム',
+  'usj.usj.show.discover_u_time_2026': 'Discover U!!! タイム',
   'usj.usj.show.triwizard_spirit_rally': 'トライウィザード・スピリット・ラリー',
   'usj.usj.show.halloween_horror_nights_academy_15years_of_screams_2026': 'ハロウィーン・ホラー・ナイト・アカデミー ～絶叫の15年～',
 };
@@ -83,7 +85,68 @@ function parseShows(raw, fetchedAt) {
     });
   }
   shows.sort((a, b) => a.times[0].start.localeCompare(b.times[0].start) || a.name.localeCompare(b.name));
-  return { day, shows, fetched_at: fetchedAt, unavailable: false };
+  return { day, shows, fetched_at: fetchedAt, unavailable: false, source: 'ThemeParks.wiki' };
+}
+
+const officialShowUrl = day => {
+  const [year, month, date] = day.split('-');
+  return `https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule?date=${encodeURIComponent(`${month}/${date}/${year}`)}`;
+};
+
+function parseOfficialShows(raw, day, fetchedAt) {
+  if (raw?.ScheduleDate?.slice(0, 10) !== day || !Array.isArray(raw?.ShowInformation?.Details))
+    throw new Error('公式ショー日程の形式が変わりました');
+  const shows = [];
+  for (const item of raw.ShowInformation.Details) {
+    const id = String(item.ContentId || '').replace(/^com\.usj\.park\./, 'usj.usj.');
+    const name = SHOW_NAMES[id] || (String(item.AttractionName || '').includes('�') ? '' : item.AttractionName);
+    if (!name) continue;
+    const times = [...new Set(item.OpenTime || [])]
+      .filter(start => Number.isFinite(Date.parse(start)) && jstDay(Date.parse(start) / 1000) === day)
+      .sort().map(start => ({ start: new Date(start).toISOString(), end: null }));
+    if (times.length) shows.push({ name, times, source_updated_at: raw.ShowInformation.UpdateTime || null });
+  }
+  shows.sort((a, b) => a.times[0].start.localeCompare(b.times[0].start) || a.name.localeCompare(b.name));
+  return { day, shows, fetched_at: fetchedAt, source: 'USJ公式', unavailable: false,
+    official_url: officialShowUrl(day) };
+}
+
+async function refreshOfficialShows(env, seconds) {
+  if (!env.OFFICIAL_API_TOKEN) return;
+  const db = env.DB;
+  const today = jstDay(seconds);
+  for (let offset = 0; offset < 7; offset++) {
+    const day = jstDay(seconds + offset * 86400);
+    const key = `official_shows_${day}`;
+    let previous = null;
+    try { previous = JSON.parse(await readMeta(db, key)); } catch (_) { /* 初回取得 */ }
+    const checkedAt = previous?.checked_at || previous?.fetched_at;
+    if (checkedAt && Date.now() - Date.parse(checkedAt) < 6 * 3600 * 1000) continue;
+    const [year, month, date] = day.split('-');
+    const url = `${OFFICIAL_SHOW_API}?city=USJ&date=${encodeURIComponent(`${month}/${date}/${year}`)}`;
+    const fetchedAt = new Date().toISOString();
+    try {
+      const headers = { 'Accept-Language': 'ja-JP', Accept: 'application/json',
+        'X-UNIWebService-ApiKey': 'USJWeb', 'X-UNIWebService-Token': env.OFFICIAL_API_TOKEN };
+      const response = await fetch(url, { headers });
+      if (response.status === 404) {
+        await writeMeta(db, key, JSON.stringify({ day, shows: [], unavailable: true,
+          reason: 'unpublished', fetched_at: fetchedAt, official_url: officialShowUrl(day) }));
+        continue;
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const parsed = parseOfficialShows(await response.json(), day, fetchedAt);
+      parsed.checked_at = fetchedAt;
+      await writeMeta(db, key, JSON.stringify(parsed));
+    } catch (error) {
+      if (!previous?.shows?.length) await writeMeta(db, key, JSON.stringify({ day, shows: [],
+        unavailable: true, reason: 'source_error', fetched_at: fetchedAt, official_url: officialShowUrl(day) }));
+      else await writeMeta(db, key, JSON.stringify({ ...previous, checked_at: fetchedAt }));
+    }
+  }
+  // 過去日のキャッシュを削除し、保存量を7日分に抑える。
+  await db.prepare("DELETE FROM app_meta WHERE key LIKE 'official_shows_%' AND key < ?")
+    .bind(`official_shows_${today}`).run();
 }
 
 function parseRides(queueRaw, wikiRaw, fetchedAt) {
@@ -227,6 +290,11 @@ async function scheduled(event, env) {
     } catch (error) {
       await writeMeta(env.DB, 'schedule_error', String(error));
     }
+  }
+  try {
+    await refreshOfficialShows(env, seconds);
+  } catch (error) {
+    console.error('Official show schedule refresh failed', error);
   }
   if (!(await inCollectionWindow(env.DB, seconds))) {
     // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
@@ -456,13 +524,14 @@ async function route(request, env) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(start) ||
         jstDay(start / 1000) !== day || day < today ||
         day > jstDay(epoch() + 6 * 86400)) return json({ error: '今日から7日間の日付を指定してください' }, 400);
-    if (day !== today) return json({ day, shows: [], unavailable: true, reason: 'future',
-      official_url: `https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule?date=${encodeURIComponent(day)}` });
+    const official = await readMeta(env.DB, `official_shows_${day}`);
+    if (day !== today) return json(official && env.OFFICIAL_API_TOKEN ? JSON.parse(official) : {
+      day, shows: [], unavailable: true, reason: 'external', official_url: officialShowUrl(day) });
     const payload = await readMeta(env.DB, 'shows_payload');
-    if (!payload) return json({ day, shows: [], unavailable: true, reason: 'pending' });
-    const parsed = JSON.parse(payload);
-    if (parsed.day !== today) return json({ day, shows: [], unavailable: true, reason: 'pending' });
-    return json(parsed);
+    const parsed = payload ? JSON.parse(payload) : null;
+    if (parsed?.day === today && parsed.shows?.length) return json(parsed);
+    if (official && env.OFFICIAL_API_TOKEN) return json(JSON.parse(official));
+    return json({ day, shows: [], unavailable: true, reason: 'pending', official_url: officialShowUrl(day) });
   }
   if (url.pathname === '/api/today') return json(await todayMatrix(env.DB, epoch()));
   if (url.pathname === '/api/archive/days') return json(await archiveDates(env.DB, epoch()));
