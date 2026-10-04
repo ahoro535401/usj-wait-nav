@@ -12,6 +12,8 @@ const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
 const SOURCE_MAX_AGE = 15 * 60;
 const SNAPSHOT_SECONDS = 20 * 60;
+const COLLECTION_LEAD_SECONDS = 2 * 3600;
+const COLLECTION_TRAIL_SECONDS = 30 * 60;
 const JURASSIC = [
   { externalId: 'usj.usj.rides.jurassic_park_the_ride', id: 12067, name: 'Jurassic Park – The Ride™' },
   { externalId: 'usj.usj.rides.jurassic_park_the_ride_in_the_dark_2026', id: 15322, name: 'Jurassic Park - The Ride in the Dark' },
@@ -360,10 +362,11 @@ async function inCollectionWindow(db, seconds) {
   const row = await db.prepare('SELECT opens,closes,status FROM park_days WHERE day=?').bind(day).first();
   if (row?.status === 'CLOSED') return false;
   if (row?.status === 'OPERATING' && row.opens && row.closes) {
-    const start = Date.parse(`${day}T${row.opens}:00+09:00`) / 1000 - 30 * 60;
+    const opening = Date.parse(`${day}T${row.opens}:00+09:00`) / 1000;
+    const start = opening - COLLECTION_LEAD_SECONDS;
     let end = Date.parse(`${day}T${row.closes}:00+09:00`) / 1000;
-    if (end <= start + 30 * 60) end += 86400;
-    return seconds >= start && seconds <= end + 30 * 60;
+    if (end <= opening) end += 86400;
+    return seconds >= start && seconds <= end + COLLECTION_TRAIL_SECONDS;
   }
   return jstHour(seconds) >= 6;
 }
