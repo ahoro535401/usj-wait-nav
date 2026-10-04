@@ -25,7 +25,7 @@
     button:disabled { opacity: .6; cursor: wait; }
     #status { color: #526477; }
     #error { color: #a42222; }
-    .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .shows-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
+    .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .archive-panel, .shows-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
     .shows-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
     .shows-panel p { margin: 5px 0 12px; }
     .show-timeline-scroll { overflow: auto; max-height: 630px; border: 1px solid #dce4ed; border-radius: 9px; }
@@ -47,8 +47,8 @@
     .closure-list { margin: 8px 0 16px; padding-left: 22px; line-height: 1.6; }
     .closure-list li { margin: 4px 0; }
     .closure-count { color: #9a3f3f; font-size: .78rem; font-weight: 700; }
-    .heatmap-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
-    .heatmap-panel p { margin: 5px 0 12px; }
+    .heatmap-panel h2, .archive-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
+    .heatmap-panel p, .archive-panel p { margin: 5px 0 12px; }
     .heatmap-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 12px 0; font-size: .83rem; }
     .heatmap-legend span { padding: 3px 7px; border-radius: 5px; border: 1px solid #dce4ed; }
     .heatmap-scroll { max-height: 650px; overflow: auto; border: 1px solid #dce4ed; border-radius: 9px; }
@@ -60,6 +60,18 @@
     .heatmap-table tbody td { min-width: 67px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
     .heatmap-table tbody tr:hover th { background: #f2f6fa; }
     .mobile-heatmap-controls, .mobile-heatmap-hint { display: none; }
+    .archive-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 12px 0; }
+    .archive-controls label { display: grid; gap: 5px; font-weight: 700; }
+    .archive-hour-picker { display: none !important; }
+    .archive-summary { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+    .archive-summary div { flex: 1 1 150px; border: 1px solid #dce4ed; border-radius: 9px; padding: 10px; background: #f8fafc; }
+    .archive-summary small { display: block; color: #526477; }
+    .archive-summary strong { display: block; margin-top: 3px; color: #1058a7; font-size: 1.15rem; }
+    .archive-hour-bars { display: grid; gap: 5px; margin: 14px 0 20px; max-width: 720px; }
+    .archive-hour-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 68px; align-items: center; gap: 7px; font-size: .84rem; }
+    .archive-hour-track { height: 17px; border-radius: 4px; background: #f0f3f6; overflow: hidden; }
+    .archive-hour-fill { display: block; height: 100%; border-radius: 4px; }
+    .archive-hour-row strong { text-align: right; font-variant-numeric: tabular-nums; }
     .heat-0 { background: #e6f6f2; color: #174c44; }
     .heat-1 { background: #bee8cf; color: #164b32; }
     .heat-2 { background: #fff0ad; color: #654700; }
@@ -127,13 +139,16 @@
     @media (max-width: 620px) {
       .metrics { grid-template-columns: 1fr; }
       .history-panel, .calendar-panel, .events-panel, .shows-panel { padding: 15px; }
-      .heatmap-panel { padding: 12px; }
+      .heatmap-panel, .archive-panel { padding: 12px; }
       .calendar-grid button { min-height: 54px; }
       .calendar-grid small { font-size: .58rem; }
       .desktop-heatmap-hint { display: none; }
       .mobile-heatmap-hint { display: block; }
       .mobile-heatmap-controls { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: .82rem; font-weight: 700; }
       .mobile-heatmap-controls select { flex: 1; min-width: 0; padding: 6px; font-size: .82rem; }
+      .archive-controls label { width: 100%; min-width: 0; }
+      .archive-controls select { box-sizing: border-box; width: 100%; min-width: 0; }
+      .archive-hour-picker { display: grid !important; }
       .controls label { width: 100%; min-width: 0; }
       .controls select { box-sizing: border-box; width: 100%; min-width: 0; }
       .heatmap-legend { gap: 4px; font-size: .72rem; }
@@ -175,6 +190,25 @@
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
     </div>
     <p class="muted">色は待ち時間の長さを示します。</p>
+  </section>
+  <section class="archive-panel" aria-labelledby="archive-title">
+    <h2 id="archive-title">過去の待ち時間・混雑傾向</h2>
+    <p class="muted">記録した日を選ぶと、時間帯ごとの平均待ち時間とアトラクション別の履歴を確認できます。</p>
+    <div class="archive-controls">
+      <label>記録日 <select id="archive-date" aria-label="過去の記録日"></select></label>
+      <label class="archive-hour-picker">表示する時間帯 <select id="archive-hours" aria-label="過去の表示時間帯"></select></label>
+    </div>
+    <p id="archive-status" class="muted" role="status">過去の記録を確認中…</p>
+    <div class="archive-summary" aria-label="選択日の記録概要">
+      <div><small>記録された営業中の平均待ち時間</small><strong id="archive-average">—</strong></div>
+      <div><small>20分ごとの保存回数</small><strong id="archive-snapshots">—</strong></div>
+      <div><small>記録がある時刻</small><strong id="archive-coverage">—</strong></div>
+    </div>
+    <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
+    <div class="heatmap-scroll" tabindex="0" aria-label="過去のアトラクション別・時間帯別待ち時間表">
+      <table class="heatmap-table"><thead><tr id="archive-head"></tr></thead><tbody id="archive-body"></tbody></table>
+    </div>
+    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は保存された営業中の記録の平均です。—は記録なし、休は記録上の休止です。※は推定振替を含みます。</p>
   </section>
   <!-- 広告枠1：承認済み広告コードとプライバシー表示を設定してから有効化 -->
   <aside id="ad-slot-1" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-1"></div></aside>
@@ -280,6 +314,15 @@
     const heatmapHead = document.querySelector('#heatmap-head');
     const heatmapBody = document.querySelector('#heatmap-body');
     const heatmapRange = document.querySelector('#heatmap-range');
+    const archiveDate = document.querySelector('#archive-date');
+    const archiveHours = document.querySelector('#archive-hours');
+    const archiveStatus = document.querySelector('#archive-status');
+    const archiveAverage = document.querySelector('#archive-average');
+    const archiveSnapshots = document.querySelector('#archive-snapshots');
+    const archiveCoverage = document.querySelector('#archive-coverage');
+    const archiveHourBars = document.querySelector('#archive-hour-bars');
+    const archiveHead = document.querySelector('#archive-head');
+    const archiveBody = document.querySelector('#archive-body');
     const mobileHeatmap = window.matchMedia('(max-width: 620px)');
     const narrowHeatmap = window.matchMedia('(max-width: 360px)');
     const timeFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
@@ -289,6 +332,10 @@
     let todayRequest = 0;
     let todayData = null;
     let heatmapPage = 0;
+    let archiveData = null;
+    let archivePage = 0;
+    let archiveRequest = 0;
+    let archiveListingDay = '';
     let scheduleDays = new Map();
     let closuresData = null;
     let calendarMonth = null;
@@ -804,6 +851,152 @@
       return cell;
     }
 
+    function archiveCell(sample, label) {
+      const cell = document.createElement('td');
+      if (!sample) {
+        cell.className = 'heat-empty';
+        cell.textContent = '—';
+        cell.title = `${label}：記録なし`;
+      } else if (sample.open_samples && Number.isFinite(sample.average_wait)) {
+        cell.className = heatClass(sample.average_wait);
+        cell.textContent = `${sample.average_wait}${sample.estimated_samples ? '※' : ''}`;
+        cell.title = `${label}：平均${sample.average_wait}分（営業中${sample.open_samples}件／記録${sample.samples}件）` +
+          (sample.estimated_samples ? `。うち推定振替${sample.estimated_samples}件` : '');
+      } else {
+        cell.className = 'heat-empty';
+        cell.textContent = sample.closed_samples ? '休' : '—';
+        cell.title = `${label}：${sample.closed_samples ? '休止中の記録' : '待ち時間の記録なし'}`;
+      }
+      return cell;
+    }
+
+    function renderArchive(data) {
+      archiveData = data;
+      const hours = data.hours || [];
+      let visibleHours = hours;
+      if (mobileHeatmap.matches) {
+        const pageSize = narrowHeatmap.matches ? 2 : 3;
+        const pages = Math.max(1, Math.ceil(hours.length / pageSize));
+        if (archivePage >= pages) archivePage = 0;
+        archiveHours.replaceChildren();
+        for (let page = 0; page < pages; page++) {
+          const group = hours.slice(page * pageSize, (page + 1) * pageSize);
+          const option = document.createElement('option');
+          option.value = String(page);
+          option.textContent = group.length
+            ? `${hourMinuteFormat.format(new Date(group[0].at * 1000))}〜${hourMinuteFormat.format(new Date(group.at(-1).at * 1000))}`
+            : '記録なし';
+          archiveHours.append(option);
+        }
+        archiveHours.value = String(archivePage);
+        archiveHours.disabled = pages < 2;
+        visibleHours = hours.slice(archivePage * pageSize, (archivePage + 1) * pageSize);
+      }
+      const first = hourMinuteFormat.format(new Date(data.first_at * 1000));
+      const last = hourMinuteFormat.format(new Date(data.last_at * 1000));
+      archiveStatus.textContent = `${data.day.replaceAll('-', '/')} JST · ${data.snapshots}回保存 · ${first}〜${last}の記録。記録のない時間帯は含みません。`;
+      archiveAverage.textContent = Number.isFinite(data.average_wait) ? `${data.average_wait}分` : '記録なし';
+      archiveSnapshots.textContent = `${data.snapshots}回`;
+      archiveCoverage.textContent = first === last ? first : `${first}〜${last}`;
+
+      archiveHourBars.replaceChildren();
+      const scale = Math.max(30, ...hours.map(hour => hour.average_wait || 0));
+      for (const hour of hours) {
+        const row = document.createElement('div');
+        row.className = 'archive-hour-row';
+        const label = document.createElement('span');
+        label.textContent = `${hourMinuteFormat.format(new Date(hour.at * 1000)).slice(0, 2)}時`;
+        const track = document.createElement('span');
+        track.className = 'archive-hour-track';
+        const fill = document.createElement('span');
+        fill.className = `archive-hour-fill ${Number.isFinite(hour.average_wait) ? heatClass(hour.average_wait) : 'heat-empty'}`;
+        fill.style.width = `${Number.isFinite(hour.average_wait) ? Math.max(3, hour.average_wait / scale * 100) : 0}%`;
+        track.append(fill);
+        const value = document.createElement('strong');
+        value.textContent = Number.isFinite(hour.average_wait) ? `${hour.average_wait}分` : '—';
+        row.title = `${label.textContent}台・${hour.snapshots}/3回保存・営業中${hour.open_samples}件`;
+        row.append(label, track, value);
+        archiveHourBars.append(row);
+      }
+
+      const rideMap = new Map((currentData?.rides || []).map(ride => [String(ride.id), ride]));
+      const scores = new Map();
+      for (const hour of hours) for (const [id, sample] of Object.entries(hour.rides || {})) {
+        const score = scores.get(id) || { total: 0, count: 0 };
+        if (sample.open_samples && Number.isFinite(sample.average_wait)) {
+          score.total += sample.average_wait * sample.open_samples;
+          score.count += sample.open_samples;
+        }
+        scores.set(id, score);
+      }
+      const nameOf = id => rideMap.has(id) ? rideName(rideMap.get(id)) : japaneseNames.get(Number(id)) || `アトラクションID ${id}`;
+      const rideIds = [...new Set([...rideMap.keys(), ...scores.keys()])].sort((a, b) => {
+        const aScore = scores.get(a), bScore = scores.get(b);
+        const aWait = aScore?.count ? aScore.total / aScore.count : -1;
+        const bWait = bScore?.count ? bScore.total / bScore.count : -1;
+        return bWait - aWait || nameOf(a).localeCompare(nameOf(b), 'ja');
+      });
+      archiveHead.replaceChildren();
+      archiveBody.replaceChildren();
+      for (const label of ['アトラクション', ...visibleHours.map(hour => `${hourMinuteFormat.format(new Date(hour.at * 1000))}〜`)]) {
+        const heading = document.createElement('th');
+        heading.scope = 'col';
+        heading.textContent = label;
+        archiveHead.append(heading);
+      }
+      for (const id of rideIds) {
+        const row = document.createElement('tr');
+        const name = document.createElement('th');
+        name.scope = 'row';
+        name.textContent = nameOf(id);
+        row.append(name);
+        for (const hour of visibleHours) row.append(archiveCell(hour.rides[id], `${hourMinuteFormat.format(new Date(hour.at * 1000))}時台`));
+        archiveBody.append(row);
+      }
+    }
+
+    async function loadArchiveDay() {
+      if (!archiveDate.value) return;
+      const requestNumber = ++archiveRequest;
+      archiveStatus.textContent = '選択日の記録を読み込み中…';
+      try {
+        const response = await fetch(`/api/archive/day?date=${encodeURIComponent(archiveDate.value)}`, {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        if (requestNumber === archiveRequest) renderArchive(data);
+      } catch (cause) {
+        if (requestNumber === archiveRequest) archiveStatus.textContent = `過去の記録を読み込めません: ${cause.message}`;
+      }
+    }
+
+    async function loadArchiveDates() {
+      const today = jstToday();
+      if (archiveListingDay === today) return;
+      archiveListingDay = today;
+      try {
+        const response = await fetch('/api/archive/days', {cache: 'no-store'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        const selected = archiveDate.value;
+        archiveDate.replaceChildren();
+        for (const item of data.days || []) {
+          const option = document.createElement('option');
+          option.value = item.day;
+          option.textContent = `${item.day.replaceAll('-', '/')} · ${item.snapshots}回保存`;
+          archiveDate.append(option);
+        }
+        archiveDate.disabled = !archiveDate.options.length;
+        if (archiveDate.options.length) {
+          if ([...archiveDate.options].some(option => option.value === selected)) archiveDate.value = selected;
+          archivePage = 0;
+          loadArchiveDay();
+        } else archiveStatus.textContent = '過去の日付の記録はまだありません。保存が始まった翌日から表示します。';
+      } catch (cause) {
+        archiveListingDay = '';
+        archiveStatus.textContent = `記録日を読み込めません: ${cause.message}`;
+      }
+    }
+
     function renderToday(data) {
       if (!currentData) return;
       todayData = data;
@@ -1005,6 +1198,7 @@
       loadClosures();
       loadEvents();
       loadShows();
+      loadArchiveDates();
       button.disabled = true;
       error.textContent = '';
       status.textContent = '取得中…';
@@ -1018,6 +1212,7 @@
         });
         currentData = data;
         loadToday();
+        if (archiveData) renderArchive(archiveData);
         const selected = rideSelect.value;
         rideSelect.replaceChildren();
         for (const ride of rides) {
@@ -1061,10 +1256,17 @@
       heatmapPage = Number(heatmapRange.value) || 0;
       if (todayData) renderToday(todayData);
     });
+    archiveDate.addEventListener('change', () => { archivePage = 0; loadArchiveDay(); });
+    archiveHours.addEventListener('change', () => {
+      archivePage = Number(archiveHours.value) || 0;
+      if (archiveData) renderArchive(archiveData);
+    });
     for (const breakpoint of [mobileHeatmap, narrowHeatmap]) {
       breakpoint.addEventListener('change', () => {
         heatmapPage = 0;
         if (todayData) renderToday(todayData);
+        archivePage = 0;
+        if (archiveData) renderArchive(archiveData);
       });
     }
     monthPrev.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, -1); renderCalendar(); });
