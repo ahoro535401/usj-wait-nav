@@ -25,7 +25,20 @@
     button:disabled { opacity: .6; cursor: wait; }
     #status { color: #526477; }
     #error { color: #a42222; }
-    .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .archive-panel, .shows-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
+    .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .archive-panel, .shows-panel, .weather-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
+    .weather-panel h2 { margin: 0 0 7px; font-size: 1.35rem; }
+    .weather-values { display: flex; flex-wrap: wrap; gap: 9px; margin: 12px 0; }
+    .weather-values div { flex: 1 1 110px; padding: 10px; background: #eef5ff; border-radius: 8px; }
+    .weather-values small { display: block; color: #526477; }
+    .weather-values strong { display: block; font-size: 1.18rem; }
+    .weather-alert { padding: 10px 12px; border-radius: 8px; background: #fff4d2; color: #654700; }
+    .ride-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 9px 14px; margin: 12px 0; }
+    .ride-filters label { display: grid; gap: 4px; font-size: .85rem; font-weight: 700; }
+    .ride-filters .check-filter { display: flex; align-items: center; gap: 4px; min-height: 40px; }
+    .ride-filters select { padding: 7px; }
+    .favorite-button { margin-right: 5px; padding: 1px 4px; background: transparent; color: #637184; border-radius: 4px; font-size: 1.06rem; line-height: 1; }
+    .favorite-button[aria-pressed="true"] { color: #b36100; }
+    .favorite-button:focus-visible { outline: 2px solid #1058a7; }
     .shows-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
     .shows-panel p { margin: 5px 0 12px; }
     .show-date-list { display: flex; flex-wrap: wrap; gap: 7px; padding: 3px 1px 10px; margin: 9px 0 5px; }
@@ -137,7 +150,7 @@
     a { color: #1058a7; }
     @media (max-width: 620px) {
       .metrics { grid-template-columns: 1fr; }
-      .history-panel, .calendar-panel, .events-panel, .shows-panel { padding: 15px; }
+      .history-panel, .calendar-panel, .events-panel, .shows-panel, .weather-panel { padding: 15px; }
       .heatmap-panel, .archive-panel { padding: 12px; }
       .calendar-grid button { min-height: 54px; }
       .calendar-grid small { font-size: .58rem; }
@@ -176,10 +189,23 @@
     <span id="error" role="alert"></span>
   </div>
   <main>
+  <section class="weather-panel" aria-labelledby="weather-title">
+    <h2 id="weather-title">USJ付近の天気・気温・風速予報</h2>
+    <p id="weather-status" class="muted" role="status">予報を読み込み中…</p>
+    <div class="weather-values" aria-label="予報値"><div><small>天気</small><strong id="weather-condition">—</strong></div><div><small>気温</small><strong id="weather-temperature">—</strong></div><div><small>風速</small><strong id="weather-wind">—</strong></div><div><small>1時間降水量</small><strong id="weather-rain">—</strong></div></div>
+    <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
+    <p class="muted">予報値は現地の実測ではありません。今後約6時間の風速10m/s以上、または1時間降水量1mm以上を注意目安とします。運休を予測・判定するものではありません。</p>
+  </section>
   <section class="heatmap-panel" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
     <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
     <p class="muted mobile-heatmap-hint">全アトラクションの現在値と直近の保存値を一覧できます。過去の時間帯は下で切り替えられます。数値の単位は分です。</p>
+    <div class="ride-filters" aria-label="アトラクション絞り込み">
+      <label>身長の目安 <select id="height-filter"><option value="all">指定なし</option><option value="0">身長制限なし</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
+      <label class="check-filter"><input id="child-switch-filter" type="checkbox">チャイルドスイッチ対応のみ</label>
+      <label class="check-filter"><input id="favorites-filter" type="checkbox">お気に入りのみ</label>
+    </div>
+    <p class="muted">★でお気に入り登録すると上部に表示します。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <div class="heatmap-legend" aria-label="待ち時間の色分け">
       <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
@@ -273,7 +299,7 @@
   </main>
   <footer>
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
-    <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a>
+    <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 天気予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
     <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックの2件の現在値と当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。10月4日の夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
     <p>公表営業時間の前後30分を含む時間帯にサーバーが5分おきに公開データを取得し、毎時0・20・40分の取得値を保存します。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックの2件はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
@@ -323,6 +349,11 @@
     const archiveBody = document.querySelector('#archive-body');
     const mobileHeatmap = window.matchMedia('(max-width: 620px)');
     const narrowHeatmap = window.matchMedia('(max-width: 360px)');
+    const heightFilter = document.querySelector('#height-filter');
+    const childSwitchFilter = document.querySelector('#child-switch-filter');
+    const favoritesFilter = document.querySelector('#favorites-filter');
+    const weatherStatus = document.querySelector('#weather-status');
+    const weatherAdvice = document.querySelector('#weather-advice');
     const timeFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
     const hourMinuteFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'});
     let currentData = null;
@@ -339,6 +370,76 @@
     let calendarMonth = null;
     let selectedDate = null;
     let eventsData = null;
+    const HEIGHTS = new Map([
+      [7077, 132], [12070, 132], [7092, 132], [12065, 122],
+      [12061, 107], [14402, 107], [12067, 107], [12066, 102], [12082, 102],
+      [12071, 92], [12073, 92], [12072, 92], [14919, 92], [12075, 92],
+      [14918, 0], [7065, 0], [12068, 0], [17894, 0], [13005, 0],
+    ]);
+    const CHILD_SWITCH = new Set([14402, 12061, 12071, 12065, 12073, 14918, 12066,
+      12072, 14919, 12075, 7065, 7077, 12070, 12082, 12084, 12083, 13005,
+      7092, 12067, 12068, 17894]);
+    const FAVORITES_KEY = 'usj-wait-nav-favorites-v1';
+    let favorites = new Set();
+    try {
+      const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+      if (Array.isArray(saved)) favorites = new Set(saved.map(Number).filter(Number.isInteger));
+    } catch (_) { /* 閲覧環境が保存に非対応でも絞り込みは動作する。 */ }
+
+    function matchesRide(id) {
+      const numericId = Number(id);
+      const height = heightFilter.value;
+      if (height !== 'all') {
+        const minimum = HEIGHTS.get(numericId);
+        if (minimum === undefined || (height === '0' ? minimum !== 0 : minimum > Number(height))) return false;
+      }
+      return (!childSwitchFilter.checked || CHILD_SWITCH.has(numericId)) &&
+        (!favoritesFilter.checked || favorites.has(numericId));
+    }
+
+    function favoriteFirst(a, b) {
+      return Number(favorites.has(Number(b))) - Number(favorites.has(Number(a)));
+    }
+
+    function toggleFavorite(id) {
+      const numericId = Number(id);
+      if (favorites.has(numericId)) favorites.delete(numericId);
+      else favorites.add(numericId);
+      try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch (_) {}
+      if (todayData) renderToday(todayData);
+      if (archiveData) renderArchive(archiveData);
+    }
+
+    async function loadWeather() {
+      try {
+        const response = await fetch('/api/weather');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        const now = Date.now();
+        const periods = (data.periods || []).filter(item => Date.parse(item.time) >= now - 60 * 60 * 1000);
+        const current = periods[0];
+        if (!current) throw new Error('現在時刻の予報がありません');
+        const symbol = current.symbol || '';
+        const condition = symbol.includes('thunder') ? '雷雨' : symbol.includes('snow') ? '雪' :
+          symbol.includes('rain') ? '雨' : symbol.includes('partlycloudy') || symbol.includes('fair') ? '晴れ時々曇り' :
+          symbol.includes('cloudy') ? '曇り' : symbol.includes('clear') ? '晴れ' : '予報を確認中';
+        document.querySelector('#weather-condition').textContent = condition;
+        document.querySelector('#weather-temperature').textContent = Number.isFinite(current.temperature) ? `${current.temperature.toFixed(1)}℃` : '—';
+        document.querySelector('#weather-wind').textContent = Number.isFinite(current.wind_speed) ? `${current.wind_speed.toFixed(1)}m/s` : '—';
+        document.querySelector('#weather-rain').textContent = Number.isFinite(current.precipitation) ? `${current.precipitation.toFixed(1)}mm` : '—';
+        const forecastTime = hourMinuteFormat.format(new Date(current.time));
+        weatherStatus.textContent = `${data.location} · ${forecastTime} JSTの時間別予報${data.stale ? '（前回取得値）' : ''}`;
+        const nextSix = periods.slice(0, 6);
+        const windy = nextSix.some(item => Number(item.wind_speed) >= 10);
+        const rainy = nextSix.some(item => Number(item.precipitation) >= 1);
+        weatherAdvice.textContent = windy || rainy
+          ? `今後約6時間に${windy ? '風速10m/s以上' : ''}${windy && rainy ? '・' : ''}${rainy ? '1時間降水量1mm以上' : ''}の予報があります。屋外ライドの運行変更にご注意ください。実際の運行状況はUSJ公式アプリでご確認ください。`
+          : '今後約6時間の予報では、当サイトの風・雨の注意目安に達していません。屋外ライドの運行状況はUSJ公式アプリでご確認ください。';
+      } catch (_) {
+        weatherStatus.textContent = '予報を取得できませんでした。';
+        weatherAdvice.textContent = '屋外ライドの運行状況はUSJ公式アプリでご確認ください。';
+      }
+    }
     // Queue-TimesのIDをキーに、USJ公式サイトの日本語名を表示する。
     const japaneseNames = new Map([
       [12066, 'ミニオン・ハチャメチャ・ライド'],
@@ -406,9 +507,16 @@
 
     function setAttractionName(cell, id, label) {
       cell.title = label;
+      const favorite = document.createElement('button');
+      favorite.type = 'button';
+      favorite.className = 'favorite-button';
+      favorite.textContent = favorites.has(Number(id)) ? '★' : '☆';
+      favorite.setAttribute('aria-pressed', String(favorites.has(Number(id))));
+      favorite.setAttribute('aria-label', `${label}をお気に入り${favorites.has(Number(id)) ? 'から外す' : 'に登録'}`);
+      favorite.addEventListener('click', () => toggleFavorite(id));
       const url = officialAttractionUrls.get(Number(id));
       if (!url) {
-        cell.textContent = label;
+        cell.replaceChildren(favorite, document.createTextNode(label));
         return;
       }
       const link = document.createElement('a');
@@ -417,7 +525,7 @@
       link.rel = 'noopener noreferrer';
       link.textContent = label;
       link.setAttribute('aria-label', `${label}（USJ公式サイト、新しいタブで開きます）`);
-      cell.replaceChildren(link);
+      cell.replaceChildren(favorite, link);
     }
 
     const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
@@ -992,7 +1100,9 @@
         scores.set(id, score);
       }
       const nameOf = id => rideMap.has(id) ? rideName(rideMap.get(id)) : japaneseNames.get(Number(id)) || `アトラクションID ${id}`;
-      const rideIds = [...new Set([...rideMap.keys(), ...scores.keys()])].sort((a, b) => {
+      const rideIds = [...new Set([...rideMap.keys(), ...scores.keys()])].filter(matchesRide).sort((a, b) => {
+        const favoriteOrder = favoriteFirst(a, b);
+        if (favoriteOrder) return favoriteOrder;
         const aScore = scores.get(a), bScore = scores.get(b);
         const aWait = aScore?.count ? aScore.total / aScore.count : -1;
         const bWait = bScore?.count ? bScore.total / bScore.count : -1;
@@ -1013,6 +1123,14 @@
         setAttractionName(name, id, nameOf(id));
         row.append(name);
         for (const hour of visibleHours) row.append(archiveCell(hour.rides[id], `${hourMinuteFormat.format(new Date(hour.at * 1000))}時台`));
+        archiveBody.append(row);
+      }
+      if (!rideIds.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = visibleHours.length + 1;
+        cell.textContent = '絞り込みに一致するアトラクションはありません。';
+        row.append(cell);
         archiveBody.append(row);
       }
     }
@@ -1086,7 +1204,9 @@
         heatmapRange.disabled = pages < 2;
         visibleSnapshots = snapshots.slice(heatmapPage * pageSize, (heatmapPage + 1) * pageSize);
       }
-      const rides = [...currentData.rides].sort((a, b) => {
+      const rides = [...currentData.rides].filter(ride => matchesRide(ride.id)).sort((a, b) => {
+        const favoriteOrder = favoriteFirst(a.id, b.id);
+        if (favoriteOrder) return favoriteOrder;
         if (a.is_open !== b.is_open) return a.is_open ? -1 : 1;
         return (b.wait_time || 0) - (a.wait_time || 0);
       });
@@ -1110,8 +1230,16 @@
         }
         heatmapBody.append(row);
       }
+      if (!rides.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = visibleSnapshots.length + 2;
+        cell.textContent = '絞り込みに一致するアトラクションはありません。';
+        row.append(cell);
+        heatmapBody.append(row);
+      }
       const day = data.day ? data.day.replaceAll('-', '/') : '今日';
-      heatmapStatus.textContent = `${day} JST · ${rides.length}件 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存値は毎時0・20・40分に更新`;
+      heatmapStatus.textContent = `${day} JST · ${rides.length}/${currentData.rides.length}件表示 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存値は毎時0・20・40分に更新`;
     }
 
     async function loadToday() {
@@ -1259,6 +1387,7 @@
       loadSchedule();
       loadClosures();
       loadEvents();
+      loadWeather();
       loadShows();
       loadArchiveDates();
       button.disabled = true;
@@ -1314,6 +1443,10 @@
     }
 
     button.addEventListener('click', refresh);
+    for (const control of [heightFilter, childSwitchFilter, favoritesFilter]) control.addEventListener('change', () => {
+      if (todayData) renderToday(todayData);
+      if (archiveData) renderArchive(archiveData);
+    });
     heatmapRange.addEventListener('change', () => {
       heatmapPage = Number(heatmapRange.value) || 0;
       if (todayData) renderToday(todayData);
