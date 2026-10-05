@@ -935,6 +935,9 @@
 
     let showSelectedDate = jstToday();
     let showRequest = 0;
+    const SHOW_LEAD_MINUTES = 20;
+    const showAutoScrolledDays = new Set();
+    let showScrollObserver = null;
     function renderShowDates() {
       const today = jstToday();
       if (showSelectedDate < today || showSelectedDate > addDays(today, 6)) showSelectedDate = today;
@@ -952,6 +955,27 @@
         });
         showDates.append(dateButton);
       }
+    }
+
+    function scrollShowsToTime(position, targetMinute, day) {
+      const scroller = showTimeline.closest('.show-timeline-scroll');
+      if (!scroller || !Number.isFinite(targetMinute) || showAutoScrolledDays.has(day)) return;
+      const apply = () => {
+        if (!scroller.clientWidth) return false;
+        scroller.scrollLeft = Math.max(0, position(targetMinute - SHOW_LEAD_MINUTES));
+        showAutoScrolledDays.add(day);
+        return true;
+      };
+      if (apply()) return;
+      const observer = new ResizeObserver(() => {
+        if (showScrollObserver !== observer) return;
+        if (apply()) {
+          observer.disconnect();
+          showScrollObserver = null;
+        }
+      });
+      showScrollObserver = observer;
+      observer.observe(scroller);
     }
 
     function renderShows(data) {
@@ -1090,6 +1114,7 @@
         row.append(name, track);
         showTimeline.append(row);
       }
+      scrollShowsToTime(position, data.day === jstToday() ? nowMinute : Math.min(...allStarts), data.day);
       const upcoming = shows.flatMap(show => show.times.map(slot => ({name: show.name, start: slot.start})))
         .filter(slot => Date.parse(slot.start) >= Date.now())
         .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
@@ -1099,6 +1124,10 @@
 
     async function loadShows() {
       renderShowDates();
+      if (showScrollObserver) {
+        showScrollObserver.disconnect();
+        showScrollObserver = null;
+      }
       const requestNumber = ++showRequest;
       try {
         const response = await fetch(`/api/shows?date=${encodeURIComponent(showSelectedDate)}`, {cache: 'no-store'});
