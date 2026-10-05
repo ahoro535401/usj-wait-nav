@@ -10,7 +10,7 @@
     "run_worker_first": ["/", "/plan", "/privacy", "/sitemap.xml", "/api/*"]
   },
   "triggers": {
-    "crons": ["*/5 * * * *", "2,22,42 * * * *", "10,30,50 * * * *"]
+    "crons": ["*/5 * * * *", "2,22,42 * * * *", "0,20,40 * * * *"]
   },
   "d1_databases": [
     {
