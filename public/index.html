@@ -445,6 +445,18 @@
     :root[data-theme="dark"] .heatmap-options > summary, :root[data-theme="dark"] .weather-details summary::before { color: #9cc4ff; }
     :root[data-theme="dark"] .theme-toggle { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     :root[data-theme="dark"] .skeleton { background: linear-gradient(90deg, #1d2a37 25%, #253444 50%, #1d2a37 75%); background-size: 200% 100%; }
+    .share-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .share-bar a, .share-bar button { flex: 1 1 30%; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 10px; border-radius: 999px; font: inherit; font-size: .85rem; font-weight: 700; text-align: center; text-decoration: none; white-space: nowrap; }
+    .share-line { background: #06c755; color: #fff; }
+    .share-x { background: #0f1419; color: #fff; }
+    .share-more { background: #fff; color: #1058a7; border: 1px solid #c5d3e3; }
+    .share-bar[hidden] { display: none; }
+    .is-linked { outline: 3px solid #f59e0b; outline-offset: 2px; border-radius: 8px; }
+    #share-toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 10px; background: #172332; color: #fff; font-size: .85rem; box-shadow: 0 4px 16px rgba(0, 0, 0, .2); }
+    #share-toast[hidden] { display: none; }
+    :root[data-theme="dark"] .share-line { color: #fff; }
+    :root[data-theme="dark"] .share-more { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .share-x { background: #e6edf3; color: #0f1419; }
   </style>
 </head>
 <body>
@@ -1676,6 +1688,7 @@
         .slice(0, 5);
       topWaitsList.replaceChildren();
       topWaitsList.removeAttribute('aria-busy');
+      topShareBar.hidden = false;
       if (!ranked.length) {
         const item = document.createElement('li');
         item.textContent = '現在表示できる待ち時間はありません（営業時間外は表示されません）。';
@@ -1799,6 +1812,7 @@
       loadArchiveDay();
       renderArchiveCalendar();
       archiveStatus.scrollIntoView({behavior: 'smooth', block: 'start'});
+      history.replaceState(null, '', `/plan?date=${encodeURIComponent(day)}`);
     }
     function renderArchiveCalendar() {
       const box = document.querySelector('#archive-calendar');
@@ -1964,6 +1978,7 @@
       const hourText = at => `${hourMinuteFormat.format(new Date(at * 1000)).slice(0, 2)}時台`;
       archivePeak.textContent = peak ? `${hourText(peak.at)}（平均${Math.round(peak.average_wait)}分）` : '記録なし';
       archiveTopRide.textContent = top ? `${archiveRideName(top.id)} ${Math.round(top.wait)}分（${hourText(top.at)}）` : '記録なし';
+      archiveShareBar.hidden = false;
 
       archiveHourBars.replaceChildren();
       const scale = Math.max(30, ...hours.map(hour => hour.average_wait || 0));
@@ -2035,6 +2050,7 @@
       if (!archiveDate.value) return;
       const requestNumber = ++archiveRequest;
       archiveStatus.textContent = '選択日の記録を読み込み中…';
+      archiveShareBar.hidden = true;
       try {
         const response = await fetch(`/api/archive/day?date=${encodeURIComponent(archiveDate.value)}`, {cache: 'no-store'});
         const data = await response.json();
@@ -2065,6 +2081,14 @@
         }
         archiveDate.disabled = !archiveDate.options.length;
         renderArchiveCalendar();
+        const linkedDate = shareParams.get('date');
+        if (linkedDate && /^\d{4}-\d{2}-\d{2}$/.test(linkedDate) && !loadArchiveDates.linkedDone &&
+            [...archiveDate.options].some(option => option.value === linkedDate)) {
+          loadArchiveDates.linkedDone = true;
+          archiveCalendarMonth = linkedDate.slice(0, 7);
+          selectArchiveDay(linkedDate);
+          return;
+        }
         if (archiveDate.options.length) {
           if ([...archiveDate.options].some(option => option.value === selected)) archiveDate.value = selected;
           archivePage = 0;
@@ -2088,6 +2112,145 @@
       box.querySelector('.list-state-text').textContent =
         `並び順：★お気に入り優先・${sortLabel}　絞り込み：${filters.length ? filters.join('、') : 'なし'}`;
       box.classList.toggle('is-filtered', filters.length > 0);
+    }
+
+    // 共有するのは画面に表示する公開情報だけ。URLは選択した施設・記録日を指す。
+    const shareParams = new URLSearchParams(location.search);
+    function shareTimeLabel() {
+      const fetched = new Date(currentData?.fetched_at || Date.now());
+      return hourMinuteFormat.format(Number.isNaN(fetched.getTime()) ? new Date() : fetched);
+    }
+    function lineShareUrl(payload) {
+      return `https://line.me/R/share?text=${encodeURIComponent(`${payload.text}\n${payload.url}`)}`;
+    }
+    function xShareUrl(payload) {
+      const text = [...(payload.xText || payload.text)].slice(0, 110).join('');
+      return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(payload.url)}`;
+    }
+    function showShareToast(message) {
+      let toast = document.querySelector('#share-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'share-toast';
+        toast.setAttribute('role', 'status');
+        document.body.append(toast);
+      }
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(showShareToast.timer);
+      showShareToast.timer = setTimeout(() => { toast.hidden = true; }, 3000);
+    }
+    async function shareOrCopy(payload) {
+      if (typeof navigator.share === 'function') {
+        try {
+          await navigator.share({title: payload.title, text: payload.text, url: payload.url});
+          return;
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(`${payload.text}\n${payload.url}`);
+        showShareToast('送る文をコピーしました。LINEなどに貼り付けてください。');
+      } catch (_) {
+        showShareToast('コピーできませんでした。「LINEで送る」「Xで送る」をお使いください。');
+      }
+    }
+    function shareBar(getPayload, label = '送る') {
+      const bar = document.createElement('div');
+      bar.className = 'share-bar';
+      const line = document.createElement('a');
+      line.className = 'share-line';
+      line.target = '_blank';
+      line.rel = 'noopener noreferrer';
+      line.textContent = `LINEで${label}`;
+      const x = document.createElement('a');
+      x.className = 'share-x';
+      x.target = '_blank';
+      x.rel = 'noopener noreferrer';
+      x.textContent = `Xで${label}`;
+      const updateLinks = () => {
+        const payload = getPayload();
+        line.href = lineShareUrl(payload);
+        x.href = xShareUrl(payload);
+      };
+      line.addEventListener('click', updateLinks);
+      x.addEventListener('click', updateLinks);
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'share-more';
+      more.textContent = 'その他・コピー';
+      more.addEventListener('click', () => shareOrCopy(getPayload()));
+      updateLinks();
+      bar.append(line, x, more);
+      return bar;
+    }
+    function topWaitsPayload() {
+      const items = [...topWaitsList.querySelectorAll('li')].map(item => {
+        const name = item.querySelector('span')?.textContent;
+        const wait = item.querySelector('strong')?.textContent;
+        return name && wait ? {name, wait} : null;
+      }).filter(Boolean);
+      const time = shareTimeLabel();
+      const body = items.length
+        ? items.map((item, index) => `${index + 1}. ${item.name} ${item.wait}`).join('\n')
+        : '現在表示できる待ち時間はありません（営業時間外など）';
+      const short = items.length
+        ? items.slice(0, 3).map(item => `${item.name.replace(/[™～〜].*$/, '').trim()}${item.wait}`).join('・')
+        : '現在表示できる待ち時間はありません';
+      return {
+        title: 'USJ待ち時間ナビ',
+        text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}\n※提供元の掲載値・非公式サイト`,
+        xText: `USJ待ち時間（${time}時点／掲載値・非公式）${short}`,
+        url: `${location.origin}/`,
+      };
+    }
+    function ridePayload(id, label, waitText) {
+      const time = shareTimeLabel();
+      return {
+        title: label,
+        text: `【USJ待ち時間ナビ】${label}：${waitText}（${time}時点・提供元の掲載値・非公式サイト）`,
+        xText: `掲載値・非公式｜${label}：${waitText}（${time}時点）`,
+        url: `${location.origin}/?ride=${encodeURIComponent(id)}`,
+      };
+    }
+    function archiveDayPayload() {
+      const day = archiveDate.value;
+      const lines = [
+        `この日の平均待ち時間：${archiveAverage.textContent}`,
+        `いちばん混んだ時間帯：${archivePeak.textContent}`,
+        `最も長かったアトラクション：${archiveTopRide.textContent}`,
+      ];
+      const weather = document.querySelector('#archive-weather')?.textContent;
+      if (weather) lines.push(weather.replace(/^天気（[^）]*）：/, '天気：'));
+      return {
+        title: 'USJ混雑カレンダー',
+        text: `【USJ混雑カレンダー】${day.replaceAll('-', '/')}の実績\n${lines.join('\n')}\n※提供元の掲載値を基に集計・非公式サイト`,
+        xText: `掲載値・非公式｜USJ ${day.replaceAll('-', '/')}の混雑実績：平均${archiveAverage.textContent}、ピーク${archivePeak.textContent}`,
+        url: `${location.origin}/plan?date=${encodeURIComponent(day)}`,
+      };
+    }
+    const topShareBar = shareBar(topWaitsPayload);
+    topShareBar.hidden = true;
+    document.querySelector('.top-waits')?.append(topShareBar);
+    const archiveShareBar = shareBar(archiveDayPayload, 'この日を送る');
+    archiveShareBar.hidden = true;
+    document.querySelector('.archive-summary')?.after(archiveShareBar);
+
+    const linkedRide = shareParams.get('ride');
+    let linkedRideHandled = false;
+    function focusLinkedRide() {
+      if (!linkedRide || !/^\d+$/.test(linkedRide)) return;
+      const card = mobileCards.querySelector(`details[data-ride-id="${linkedRide}"]`);
+      const row = heatmapBody.querySelector(`tr[data-ride-id="${linkedRide}"]`);
+      const target = !mobileCards.hidden && card ? card : row;
+      if (!target) return;
+      if (target === card) card.open = true;
+      target.classList.add('is-linked');
+      if (!linkedRideHandled) {
+        linkedRideHandled = true;
+        target.scrollIntoView({block: 'center'});
+      }
     }
 
     function renderToday(data) {
@@ -2124,7 +2287,7 @@
         if (cell.textContent === '休') return 2;
         return isWaitCell(cell) ? 0 : 1;
       };
-      const rides = [...currentData.rides].filter(ride => matchesRide(ride.id)).sort((a, b) => {
+      const rides = [...currentData.rides].filter(ride => matchesRide(ride.id) || String(ride.id) === linkedRide).sort((a, b) => {
         const favoriteOrder = favoriteFirst(a.id, b.id);
         if (favoriteOrder) return favoriteOrder;
         const nameOrder = rideName(a).localeCompare(rideName(b), 'ja');
@@ -2156,6 +2319,7 @@
       }
       for (const ride of rides) {
         const row = document.createElement('tr');
+        row.dataset.rideId = String(ride.id);
         const name = document.createElement('th');
         name.scope = 'row';
         setAttractionName(name, ride.id, rideName(ride));
@@ -2217,6 +2381,7 @@
           record.append(timeLabel, value);
           history.append(record);
         } else history.append(document.createTextNode('この時間帯の記録はありません。'));
+        history.append(shareBar(() => ridePayload(ride.id, label, wait.textContent)));
         details.append(summary, history);
         card.append(favoriteButton(ride.id, label), details);
         mobileCards.append(card);
@@ -2237,6 +2402,7 @@
       renderRecentRecords();
       renderListState();
       syncMobileView();
+      focusLinkedRide();
     }
 
     function syncMobileView() {
@@ -2467,6 +2633,7 @@
       try { localStorage.setItem(MOBILE_VIEW_KEY, mobileView.value); } catch (_) { /* 何もしない */ }
     });
     mobileView.addEventListener('change', syncMobileView);
+    mobileView.addEventListener('change', () => { linkedRideHandled = false; focusLinkedRide(); });
     syncMobileView();
     document.querySelector('.list-state-edit')?.addEventListener('click', () => {
       heatmapOptions.open = true;
