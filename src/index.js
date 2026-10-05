@@ -434,7 +434,8 @@ async function inCollectionWindow(db, seconds) {
   if (row?.status === 'CLOSED') return false;
   if (row?.status === 'OPERATING' && row.opens && row.closes) {
     const opening = Date.parse(`${day}T${row.opens}:00+09:00`) / 1000;
-    const start = opening - COLLECTION_LEAD_SECONDS;
+    const eightOClock = Date.parse(`${day}T08:00:00+09:00`) / 1000;
+    const start = Math.min(opening - COLLECTION_LEAD_SECONDS, eightOClock);
     let end = Date.parse(`${day}T${row.closes}:00+09:00`) / 1000;
     if (end <= opening) end += 86400;
     return seconds >= start && seconds <= end + COLLECTION_TRAIL_SECONDS;
@@ -489,7 +490,8 @@ async function scheduled(event, env) {
     if (await env.DB.prepare('SELECT slot FROM snapshots WHERE slot=?').bind(slot).first()) return;
   }
   const save = minute % 20 === 0 || retry;
-  await refreshLive(env, seconds, save);
+  const collected = await refreshLive(env, seconds, save);
+  if (save && !collected) throw new Error('定時の待ち時間取得に失敗しました');
 }
 
 async function history(db, rideId, days) {
@@ -813,6 +815,33 @@ const API_CACHE_SECONDS = new Map([
   ['/api/archive/day', 86400],
 ]);
 
+// D1 の日次上限に達した場合も、20分ごとの記録を KV に退避する。
+// D1 が復旧した Cron で同じスロットへ取り込み、成功後だけ退避データを消す。
+async function capturePendingSnapshot(env, seconds) {
+  const minute = jstMinute(seconds);
+  if (minute % 20 !== 0 && ![2, 22, 42].includes(minute)) return;
+  const slot = Math.floor(seconds / SNAPSHOT_SECONDS);
+  const key = `pending:${slot}`;
+  if (await env.SNAPSHOT_BACKUP.get(key)) return;
+  const [queue, wiki] = await Promise.allSettled([fetchJson(QUEUE_URL), fetchJson(WIKI_LIVE_URL)]);
+  if (queue.status !== 'fulfilled') throw queue.reason;
+  const rides = parseRides(queue.value, wiki.status === 'fulfilled' ? wiki.value : null, new Date().toISOString());
+  if (!rides.some(ride => isRecent(ride, seconds))) return;
+  await env.SNAPSHOT_BACKUP.put(key, JSON.stringify({ capturedAt: seconds, rides }));
+  console.log(`Snapshot backed up in KV: ${slot}`);
+}
+
+async function replayPendingSnapshots(env) {
+  const list = await env.SNAPSHOT_BACKUP.list({ prefix: 'pending:', limit: 100 });
+  for (const item of list.keys) {
+    const saved = await env.SNAPSHOT_BACKUP.get(item.name, 'json');
+    if (!saved || !Number.isFinite(saved.capturedAt) || !Array.isArray(saved.rides)) continue;
+    await saveSnapshot(env.DB, saved.rides, saved.capturedAt);
+    await env.SNAPSHOT_BACKUP.delete(item.name);
+    console.log(`Snapshot restored from KV: ${item.name}`);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
@@ -843,8 +872,14 @@ export default {
     return response;
   },
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(scheduled(event, env).catch(error => {
-      console.error('Scheduled collection failed', error);
-    }));
+    ctx.waitUntil((async () => {
+      try {
+        await scheduled(event, env);
+        await replayPendingSnapshots(env);
+      } catch (error) {
+        console.error('Scheduled D1 collection failed; trying KV backup', error);
+        await capturePendingSnapshot(env, epoch());
+      }
+    })().catch(error => console.error('Scheduled backup failed', error)));
   },
 };
