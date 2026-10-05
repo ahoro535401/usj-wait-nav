@@ -587,12 +587,22 @@ async function route(request, env) {
     let summary = '<p class="muted">最新の待ち時間と保存済み履歴は、この下の表で確認できます。</p>';
     if (payload && fetchedAt && Date.now() - Date.parse(fetchedAt) <= 15 * 60 * 1000) {
       const rides = JSON.parse(payload);
-      const open = rides.filter(ride => ride.is_open && !ride.data_unavailable && Number.isInteger(ride.wait_time));
+      const now = Date.now();
+      const confirmed = rides.filter(ride => {
+        const updated = Date.parse(ride.verified_at || ride.last_updated);
+        const age = now - updated;
+        return !ride.data_unavailable && Number.isFinite(updated) && age <= 15 * 60 * 1000 && age >= -2 * 60 * 1000 &&
+          (!ride.is_open || Number.isInteger(ride.wait_time));
+      });
+      const open = confirmed.filter(ride => ride.is_open && Number.isInteger(ride.wait_time));
+      const unknown = rides.length - confirmed.length;
+      const closed = confirmed.length - open.length;
       const max = open.length ? Math.max(...open.map(ride => ride.wait_time)) : null;
       const time = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })
         .format(new Date(fetchedAt));
-      summary = `<p class="muted">${time} JST確認：待ち時間を掲載中のアトラクション${open.length}件` +
-        `${max == null ? '' : `、掲載値の最長${max}分`}。詳しい値は下の表をご覧ください。</p>`;
+      summary = `<p class="muted">${time} JST取得：待ち時間を確認できるアトラクション${open.length}件` +
+        `${unknown ? `、現在値を確認できない${unknown}件` : ''}${closed ? `、休止中${closed}件` : ''}` +
+        `${max == null ? '' : `。掲載値の最長${max}分`}。掲載値は下の表をご覧ください。</p>`;
     }
     html = html.replace('<!--PUBLIC_SUMMARY-->', summary);
     return new Response(html, { status: asset.status, headers: {
