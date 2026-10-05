@@ -11,6 +11,7 @@ const files = {
   '/robots.txt': 'robots.txt',
   '/sitemap.xml': 'sitemap.xml',
   '/manifest.webmanifest': 'manifest.webmanifest',
+  '/fallback.json': 'fallback.json',
 };
 const assets = {};
 for (const [route, name] of Object.entries(files)) {
@@ -31,6 +32,7 @@ for (const [route, name] of Object.entries(binaryFiles)) {
   binaryAssets[route] = (await readFile(join(base, 'public', name))).toString('base64');
 }
 const preamble = `const EMBEDDED_ASSETS = ${JSON.stringify(assets)};\n` +
+`const FALLBACK_DATA = JSON.parse(EMBEDDED_ASSETS['/fallback.json']);\n` +
 `const EMBEDDED_BINARY_ASSETS = ${JSON.stringify(binaryAssets)};\n` +
 `function embeddedFetch(request) {
   const route = new URL(request.url).pathname;
