@@ -66,6 +66,13 @@ const writeMeta = (db, key, value) => db.prepare(
   'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
 ).bind(key, value).run();
 const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : embeddedFetch(request);
+async function fallbackData(request, env) {
+  if (typeof FALLBACK_DATA !== 'undefined') return FALLBACK_DATA;
+  const url = new URL('/fallback.json', request.url);
+  const response = await assetFetch(new Request(url), env);
+  if (!response.ok) throw new Error('Fallback archive unavailable');
+  return response.json();
+}
 
 function weatherPayload(raw) {
   const periods = (raw.properties?.timeseries || []).slice(0, 24).map(item => ({
@@ -687,7 +694,8 @@ async function route(request, env) {
       todayRow = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?')
         .bind(jstDay(epoch())).first();
     } catch (error) {
-      todayRow = FALLBACK_DATA.schedule.days.find(item => item.day === jstDay(epoch())) || null;
+      const fallback = await fallbackData(request, env);
+      todayRow = fallback.schedule.days.find(item => item.day === jstDay(epoch())) || null;
     }
     const nowHm = hhmm(epoch());
     if (todayRow?.status === 'CLOSED') {
@@ -792,15 +800,16 @@ async function route(request, env) {
   return assetFetch(request, env);
 }
 
-async function fallbackRoute(request) {
+async function fallbackRoute(request, env) {
   const url = new URL(request.url);
   const day = url.searchParams.get('date') || jstDay(epoch());
-  if (url.pathname === '/api/archive/days') return json({ ...FALLBACK_DATA.archive_days, stale: true });
+  const fallback = await fallbackData(request, env);
+  if (url.pathname === '/api/archive/days') return json({ ...fallback.archive_days, stale: true });
   if (url.pathname === '/api/archive/day') {
-    const data = FALLBACK_DATA.archive_by_day[day];
+    const data = fallback.archive_by_day[day];
     return data ? json({ ...data, stale: true }) : json({ error: 'この日の記録はありません' }, 404);
   }
-  if (url.pathname === '/api/schedule') return json({ ...FALLBACK_DATA.schedule, stale: true });
+  if (url.pathname === '/api/schedule') return json({ ...fallback.schedule, stale: true });
   if (url.pathname === '/api/today') return json({ day: jstDay(epoch()), snapshots: [], stale: true });
   if (url.pathname === '/api/shows') {
     if (day === jstDay(epoch())) {
@@ -821,13 +830,13 @@ async function fallbackRoute(request) {
         const fetchedAt = new Date().toISOString();
         return json({ rides: parseRides(queue.value, wiki.status === 'fulfilled' ? wiki.value : null, fetchedAt),
           fetched_at: fetchedAt, refresh_error: null, archive_error: '保存データの読み取りが一時的に停止中',
-          history: FALLBACK_DATA.history, comparisons: {}, stale: false });
+          history: fallback.history, comparisons: {}, stale: false });
       }
     } catch (error) {
       console.warn('Wait fallback fetch failed', error);
     }
     return json({ rides: [], fetched_at: null, refresh_error: '待ち時間の取得を確認できません',
-      archive_error: '保存データの読み取りが一時的に停止中', history: FALLBACK_DATA.history,
+      archive_error: '保存データの読み取りが一時的に停止中', history: fallback.history,
       comparisons: {}, stale: true });
   }
   if (url.pathname === '/api/weather') {
@@ -864,7 +873,7 @@ export default {
     } catch (error) {
       console.error('Request failed', error);
       usedFallback = true;
-      response = pathname.startsWith('/api/') ? await fallbackRoute(request) :
+      response = pathname.startsWith('/api/') ? await fallbackRoute(request, env) :
         json({ error: '表示データを読み込めません' }, 500);
     }
     if (cache && response.ok) {
