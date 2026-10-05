@@ -179,13 +179,14 @@
     .archive-calendar-head button { min-height: 44px; padding: 8px; background: #eef5ff; color: #1058a7; }
     .archive-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
     .archive-cal-dow { text-align: center; color: #526477; font-size: .8rem; }
-    .archive-cal-dow.sun, .archive-cal-day.sun { color: #9a3f3f; }
+    .archive-cal-dow.sun, .archive-cal-day.sun, .archive-cal-day.holiday { color: #7b1f1f; }
     .archive-cal-dow.sat, .archive-cal-day.sat { color: #315b97; }
     .archive-cal-day { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: 58px; padding: 4px 1px; border: 1px solid #dce4ed; border-radius: 7px; background: #f8fafc; font-size: .75rem; }
     button.archive-cal-day { width: 100%; cursor: pointer; }
     .archive-cal-day[aria-pressed="true"] { outline: 2px solid #1058a7; outline-offset: -2px; }
     .archive-cal-day.today { border-color: #1058a7; }
     .archive-cal-date { font-weight: 700; white-space: nowrap; }
+    .archive-cal-holiday { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .62rem; line-height: 1.2; font-weight: 600; }
     .archive-cal-value { font-size: .7rem; white-space: nowrap; }
     .archive-cal-weather { margin-left: 2px; font-size: .9rem; }
     .archive-cal-weather.wx-sun { color: #a85800; }
@@ -436,6 +437,8 @@
     :root[data-theme="dark"] .archive-cal-day.crowd-3, :root[data-theme="dark"] .archive-calendar-legend .crowd-3 { background: #4a3f0f; }
     :root[data-theme="dark"] .archive-cal-day.crowd-4, :root[data-theme="dark"] .archive-calendar-legend .crowd-4 { background: #57360f; }
     :root[data-theme="dark"] .archive-cal-day.crowd-5, :root[data-theme="dark"] .archive-calendar-legend .crowd-5 { background: #5a2222; }
+    :root[data-theme="dark"] .archive-cal-day.sun, :root[data-theme="dark"] .archive-cal-day.holiday,
+    :root[data-theme="dark"] .archive-cal-dow.sun { color: #ffb3b3; }
     :root[data-theme="dark"] .archive-cal-weather.wx-sun { color: #ffc061; }
     :root[data-theme="dark"] .archive-cal-weather.wx-cloud { color: #a9b6c4; }
     :root[data-theme="dark"] .archive-cal-weather.wx-rain { color: #8fb6ff; }
@@ -801,6 +804,8 @@
     let archiveCalendarMonth = '';
     const archiveDayStats = new Map();
     let scheduleDays = new Map();
+    let holidayDays = new Map();
+    const HOLIDAY_LABELS = { substitute: '振替休日', citizens: '国民の休日' };
     let closuresData = null;
     let calendarMonth = null;
     let selectedDate = null;
@@ -1040,7 +1045,7 @@
 
     function dateLabel(day) {
       const date = new Date(`${day}T00:00:00Z`);
-      return `${Number(day.slice(5, 7))}/${Number(day.slice(8))}（${weekdays[date.getUTCDay()]}）`;
+      return `${Number(day.slice(5, 7))}/${Number(day.slice(8))}（${weekdays[date.getUTCDay()]}${holidayDays.has(day) ? '・祝' : ''}）`;
     }
 
     function monthShift(month, amount) {
@@ -1104,7 +1109,7 @@
       if (PAGE === 'plan') document.querySelector('.archive-panel').dataset.mode = 'future';
       selectedDay.replaceChildren();
       const heading = document.createElement('strong');
-      heading.textContent = `${day.slice(0, 4)}年${Number(day.slice(5, 7))}月${Number(day.slice(8))}日（${weekdays[new Date(`${day}T00:00:00Z`).getUTCDay()]}）`;
+      heading.textContent = `${day.slice(0, 4)}年${Number(day.slice(5, 7))}月${Number(day.slice(8))}日（${weekdays[new Date(`${day}T00:00:00Z`).getUTCDay()]}${holidayDays.has(day) ? `・${holidayDays.get(day).label}` : ''}）`;
       const hours = document.createElement('span');
       hours.textContent = `営業時間：${hoursLabel(scheduleDays.get(day))}`;
       selectedDay.append(heading, hours);
@@ -1191,6 +1196,25 @@
       }
       box.hidden = !message;
       box.querySelector('.park-state-text').textContent = message;
+    }
+
+    async function loadHolidays() {
+      if (holidayDays.size) return;
+      try {
+        const response = await fetch('/api/holidays');
+        const data = await response.json();
+        if (!response.ok || !data.days?.length) throw new Error(data.error || `HTTP ${response.status}`);
+        holidayDays = new Map(data.days.map(item =>
+          [item.day, { ...item, label: HOLIDAY_LABELS[item.kind] || item.name }]));
+        if (PAGE === 'plan') {
+          renderArchiveCalendar();
+          renderShowDates();
+          if (archiveData) renderArchive(archiveData);
+        }
+        if (selectedDate) showSelectedDay(selectedDate);
+      } catch (cause) {
+        console.warn('祝日を読み込めません', cause);
+      }
     }
 
     async function loadSchedule() {
@@ -2008,7 +2032,7 @@
         const item = recorded.get(key);
         const plan = key >= today ? scheduleDays.get(key) : null;
         const cell = document.createElement(item || plan ? 'button' : 'span');
-        cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${key === today ? ' today' : ''}`;
+        cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${holidayDays.has(key) ? ' holiday' : ''}${key === today ? ' today' : ''}`;
         const label = document.createElement('span');
         label.className = 'archive-cal-date';
         label.textContent = String(date);
@@ -2065,6 +2089,16 @@
           }
         } else if (key === today) value.textContent = '今日';
         if (!cell.firstChild) cell.append(label, value);
+        const holiday = holidayDays.get(key);
+        if (holiday) {
+          const tag = document.createElement('span');
+          tag.className = 'archive-cal-holiday';
+          tag.textContent = holiday.label;
+          label.after(tag);
+          cell.title = cell.title ? `${cell.title}・${holiday.label}` : `${month}/${date}：${holiday.label}`;
+          if (cell.hasAttribute('aria-label'))
+            cell.setAttribute('aria-label', `${holiday.label}。${cell.getAttribute('aria-label')}`);
+        }
         grid.append(cell);
       }
       const legend = document.createElement('div');
@@ -2079,7 +2113,7 @@
       }
       const note = document.createElement('p');
       note.className = 'muted';
-      note.textContent = '今日以降の日付には公表の開園時刻（休止予定がある日は件数）を表示します。数字は記録された営業中の待ち時間の平均です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。';
+      note.textContent = '今日以降の日付には公表の開園時刻（休止予定がある日は件数）を表示します。数字は記録された営業中の待ち時間の平均です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
       box.append(head, grid, legend, note);
       loadArchiveMonthStats();
     }
@@ -2226,7 +2260,8 @@
       }
       const first = hourMinuteFormat.format(new Date(data.first_at * 1000));
       const last = hourMinuteFormat.format(new Date(data.last_at * 1000));
-      archiveStatus.textContent = `${data.day.replaceAll('-', '/')}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
+      const archiveHoliday = holidayDays.get(data.day);
+      archiveStatus.textContent = `${data.day.replaceAll('-', '/')}${archiveHoliday ? `（${archiveHoliday.label}）` : ''}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
       const weather = weatherInfo(data.weather);
       document.querySelector('#archive-weather').textContent = weather
         ? `天気（気象庁アメダス大阪の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
@@ -2840,6 +2875,7 @@
 
     async function refresh() {
       if (button.disabled) return;
+      loadHolidays();
       loadSchedule();
       loadClosures();
       if (PAGE === 'plan') loadEvents();
