@@ -644,7 +644,7 @@ async function archiveDay(db, day) {
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
-  if (url.pathname === '/') {
+  if (url.pathname === '/' || url.pathname === '/plan') {
     const indexUrl = new URL(request.url);
     indexUrl.pathname = '/index.html';
     const asset = await assetFetch(new Request(indexUrl, request), env);
@@ -672,6 +672,17 @@ async function route(request, env) {
         `${max == null ? '' : `。掲載値の最長${max}分`}。掲載値は下の表をご覧ください。</p>`;
     }
     html = html.replace('<!--PUBLIC_SUMMARY-->', summary);
+    const page = url.pathname === '/plan' ? 'plan' : 'now';
+    html = html.replace('<html lang="ja">', `<html lang="ja" data-page="${page}">`);
+    if (page === 'plan') {
+      html = html
+        .replace(/<title>[^<]*<\/title>/,
+          '<title>USJ混雑カレンダー｜過去の待ち時間実績と天気｜USJ待ち時間ナビ</title>')
+        .replace(/<meta name="description" content="[^"]*">/,
+          '<meta name="description" content="USJの過去の待ち時間実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、ショー開始時刻、イベント情報をまとめた個人運営の非公式サイトです。">')
+        .replace(/(<link rel="canonical" href="[^"]*)\/"/, '$1/plan"')
+        .replace(/(<meta property="og:url" content="[^"]*)\/"/, '$1/plan"');
+    }
     return new Response(html, { status: asset.status, headers: {
       'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60',
       'X-Content-Type-Options': 'nosniff',
@@ -681,6 +692,7 @@ async function route(request, env) {
     url.pathname = '/privacy.html';
     return assetFetch(new Request(url, request), env);
   }
+  if (url.pathname === '/sitemap.xml') return embeddedFetch(request);
   if (url.pathname === '/api/events' || url.pathname === '/api/closures') {
     url.pathname = url.pathname === '/api/events' ? '/events.json' : '/closures.json';
     return assetFetch(new Request(url, request), env);
