@@ -2781,7 +2781,6 @@
       chartNote.textContent = hours.length === 1
         ? '時間平均は1時間帯です。0・20・40分のうち取得できた記録で計算しています。'
         : `${hours.length}時間帯の平均値。1時間につき最大3記録（0・20・40分）で計算しています。線の途切れは未記録または休止中、破線は現在値です。`;
-      if (hours.some(hour => hour.estimated_samples)) chartNote.textContent += ' ※と橙点は旧通常版IDからの推定振替を含みます。';
 
       const now = Date.now();
       const from = now - days * 86400000;
