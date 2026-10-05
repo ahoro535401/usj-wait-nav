@@ -492,49 +492,6 @@ async function scheduled(event, env) {
   await refreshLive(env, seconds, save);
 }
 
-async function historySummary(db) {
-  const row = await db.prepare(
-    'SELECT COUNT(*) AS snapshots,MIN(captured_at) AS first_at,MAX(captured_at) AS last_at FROM snapshots'
-  ).first();
-  return { ...row, bytes: null };
-}
-
-async function comparisons(db, seconds) {
-  const slot = Math.floor(seconds / SNAPSHOT_SECONDS);
-  const start = dayStart(seconds);
-  const prior = await db.prepare('SELECT MAX(slot) AS slot FROM snapshots WHERE slot < ?').bind(slot).first();
-  const out = {};
-  if (prior?.slot != null) {
-    const { results } = await db.prepare(
-      'SELECT s.ride_id,s.wait_minutes,s.is_open,s.source,h.captured_at FROM ride_samples s JOIN snapshots h USING(slot) WHERE s.slot=?'
-    ).bind(prior.slot).all();
-    for (const row of results.filter(visibleSample)) out[row.ride_id] = {
-      previous_wait: row.wait_minutes, previous_open: !!row.is_open,
-      previous_at: row.captured_at, previous_estimated: row.source === DARK_ESTIMATE_SOURCE,
-    };
-  }
-  const { results } = await db.prepare(
-    'SELECT s.ride_id,s.wait_minutes,s.source,h.captured_at FROM ride_samples s JOIN snapshots h USING(slot) ' +
-    'WHERE h.captured_at>=? AND h.captured_at<? AND s.is_open=1 AND s.wait_minutes IS NOT NULL'
-  ).bind(start - 7 * 86400, start).all();
-  const byRide = new Map();
-  for (const row of results) {
-    if (!visibleSample(row) || row.source === DARK_ESTIMATE_SOURCE || jstHour(row.captured_at) !== jstHour(seconds)) continue;
-    const days = byRide.get(row.ride_id) || new Map();
-    const day = jstDay(row.captured_at);
-    days.set(day, [...(days.get(day) || []), row.wait_minutes]);
-    byRide.set(row.ride_id, days);
-  }
-  for (const [rideId, days] of byRide) {
-    const dailyMeans = [...days.values()].map(values => values.reduce((sum, x) => sum + x, 0) / values.length);
-    out[rideId] ||= {};
-    out[rideId].same_time_avg = Math.round(dailyMeans.reduce((sum, x) => sum + x, 0) / dailyMeans.length * 10) / 10;
-    out[rideId].same_time_count = dailyMeans.length;
-    out[rideId].same_time_samples = [...days.values()].reduce((sum, values) => sum + values.length, 0);
-  }
-  return out;
-}
-
 async function history(db, rideId, days) {
   const since = epoch() - days * 86400;
   const { results } = await db.prepare(
@@ -789,12 +746,11 @@ async function route(request, env) {
     const payload = await readMeta(env.DB, 'rides_payload');
     if (!payload) return json({ error: '最初の定時取得を待っています' }, 503);
     const rides = JSON.parse(payload);
-    const [fetchedAt, refreshError, stats, prior] = await Promise.all([
+    const [fetchedAt, refreshError] = await Promise.all([
       readMeta(env.DB, 'rides_fetched_at'), readMeta(env.DB, 'rides_error'),
-      historySummary(env.DB), comparisons(env.DB, epoch()),
     ]);
     return json({ rides, fetched_at: fetchedAt, refresh_error: refreshError || null,
-      archive_error: null, history: stats, comparisons: prior });
+      archive_error: null, history: null, comparisons: {} });
   }
   if (url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
   return assetFetch(request, env);
