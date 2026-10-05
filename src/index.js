@@ -681,7 +681,11 @@ async function route(request, env) {
         .replace(/<meta name="description" content="[^"]*">/,
           '<meta name="description" content="USJの過去の待ち時間実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、ショー開始時刻、イベント情報をまとめた個人運営の非公式サイトです。">')
         .replace(/(<link rel="canonical" href="[^"]*)\/"/, '$1/plan"')
-        .replace(/(<meta property="og:url" content="[^"]*)\/"/, '$1/plan"');
+        .replace(/(<meta property="og:url" content="[^"]*)\/"/, '$1/plan"')
+        .replace(/<meta property="og:title" content="[^"]*">/,
+          '<meta property="og:title" content="USJ混雑カレンダー｜過去の待ち時間実績と天気｜USJ待ち時間ナビ">')
+        .replace(/<meta property="og:description" content="[^"]*">/,
+          '<meta property="og:description" content="USJの過去の待ち時間実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、ショー開始時刻、イベント情報をまとめた個人運営の非公式サイトです。">');
     }
     return new Response(html, { status: asset.status, headers: {
       'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60',
