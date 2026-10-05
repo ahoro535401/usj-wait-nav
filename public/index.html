@@ -325,6 +325,11 @@
     .park-alert { display: block; margin: -8px 0 16px; padding: 10px 12px; border-radius: 10px; background: #fff4d2; color: #654700; font-weight: 700; text-decoration: none; line-height: 1.5; }
     .park-alert[data-level="high"] { background: #ffe4df; color: #822f27; }
     .park-alert[hidden] { display: none; }
+    .park-state { margin: -8px 0 16px; padding: 10px 12px; border: 1px solid #c5d3e3; border-radius: 10px; background: #f1f5f9; color: #334155; font-size: .9rem; line-height: 1.6; }
+    .park-state a { font-weight: 700; white-space: nowrap; }
+    .park-state[hidden] { display: none; }
+    .trend-legend-list { margin: 6px 0; padding-left: 1.2em; }
+    .trend-legend-list li { margin: 3px 0; }
   </style>
 </head>
 <body>
@@ -343,6 +348,10 @@
   <div class="today-hours" data-only="now" role="status" aria-label="本日の公表営業時間">
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
     <a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">公式で確認</a>
+  </div>
+  <div id="park-state" class="park-state" data-only="now" role="status" hidden>
+    <span class="park-state-text"></span>
+    <a href="/plan">混雑カレンダーを見る ›</a>
   </div>
   <a id="park-alert" class="park-alert" href="#weather-title" data-only="now" hidden></a>
   <main>
@@ -375,7 +384,13 @@
     <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
     </div>
-    <p id="trend-legend" class="muted trend-legend">1時間＝約1時間前の記録との差。↑は増加、↓は減少、→は差が5分未満です。今日＝直近約6時間の20分ごとの記録と現在値。右端の濃い棒が現在値で、薄い線は欠測・休止中です。棒の高さは行ごとに異なる目盛りです。</p>
+    <div id="trend-legend" class="muted trend-legend">
+      <ul class="trend-legend-list">
+        <li><strong>1時間</strong>：約1時間前の記録との差（↑増加・↓減少・→差が5分未満）</li>
+        <li><strong>今日</strong>：直近約6時間の20分ごとの記録。右端の濃い棒が現在値</li>
+        <li>薄い線は記録なし・休止中。棒の高さは行ごとに目盛りが異なります</li>
+      </ul>
+    </div>
     <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
     <!--PUBLIC_SUMMARY-->
     <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は、公式案内では10月9日まで18:30から、10月10日以降は18:00から閉園までの夜間版です。表示する運行状況はデータ提供元の掲載値です。</p>
@@ -688,6 +703,8 @@
         weatherAdvice.textContent = reasons.length
           ? `${data.stale ? '前回取得の予報です。' : ''}今後約6時間に${reasons.join('、')}の予報があります。${high ? '屋外コースターの一時停止・運休に特にご注意ください。' : '屋外アトラクションの運行変更にご注意ください。'}運行状況はUSJ公式アプリでご確認ください。`
           : `${data.stale ? '前回取得の予報です。' : ''}今後約6時間の予報では、当サイトの風・雨の注意目安に達していません。屋外アトラクションの運行状況はUSJ公式アプリでご確認ください。`;
+        document.querySelector('#weather-summary').textContent +=
+          high ? '・強い注意' : reasons.length ? '・注意あり' : '・注意なし';
         updateParkAlert(high ? 'high' : reasons.length ? 'caution' : 'normal', reasons, jma);
       } catch (_) {
         weatherStatus.textContent = '予報を取得できませんでした。';
@@ -941,6 +958,24 @@
       }
     }
 
+    function updateParkStateBanner() {
+      const box = document.querySelector('#park-state');
+      if (!box) return;
+      const today = jstToday();
+      const item = scheduleDays.get(today);
+      const now = Date.now();
+      const at = hm => Date.parse(`${today}T${hm}:00+09:00`);
+      let message = '';
+      if (item?.status === 'CLOSED') {
+        message = '本日は休園日です。';
+      } else if (item?.opens && item?.closes) {
+        if (now < at(item.opens)) message = `開園前です（本日 ${item.opens}〜${item.closes}）。待ち時間は開園の約2時間前から順次表示します。`;
+        else if (now > at(item.closes)) message = `本日の営業は終了しました（${item.opens}〜${item.closes}）。待ち時間は次の開園の約2時間前から表示します。`;
+      }
+      box.hidden = !message;
+      box.querySelector('.park-state-text').textContent = message;
+    }
+
     async function loadSchedule() {
       try {
         const response = await fetch('/api/schedule', {cache: 'no-store'});
@@ -948,6 +983,7 @@
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         scheduleDays = new Map(data.days.map(item => [item.day, item]));
         todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
+        updateParkStateBanner();
         if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length) {
           selectedDate = null;
           selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
@@ -958,6 +994,7 @@
         else renderCalendar();
       } catch (cause) {
         todayHoursTime.textContent = scheduleDays.size ? `${hoursLabel(scheduleDays.get(jstToday()))}（前回表示）` : '取得できません';
+        updateParkStateBanner();
         scheduleStatus.textContent = `営業時間を読み込めません: ${cause.message}`;
         renderCalendar();
       }
@@ -1507,7 +1544,7 @@
       topWaitsList.replaceChildren();
       if (!ranked.length) {
         const item = document.createElement('li');
-        item.textContent = '確認できる待ち時間はありません。';
+        item.textContent = '現在表示できる待ち時間はありません（営業時間外は表示されません）。';
         topWaitsList.append(item);
         return;
       }
