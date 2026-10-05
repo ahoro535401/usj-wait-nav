@@ -316,6 +316,15 @@
     @media (max-width: 620px) {
       .calendar-grid small { font-size: .75rem; }
     }
+    .jump-nav a[aria-current] { background: #eaf3ff; box-shadow: inset 0 -3px 0 #1058a7; }
+    .heatmap-options { scroll-margin-top: 126px; }
+    .list-state { display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 8px 10px; border: 1px solid #dce4ed; border-radius: 8px; background: #f8fafc; font-size: .85rem; }
+    .list-state.is-filtered { border-color: #1058a7; background: #eef5ff; }
+    .list-state-text { flex: 1; min-width: 0; }
+    .list-state-edit { flex: 0 0 auto; min-height: 40px; padding: 0 14px; border: 1px solid #c5d3e3; border-radius: 8px; background: #fff; color: #1058a7; font: inherit; font-weight: 700; }
+    .park-alert { display: block; margin: -8px 0 16px; padding: 10px 12px; border-radius: 10px; background: #fff4d2; color: #654700; font-weight: 700; text-decoration: none; line-height: 1.5; }
+    .park-alert[data-level="high"] { background: #ffe4df; color: #822f27; }
+    .park-alert[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -335,6 +344,7 @@
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
     <a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">公式で確認</a>
   </div>
+  <a id="park-alert" class="park-alert" href="#weather-title" data-only="now" hidden></a>
   <main>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
@@ -356,6 +366,10 @@
       <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
     </div>
     </details>
+    <div id="list-state" class="list-state" role="status">
+      <span class="list-state-text">並び順：★お気に入り優先・現在の待ち時間が長い順　絞り込み：なし</span>
+      <button type="button" class="list-state-edit">変更</button>
+    </div>
     <label class="mobile-heatmap-controls" for="heatmap-range">時刻 <select id="heatmap-range" aria-label="表示する時刻"></select></label>
     <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="スマホでの表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
     <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
@@ -602,12 +616,32 @@
       if (archiveData) renderArchive(archiveData);
     }
 
+    // 既存の風の注意目安に達したときだけ、ページ上部にも表示する。
+    function updateParkAlert(level, reasons, jma) {
+      const alert = document.querySelector('#park-alert');
+      if (!alert) return;
+      const measuredWind = Number.isFinite(jma?.wind_speed) ? jma.wind_speed : null;
+      const windNow = measuredWind != null && measuredWind >= 7;
+      const windReasons = reasons.filter(reason => reason.includes('風速'));
+      if (!windReasons.length && !windNow) { alert.hidden = true; return; }
+      const strong = level === 'high' || (measuredWind != null && measuredWind >= 10);
+      alert.dataset.level = strong ? 'high' : 'caution';
+      const parts = [];
+      if (windReasons.length) parts.push(`今後約6時間に${windReasons.join('・')}の予報`);
+      if (windNow) parts.push(`大阪観測所の実測${measuredWind.toFixed(1)}m/s${jma.stale ? '（前回取得値）' : ''}`);
+      alert.textContent = `⚠ 強風に注意：${parts.join('、')}。屋外ライドが一時停止・運休になる場合があります（目安） ›`;
+      alert.onclick = () => { const details = document.querySelector('.weather-panel .weather-details'); if (details) details.open = true; };
+      alert.hidden = false;
+    }
+
     async function loadWeather() {
+      let jmaForAlert = null;
       try {
         const response = await fetch('/api/weather');
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         const jma = data.jma;
+        jmaForAlert = jma;
         if (jma) {
           document.querySelector('#jma-forecast').textContent = `気象庁・大阪府の天気予報：${jma.forecast_text || '天気情報なし'}${jma.stale ? '（前回取得値）' : ''}`;
           document.querySelector('#jma-status').textContent = `大阪観測所 ${timeFormat.format(new Date(jma.observed_at))} JSTの実測値。USJとは異なる地点です。`;
@@ -654,11 +688,13 @@
         weatherAdvice.textContent = reasons.length
           ? `${data.stale ? '前回取得の予報です。' : ''}今後約6時間に${reasons.join('、')}の予報があります。${high ? '屋外コースターの一時停止・運休に特にご注意ください。' : '屋外アトラクションの運行変更にご注意ください。'}運行状況はUSJ公式アプリでご確認ください。`
           : `${data.stale ? '前回取得の予報です。' : ''}今後約6時間の予報では、当サイトの風・雨の注意目安に達していません。屋外アトラクションの運行状況はUSJ公式アプリでご確認ください。`;
+        updateParkAlert(high ? 'high' : reasons.length ? 'caution' : 'normal', reasons, jma);
       } catch (_) {
         weatherStatus.textContent = '予報を取得できませんでした。';
         document.querySelector('#weather-summary').textContent = 'USJ付近の予報を取得できませんでした';
         weatherAdvice.dataset.level = 'normal';
         weatherAdvice.textContent = '屋外ライドの運行状況はUSJ公式アプリでご確認ください。';
+        updateParkAlert('normal', [], jmaForAlert);
       }
     }
     // Queue-TimesのIDをキーに、USJ公式サイトの日本語名を表示する。
@@ -1870,6 +1906,19 @@
       }
     }
 
+    function renderListState() {
+      const box = document.querySelector('#list-state');
+      if (!box) return;
+      const sortLabel = rideSort.options[rideSort.selectedIndex]?.textContent || '';
+      const filters = [];
+      if (heightFilter.value !== 'all') filters.push(heightFilter.options[heightFilter.selectedIndex].textContent);
+      if (childSwitchFilter.checked) filters.push('チャイルドスイッチ対応');
+      if (favoritesFilter.checked) filters.push('お気に入りのみ');
+      box.querySelector('.list-state-text').textContent =
+        `並び順：★お気に入り優先・${sortLabel}　絞り込み：${filters.length ? filters.join('、') : 'なし'}`;
+      box.classList.toggle('is-filtered', filters.length > 0);
+    }
+
     function renderToday(data) {
       if (!currentData) return;
       todayData = data;
@@ -2014,6 +2063,7 @@
         ? `${day} · ${rides.length}件表示 · 20分ごとに記録`
         : `${day} · ${rides.length}/${currentData.rides.length}件表示 · 現在値は約5分ごとに更新、記録は20分ごと（毎時0・20・40分）`;
       renderRecentRecords();
+      renderListState();
       syncMobileView();
     }
 
@@ -2215,11 +2265,25 @@
 
     button.addEventListener('click', refresh);
     for (const control of [heightFilter, childSwitchFilter, favoritesFilter]) control.addEventListener('change', () => {
+      renderListState();
       if (todayData) renderToday(todayData);
       if (archiveData) renderArchive(archiveData);
     });
-    rideSort.addEventListener('change', () => { if (todayData) renderToday(todayData); });
+    rideSort.addEventListener('change', () => { renderListState(); if (todayData) renderToday(todayData); });
+    const MOBILE_VIEW_KEY = 'usj-wait-nav:mobile-view';
+    try {
+      const savedView = localStorage.getItem(MOBILE_VIEW_KEY);
+      if (savedView && [...mobileView.options].some(option => option.value === savedView)) mobileView.value = savedView;
+    } catch (_) { /* 保存できない環境では既定の一覧表 */ }
+    mobileView.addEventListener('change', () => {
+      try { localStorage.setItem(MOBILE_VIEW_KEY, mobileView.value); } catch (_) { /* 何もしない */ }
+    });
     mobileView.addEventListener('change', syncMobileView);
+    syncMobileView();
+    document.querySelector('.list-state-edit')?.addEventListener('click', () => {
+      heatmapOptions.open = true;
+      heatmapOptions.scrollIntoView({block: 'start'});
+    });
     heatmapRange.addEventListener('change', () => {
       heatmapPage = Number(heatmapRange.value) || 0;
       if (todayData) renderToday(todayData);
@@ -2241,6 +2305,31 @@
     monthPrev.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, -1); renderCalendar(); });
     monthNext.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, 1); renderCalendar(); });
     rideSelect.addEventListener('change', () => { updateMetrics(); renderRecentRecords(); });
+    function setupScrollSpy() {
+      const nav = document.querySelector(`.jump-nav[data-only="${PAGE}"]`) || document.querySelector('.jump-nav');
+      if (!nav) return;
+      const items = [...nav.querySelectorAll('a[href^="#"]')]
+        .map(link => ({link, target: document.getElementById(link.getAttribute('href').slice(1))?.closest('section')}))
+        .filter(item => item.target);
+      if (!items.length) return;
+      let ticking = false;
+      const update = () => {
+        ticking = false;
+        const line = (document.querySelector('.sticky-nav')?.getBoundingClientRect().bottom || 0) + 24;
+        const ordered = [...items].sort((a, b) => a.target.getBoundingClientRect().top - b.target.getBoundingClientRect().top);
+        let current = ordered[0];
+        for (const item of ordered) if (item.target.getBoundingClientRect().top <= line) current = item;
+        if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) current = ordered.at(-1);
+        for (const item of items) item.link.removeAttribute('aria-current');
+        current.link.setAttribute('aria-current', 'location');
+      };
+      addEventListener('scroll', () => {
+        if (!ticking) { ticking = true; requestAnimationFrame(update); }
+      }, {passive: true});
+      addEventListener('resize', update);
+      update();
+    }
+    setupScrollSpy();
     refresh();
     setInterval(refresh, 5 * 60 * 1000);
     document.addEventListener('visibilitychange', () => {
