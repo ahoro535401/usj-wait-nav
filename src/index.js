@@ -11,6 +11,11 @@ const JMA_POINT_URL = 'https://www.jma.go.jp/bosai/amedas/data/point/62078';
 const WEATHER_BACKFILL_DAYS = 8;
 const ARCHIVE_START_DAY = '2026-10-05';
 const WEATHER_CHECK_SECONDS = 15 * 60;
+const HOLIDAY_CSV_URL = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
+const HOLIDAY_JSON_URL = 'https://holidays-jp.github.io/api/v1/date.json';
+const HOLIDAY_FROM = '2025-01-01';
+const HOLIDAY_REFRESH_MS = 7 * 86400 * 1000;
+const HOLIDAY_RETRY_MS = 6 * 3600 * 1000;
 const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
@@ -443,6 +448,54 @@ async function inCollectionWindow(db, seconds) {
   return jstHour(seconds) >= 6;
 }
 
+function holidayKind(day, name, names) {
+  if (/振替/.test(name)) return 'substitute';
+  if (name === '国民の休日') return 'citizens';
+  if (name !== '休日') return 'national';
+  const date = new Date(`${day}T00:00:00Z`);
+  for (;;) {
+    date.setUTCDate(date.getUTCDate() - 1);
+    const previous = date.toISOString().slice(0, 10);
+    if (!names.has(previous)) return 'citizens';
+    if (date.getUTCDay() === 0 && names.get(previous) !== '休日') return 'substitute';
+  }
+}
+
+async function fetchHolidays() {
+  try {
+    const response = await fetch(HOLIDAY_CSV_URL, { headers: { 'User-Agent': WEATHER_AGENT } });
+    if (!response.ok) throw new Error(`Holiday CSV HTTP ${response.status}`);
+    const text = new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+    if (!text.includes('国民の祝日')) throw new Error('Holiday CSV decode failed');
+    const map = new Map();
+    for (const line of text.split(/\r?\n/).slice(1)) {
+      const match = line.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2}),(.+)$/);
+      if (match) map.set(`${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`, match[4].trim());
+    }
+    return { map, source: 'cao' };
+  } catch (error) {
+    console.warn('Holiday CSV unavailable; trying JSON mirror', error);
+    const data = await fetchJson(HOLIDAY_JSON_URL);
+    return { map: new Map(Object.entries(data)), source: 'holidays-jp' };
+  }
+}
+
+async function refreshHolidays(db) {
+  const { map, source } = await fetchHolidays();
+  const rows = [...map].filter(([day]) => day >= HOLIDAY_FROM).sort(([a], [b]) => a.localeCompare(b));
+  const thisYear = jstDay(epoch()).slice(0, 4);
+  if (rows.filter(([day]) => day.startsWith(thisYear)).length < 15)
+    throw new Error('Holiday data looks incomplete');
+  const names = new Map(rows);
+  const now = epoch();
+  const insert = db.prepare('INSERT INTO holidays (day,name,kind,source,updated_at) VALUES (?,?,?,?,?)');
+  await db.batch([
+    db.prepare('DELETE FROM holidays WHERE day >= ?').bind(HOLIDAY_FROM),
+    ...rows.map(([day, name]) => insert.bind(day, name, holidayKind(day, name, names), source, now)),
+  ]);
+  return { count: rows.length, source };
+}
+
 async function scheduled(event, env) {
   const seconds = epoch();
   const minute = jstMinute(seconds);
@@ -465,6 +518,21 @@ async function scheduled(event, env) {
     await recordWeatherDays(env.DB, seconds);
   } catch (error) {
     console.error('JMA weather archive failed', error);
+  }
+  const holidaysTriedAt = Date.parse(await readMeta(env.DB, 'holidays_tried_at'));
+  if (!Number.isFinite(holidaysTriedAt) || Date.now() - holidaysTriedAt > HOLIDAY_REFRESH_MS) {
+    await writeMeta(env.DB, 'holidays_tried_at', new Date().toISOString());
+    try {
+      const result = await refreshHolidays(env.DB);
+      await writeMeta(env.DB, 'holidays_fetched_at', new Date().toISOString());
+      await writeMeta(env.DB, 'holidays_error', '');
+      console.log(`Holidays saved: ${result.count} (${result.source})`);
+    } catch (error) {
+      console.error('Holiday refresh failed', error);
+      await writeMeta(env.DB, 'holidays_error', String(error));
+      await writeMeta(env.DB, 'holidays_tried_at',
+        new Date(Date.now() - HOLIDAY_REFRESH_MS + HOLIDAY_RETRY_MS).toISOString());
+    }
   }
   if (!(await inCollectionWindow(env.DB, seconds))) {
     // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
@@ -703,6 +771,13 @@ async function route(request, env) {
     return json({ ...(local.status === 'fulfilled' ? local.value : { periods: [], unavailable: true }),
       jma: jma.status === 'fulfilled' ? jma.value : null });
   }
+  if (url.pathname === '/api/holidays') {
+    const { results } = await env.DB.prepare('SELECT day,name,kind,source FROM holidays ORDER BY day').all();
+    if (!results.length) return json({ days: [], pending: true }, 503);
+    return json({ days: results, fetched_at: await readMeta(env.DB, 'holidays_fetched_at'),
+      error: await readMeta(env.DB, 'holidays_error'),
+      source: results[0].source === 'cao' ? '内閣府「国民の祝日」' : 'holidays-jp（予備）' });
+  }
   if (url.pathname === '/api/schedule') {
     const { results } = await env.DB.prepare('SELECT day,opens,closes,status FROM park_days ORDER BY day').all();
     return json({ days: results, fetched_at: await readMeta(env.DB, 'schedule_fetched_at'),
@@ -767,6 +842,7 @@ async function fallbackRoute(request, env) {
     const data = fallback.archive_by_day[day];
     return data ? json({ ...data, stale: true }) : json({ error: 'この日の記録はありません' }, 404);
   }
+  if (url.pathname === '/api/holidays') return json({ days: [], stale: true });
   if (url.pathname === '/api/schedule') return json({ ...fallback.schedule, stale: true });
   if (url.pathname === '/api/today') return json({ day: jstDay(epoch()), snapshots: [], stale: true });
   if (url.pathname === '/api/shows') {
@@ -811,7 +887,7 @@ async function fallbackRoute(request, env) {
 
 const API_CACHE_SECONDS = new Map([
   ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
-  ['/api/schedule', 1800], ['/api/shows', 300], ['/api/archive/days', 1800],
+  ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400],
 ]);
 
