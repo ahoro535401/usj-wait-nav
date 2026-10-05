@@ -835,8 +835,8 @@ async function capturePendingSnapshot(env, seconds) {
 
 function isEmergencyBackupTime(seconds) {
   const minuteOfDay = jstHour(seconds) * 60 + jstMinute(seconds);
-  return jstDay(seconds) === '2026-10-06' && minuteOfDay >= 450 &&
-    minuteOfDay <= 720 && (minuteOfDay - 450) % 20 === 0;
+  return jstDay(seconds) === '2026-10-06' && minuteOfDay >= 440 &&
+    minuteOfDay <= 720 && minuteOfDay % 20 === 0;
 }
 
 async function captureRedundantSnapshot(env, seconds, scheduledSeconds = seconds) {
@@ -892,7 +892,7 @@ export default {
   },
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
-      if (event.cron === '10,30,50 * * * *') {
+      if (event.cron === '0,20,40 * * * *') {
         const scheduledSeconds = Math.floor(event.scheduledTime / 1000);
         if (!isEmergencyBackupTime(scheduledSeconds)) return;
         try {
