@@ -19,6 +19,16 @@
   <meta property="og:locale" content="ja_JP">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#f4f7fa">
+  <script>
+    (function () {
+      var pref = 'auto';
+      try { pref = localStorage.getItem('usj-wait-nav:theme') || 'auto'; } catch (_) {}
+      var dark = pref === 'dark' || (pref === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.dataset.themePref = pref;
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f1720' : '#f4f7fa');
+    })();
+  </script>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -330,12 +340,118 @@
     .park-state[hidden] { display: none; }
     .trend-legend-list { margin: 6px 0; padding-left: 1.2em; }
     .trend-legend-list li { margin: 3px 0; }
+    .theme-toggle { margin-left: auto; min-height: 36px; padding: 0 12px; border: 1px solid #c5d3e3; border-radius: 999px; background: #fff; color: #1058a7; font: inherit; font-size: .8rem; font-weight: 700; }
+    .skeleton { display: block; height: 1em; border-radius: 6px; background: linear-gradient(90deg, #e8edf3 25%, #f4f7fa 50%, #e8edf3 75%); background-size: 200% 100%; animation: skeleton-shine 1.2s ease-in-out infinite; }
+    .skeleton-row .skeleton { margin: 6px 0; }
+    .top-waits .skeleton-row { gap: 12px; }
+    .skeleton-block { display: grid; gap: 14px; padding: 14px; }
+    .skeleton-block .skeleton { height: 2.2em; }
+    @keyframes skeleton-shine { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    /* ダーク表示。ライト表示用の既存スタイルには影響させない。 */
+    :root[data-theme="dark"] { color-scheme: dark; background: #0f1720; color: #e6edf3; }
+    :root[data-theme="dark"] .text-logo { color: #e6edf3; }
+    :root[data-theme="dark"] .unofficial { background: #1d2a37; color: #a9b6c4; }
+    :root[data-theme="dark"] .sub, :root[data-theme="dark"] .muted, :root[data-theme="dark"] #status { color: #a9b6c4; }
+    :root[data-theme="dark"] a { color: #8fb6ff; }
+    :root[data-theme="dark"] select { background: #17212c; color: #e6edf3; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .sticky-nav { background: #0f1720; box-shadow: 0 1px 0 rgba(255, 255, 255, .06); }
+    :root[data-theme="dark"] .page-tabs { background: #1d2a37; }
+    :root[data-theme="dark"] .page-tabs a { color: #9cc4ff; }
+    :root[data-theme="dark"] .page-tabs a[aria-current="page"] { background: #2f6fc0; color: #fff; }
+    :root[data-theme="dark"] .jump-nav { background: #17212c; border-color: #2c3b4b; }
+    :root[data-theme="dark"] .jump-nav a { color: #9cc4ff; }
+    :root[data-theme="dark"] .jump-nav a[aria-current], :root[data-theme="dark"] .jump-nav a:hover { background: #1d2f45; box-shadow: inset 0 -3px 0 #8fb6ff; }
+    :root[data-theme="dark"] .history-panel, :root[data-theme="dark"] .calendar-panel, :root[data-theme="dark"] .events-panel,
+    :root[data-theme="dark"] .heatmap-panel, :root[data-theme="dark"] .archive-panel, :root[data-theme="dark"] .shows-panel,
+    :root[data-theme="dark"] .weather-panel, :root[data-theme="dark"] .closures-panel, :root[data-theme="dark"] .ad-slot { background: #17212c; border-color: #2c3b4b; }
+    :root[data-theme="dark"] .today-hours, :root[data-theme="dark"] .top-waits { background: #182638; border-color: #2f4a6b; }
+    :root[data-theme="dark"] .today-hours-time, :root[data-theme="dark"] .top-waits li strong,
+    :root[data-theme="dark"] .archive-summary strong { color: #8fb6ff; }
+    :root[data-theme="dark"] .park-state { background: #1d2733; border-color: #3a4b5d; color: #c8d3df; }
+    :root[data-theme="dark"] .weather-alert, :root[data-theme="dark"] .park-alert { background: #3d3410; color: #ffe08a; }
+    :root[data-theme="dark"] .weather-alert[data-level="high"], :root[data-theme="dark"] .park-alert[data-level="high"] { background: #4a2420; color: #ffb8ad; }
+    :root[data-theme="dark"] .weather-values div, :root[data-theme="dark"] .archive-summary div,
+    :root[data-theme="dark"] .heatmap-options > summary, :root[data-theme="dark"] .selected-day,
+    :root[data-theme="dark"] .list-state { background: #1d2a37; border-color: #2c3b4b; }
+    :root[data-theme="dark"] .list-state.is-filtered { background: #1b2c40; border-color: #8fb6ff; }
+    :root[data-theme="dark"] .list-state-edit { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .weather-details summary small, :root[data-theme="dark"] .weather-values small,
+    :root[data-theme="dark"] .archive-summary small, :root[data-theme="dark"] .event-card small,
+    :root[data-theme="dark"] .event-count, :root[data-theme="dark"] .show-label small, :root[data-theme="dark"] .show-hour,
+    :root[data-theme="dark"] .metric small, :root[data-theme="dark"] .metric span, :root[data-theme="dark"] .history-table th,
+    :root[data-theme="dark"] .archive-cal-dow, :root[data-theme="dark"] .calendar-grid .weekday, :root[data-theme="dark"] .ad-label { color: #a9b6c4; }
+    :root[data-theme="dark"] .heatmap-scroll, :root[data-theme="dark"] .mobile-card-list:not([hidden]),
+    :root[data-theme="dark"] .show-timeline-scroll { border-color: #2c3b4b; }
+    :root[data-theme="dark"] .heatmap-table th, :root[data-theme="dark"] .heatmap-table td,
+    :root[data-theme="dark"] .history-table th, :root[data-theme="dark"] .history-table td,
+    :root[data-theme="dark"] .show-axis, :root[data-theme="dark"] .show-row,
+    :root[data-theme="dark"] .ride-card, :root[data-theme="dark"] .ride-card-history, :root[data-theme="dark"] footer { border-color: #2c3b4b; }
+    :root[data-theme="dark"] .heatmap-table thead th, :root[data-theme="dark"] .show-axis,
+    :root[data-theme="dark"] .show-axis .show-label { background: #1d2a37; }
+    :root[data-theme="dark"] .heatmap-table tbody th, :root[data-theme="dark"] .show-label { background: #17212c; }
+    :root[data-theme="dark"] .heatmap-table tbody tr:hover th { background: #1d2a37; }
+    :root[data-theme="dark"] .heatmap-table tbody th a, :root[data-theme="dark"] .show-label a { color: #8fb6ff; }
+    :root[data-theme="dark"] .heat-0 { background: #12352d; color: #b9ecd9; }
+    :root[data-theme="dark"] .heat-1 { background: #1d4a33; color: #c4f0d2; }
+    :root[data-theme="dark"] .heat-2 { background: #4a3f0f; color: #ffe58a; }
+    :root[data-theme="dark"] .heat-3 { background: #57360f; color: #ffc98a; }
+    :root[data-theme="dark"] .heat-4 { background: #5a2222; color: #ffb4b4; }
+    :root[data-theme="dark"] .heat-empty { background: #1d2730; color: #9aa8b6; }
+    :root[data-theme="dark"] .heat-unknown { background: repeating-linear-gradient(135deg, #17212c, #17212c 6px, #1f2b37 6px, #1f2b37 12px); color: #9aa8b6; }
+    :root[data-theme="dark"] .trend-up { color: #ff8a80; }
+    :root[data-theme="dark"] .trend-down { color: #6fd3a0; }
+    :root[data-theme="dark"] .trend-flat, :root[data-theme="dark"] .trend-none { color: #a9b6c4; }
+    :root[data-theme="dark"] .favorite-button { background: transparent; color: #a9b6c4; }
+    :root[data-theme="dark"] .favorite-button[aria-pressed="true"] { color: #ffc061; }
+    :root[data-theme="dark"] .spark-bar { fill: #4b6a91; }
+    :root[data-theme="dark"] .spark-now, :root[data-theme="dark"] .card-chart-now, :root[data-theme="dark"] .card-chart-value { fill: #8fb6ff; }
+    :root[data-theme="dark"] .card-chart-value { stroke: #17212c; }
+    :root[data-theme="dark"] .spark-gap { fill: #3a4856; }
+    :root[data-theme="dark"] .spark-base, :root[data-theme="dark"] .card-chart-base { stroke: #3a4856; }
+    :root[data-theme="dark"] .card-chart-grid { stroke: #2c3b4b; }
+    :root[data-theme="dark"] .card-chart-axis { fill: #a9b6c4; }
+    :root[data-theme="dark"] .archive-hour-track { background: #1d2a37; }
+    :root[data-theme="dark"] .show-date-list button { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .show-date-list button[aria-pressed="true"] { background: #2f6fc0; color: #fff; border-color: #2f6fc0; }
+    :root[data-theme="dark"] .show-track { background: repeating-linear-gradient(to right, #2c3b4b 0, #2c3b4b 1px, transparent 1px, transparent 90px); }
+    :root[data-theme="dark"] .show-point { background: #1d2a37; color: #8fb6ff; border-top-color: #8fb6ff; }
+    :root[data-theme="dark"] .show-point.past { background: #1a222b; color: #8d9aa7; border-color: #56636f; }
+    :root[data-theme="dark"] .show-range { background: #284a5c; }
+    :root[data-theme="dark"] .show-range.approx { background: #223e4e; border-color: #5f8fb5; }
+    :root[data-theme="dark"] .show-time-label { color: #8fb6ff; }
+    :root[data-theme="dark"] .show-now { background: #ff7a5c; }
+    :root[data-theme="dark"] .archive-cal-day, :root[data-theme="dark"] .calendar-grid button,
+    :root[data-theme="dark"] .event-card { background: #17212c; color: #e6edf3; border-color: #2c3b4b; }
+    :root[data-theme="dark"] .archive-cal-day.today { border-color: #8fb6ff; }
+    :root[data-theme="dark"] .archive-calendar-head button { background: #1d2a37; color: #9cc4ff; }
+    :root[data-theme="dark"] .archive-cal-dow.sun, :root[data-theme="dark"] .archive-cal-day.sun,
+    :root[data-theme="dark"] .calendar-grid .weekday:first-child, :root[data-theme="dark"] .closure-count { color: #ff9b9b; }
+    :root[data-theme="dark"] .archive-cal-dow.sat, :root[data-theme="dark"] .archive-cal-day.sat,
+    :root[data-theme="dark"] .calendar-grid .weekday:last-child { color: #8fb6ff; }
+    :root[data-theme="dark"] .archive-cal-day.crowd-1, :root[data-theme="dark"] .archive-calendar-legend .crowd-1 { background: #163a2c; }
+    :root[data-theme="dark"] .archive-cal-day.crowd-2, :root[data-theme="dark"] .archive-calendar-legend .crowd-2 { background: #1f4a34; }
+    :root[data-theme="dark"] .archive-cal-day.crowd-3, :root[data-theme="dark"] .archive-calendar-legend .crowd-3 { background: #4a3f0f; }
+    :root[data-theme="dark"] .archive-cal-day.crowd-4, :root[data-theme="dark"] .archive-calendar-legend .crowd-4 { background: #57360f; }
+    :root[data-theme="dark"] .archive-cal-day.crowd-5, :root[data-theme="dark"] .archive-calendar-legend .crowd-5 { background: #5a2222; }
+    :root[data-theme="dark"] .archive-cal-weather.wx-sun { color: #ffc061; }
+    :root[data-theme="dark"] .archive-cal-weather.wx-cloud { color: #a9b6c4; }
+    :root[data-theme="dark"] .archive-cal-weather.wx-rain { color: #8fb6ff; }
+    :root[data-theme="dark"] .calendar-grid button.has-hours { background: #1b2c40; border-color: #35557a; }
+    :root[data-theme="dark"] .calendar-grid button.has-closure:not(.has-hours) { background: #33291a; border-color: #6b5530; }
+    :root[data-theme="dark"] .calendar-grid button.selected { background: #2f6fc0; color: #fff; }
+    :root[data-theme="dark"] .heatmap-options > summary, :root[data-theme="dark"] .weather-details summary::before { color: #9cc4ff; }
+    :root[data-theme="dark"] .theme-toggle { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .skeleton { background: linear-gradient(90deg, #1d2a37 25%, #253444 50%, #1d2a37 75%); background-size: 200% 100%; }
   </style>
 </head>
 <body>
   <header class="site-header">
     <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
     <span class="unofficial">非公式</span>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button>
   </header>
   <div class="sticky-nav">
     <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/plan" data-tab="plan">行く前に</a></nav>
@@ -359,7 +475,13 @@
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
     <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの記録です。表は左右にスクロールできます。数値の単位は分です。</p>
     <p class="muted mobile-heatmap-hint">一覧表は現在値・約1時間前との差・今日の推移です。カードを開くと20分ごとの記録も確認できます。</p>
-    <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list"><li>現在値を確認中…</li></ol></div>
+    <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
+      <li class="skeleton-row"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:3em"></span><span class="visually-hidden">現在値を確認中…</span></li>
+      <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:60%"></span><span class="skeleton" style="width:3em"></span></li>
+      <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:75%"></span><span class="skeleton" style="width:3em"></span></li>
+      <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:55%"></span><span class="skeleton" style="width:3em"></span></li>
+      <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:65%"></span><span class="skeleton" style="width:3em"></span></li>
+    </ol></div>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <details id="heatmap-options" class="heatmap-options" open>
       <summary>絞り込み・並び順・色の見方</summary>
@@ -370,7 +492,7 @@
       <label>並び順 <select id="ride-sort"><option value="wait-desc">現在の待ち時間が長い順</option><option value="wait-asc">現在の待ち時間が短い順</option><option value="name">名前順</option></select></label>
     </div>
     <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
-    <p class="muted">★でお気に入り登録できます。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
+    <p class="muted">★でお気に入り登録できます（この端末のブラウザに保存され、閲覧履歴の削除やプライベートブラウズでは消える場合があります）。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
     <div class="heatmap-legend" aria-label="待ち時間の色分け">
       <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
     </div>
@@ -382,7 +504,14 @@
     <label class="mobile-heatmap-controls" for="heatmap-range">時刻 <select id="heatmap-range" aria-label="表示する時刻"></select></label>
     <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="スマホでの表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
     <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
-      <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
+      <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body" aria-busy="true">
+        <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
+        <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
+        <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
+        <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
+        <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
+        <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
+      </tbody></table>
     </div>
     <div id="trend-legend" class="muted trend-legend">
       <ul class="trend-legend-list">
@@ -446,7 +575,9 @@
     <div id="show-dates" class="show-date-list" role="group" aria-label="ショーの日付を選択"></div>
     <p id="shows-status" class="muted" role="status">ショー時刻を読み込み中…</p>
     <div class="show-timeline-scroll" tabindex="0" aria-label="選択した日のショー開始時刻。左右にスクロールできます">
-      <div id="show-timeline" role="table" aria-label="ショー別の時間軸"></div>
+      <div id="show-timeline" role="table" aria-label="ショー別の時間軸" aria-busy="true">
+        <div class="skeleton-block" aria-hidden="true"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+      </div>
     </div>
     <p class="muted">破線の帯は約分数による目安です。「パーククローズまで」は開催時間帯で、各回の長さではありません。天候などで変更・中止される場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>でご確認ください。</p>
   </section>
@@ -1135,6 +1266,7 @@
 
     function renderShows(data) {
       showTimeline.replaceChildren();
+      showTimeline.removeAttribute('aria-busy');
       showsStatus.replaceChildren();
       if (data.unavailable) {
         const message = data.reason === 'unpublished'
@@ -1292,6 +1424,7 @@
       } catch (cause) {
         if (requestNumber !== showRequest) return;
         showTimeline.replaceChildren();
+        showTimeline.removeAttribute('aria-busy');
         showsStatus.textContent = `ショー時刻を読み込めません: ${cause.message}`;
       }
     }
@@ -1542,6 +1675,7 @@
         .sort((a, b) => Number(b.cell.textContent) - Number(a.cell.textContent))
         .slice(0, 5);
       topWaitsList.replaceChildren();
+      topWaitsList.removeAttribute('aria-busy');
       if (!ranked.length) {
         const item = document.createElement('li');
         item.textContent = '現在表示できる待ち時間はありません（営業時間外は表示されません）。';
@@ -2008,6 +2142,7 @@
         : `★お気に入りを先頭に表示し、それぞれ現在の待ち時間が${rideSort.value === 'wait-asc' ? '短い' : '長い'}順で並べます。未取得・休止中は末尾です。`;
       heatmapHead.replaceChildren();
       heatmapBody.replaceChildren();
+      heatmapBody.removeAttribute('aria-busy');
       const trendMode = mobileHeatmap.matches;
       heatmapBody.closest('table').classList.toggle('trend-mode', trendMode);
       const headLabels = trendMode
@@ -2120,7 +2255,11 @@
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         if (requestNumber === todayRequest) renderToday(data);
       } catch (cause) {
-        if (requestNumber === todayRequest) heatmapStatus.textContent = `当日の記録を読み込めません: ${cause.message}`;
+        if (requestNumber === todayRequest) {
+          heatmapBody.replaceChildren();
+          heatmapBody.removeAttribute('aria-busy');
+          heatmapStatus.textContent = `当日の記録を読み込めません: ${cause.message}`;
+        }
       }
     }
 
@@ -2295,6 +2434,18 @@
       } catch (cause) {
         status.textContent = '取得できませんでした';
         error.textContent = cause.message;
+        if (PAGE === 'now' && topWaitsList.hasAttribute('aria-busy')) {
+          topWaitsList.replaceChildren();
+          topWaitsList.removeAttribute('aria-busy');
+          const item = document.createElement('li');
+          item.textContent = '現在値を確認できません。';
+          topWaitsList.append(item);
+        }
+        if (PAGE === 'now' && heatmapBody.hasAttribute('aria-busy')) {
+          heatmapBody.replaceChildren();
+          heatmapBody.removeAttribute('aria-busy');
+          heatmapStatus.textContent = '当日の記録を読み込めません。';
+        }
       } finally {
         button.disabled = false;
       }
@@ -2367,6 +2518,26 @@
       update();
     }
     setupScrollSpy();
+    // 表示テーマ（自動／ダーク／ライト）。自動は端末の設定に合わせる。
+    const THEME_KEY = 'usj-wait-nav:theme';
+    const themeToggle = document.querySelector('#theme-toggle');
+    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const THEME_LABELS = {auto: '画面：自動', dark: '画面：ダーク', light: '画面：ライト'};
+    let themePref = document.documentElement.dataset.themePref || 'auto';
+    function applyTheme(pref) {
+      const dark = pref === 'dark' || (pref === 'auto' && darkQuery.matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.dataset.themePref = pref;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0f1720' : '#f4f7fa');
+      if (themeToggle) themeToggle.textContent = THEME_LABELS[pref] || THEME_LABELS.auto;
+    }
+    applyTheme(themePref);
+    themeToggle?.addEventListener('click', () => {
+      themePref = {auto: 'dark', dark: 'light', light: 'auto'}[themePref] || 'auto';
+      try { localStorage.setItem(THEME_KEY, themePref); } catch (_) { /* 保存できなくても切り替えは効く */ }
+      applyTheme(themePref);
+    });
+    darkQuery.addEventListener?.('change', () => { if (themePref === 'auto') applyTheme('auto'); });
     refresh();
     setInterval(refresh, 5 * 60 * 1000);
     document.addEventListener('visibilitychange', () => {
