@@ -7,6 +7,9 @@ const WEATHER_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?
 const WEATHER_AGENT = 'USJWaitNav/1.0 github.com/ahoro535401/usj-wait-nav';
 const JMA_LATEST_URL = 'https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
 const JMA_FORECAST_URL = 'https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json';
+const JMA_POINT_URL = 'https://www.jma.go.jp/bosai/amedas/data/point/62078';
+const WEATHER_BACKFILL_DAYS = 8;
+const WEATHER_CHECK_SECONDS = 15 * 60;
 const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
@@ -147,6 +150,61 @@ async function getJmaWeather(db) {
       return { ...cached, stale: true };
     throw error;
   }
+}
+
+// 大阪観測所の10分値を日単位にまとめる。欠測項目を0として数えない。
+async function summarizeJmaDay(day) {
+  const ymd = day.replaceAll('-', '');
+  const hours = [0, 3, 6, 9, 12, 15, 18, 21];
+  const files = await Promise.all(hours.map(async hour => {
+    const response = await fetch(`${JMA_POINT_URL}/${ymd}_${String(hour).padStart(2, '0')}.json`);
+    if (response.status === 404) return {};
+    if (!response.ok) throw new Error(`JMA ${ymd}_${hour}: HTTP ${response.status}`);
+    return response.json();
+  }));
+  const measured = value => Array.isArray(value) && value[1] === 0 && Number.isFinite(value[0]) ? value[0] : null;
+  const records = Object.entries(Object.assign({}, ...files))
+    .filter(([key]) => key.startsWith(ymd)).sort(([a], [b]) => a.localeCompare(b));
+  let precipTotal = 0, precipDaytime = 0, sunMinutes = 0, complete = 0;
+  const temps = [];
+  for (const [key, point] of records) {
+    const hour = Number(key.slice(8, 10));
+    const temp = measured(point.temp);
+    const rain = measured(point.precipitation10m);
+    const sun = measured(point.sun10m);
+    if (temp != null) temps.push(temp);
+    if (rain != null) {
+      precipTotal += rain;
+      if (hour >= 8 && hour < 22) precipDaytime += rain;
+    }
+    if (sun != null) sunMinutes += sun;
+    if (temp != null && rain != null && sun != null) complete++;
+  }
+  if (!records.length || !complete) throw new Error(`JMA ${day}: no complete observations`);
+  const round1 = value => Math.round(value * 10) / 10;
+  return { day, temp_max: temps.length ? Math.max(...temps) : null,
+    temp_min: temps.length ? Math.min(...temps) : null,
+    precip_total: round1(precipTotal), precip_daytime: round1(precipDaytime),
+    sun_hours: round1(sunMinutes / 60), coverage: round1(complete / 144) };
+}
+
+async function recordWeatherDays(db, seconds) {
+  if (jstHour(seconds) < 1) return;
+  const checked = Number(await readMeta(db, 'weather_checked_at'));
+  if (checked > 0 && seconds - checked < WEATHER_CHECK_SECONDS) return;
+  await writeMeta(db, 'weather_checked_at', String(seconds));
+  const candidates = Array.from({ length: WEATHER_BACKFILL_DAYS }, (_, index) => jstDay(seconds - (index + 1) * 86400));
+  const { results } = await db.prepare(
+    `SELECT day, coverage FROM weather_days WHERE day IN (${candidates.map(() => '?').join(',')})`
+  ).bind(...candidates).all();
+  const saved = new Map(results.map(row => [row.day, row.coverage]));
+  const target = candidates.find((day, index) => !saved.has(day) || index < 2 && saved.get(day) < 0.9);
+  if (!target) return;
+  const weather = await summarizeJmaDay(target);
+  await db.prepare('INSERT OR REPLACE INTO weather_days ' +
+    '(day,temp_max,temp_min,precip_total,precip_daytime,sun_hours,coverage,updated_at) VALUES (?,?,?,?,?,?,?,?)'
+  ).bind(weather.day, weather.temp_max, weather.temp_min, weather.precip_total,
+    weather.precip_daytime, weather.sun_hours, weather.coverage, seconds).run();
 }
 
 async function fetchJson(url) {
@@ -392,6 +450,11 @@ async function scheduled(event, env) {
   } catch (error) {
     console.error('Official show schedule refresh failed', error);
   }
+  try {
+    await recordWeatherDays(env.DB, seconds);
+  } catch (error) {
+    console.error('JMA weather archive failed', error);
+  }
   if (!(await inCollectionWindow(env.DB, seconds))) {
     // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
     const saved = await readMeta(env.DB, 'shows_payload');
@@ -509,11 +572,15 @@ async function todayMatrix(db, seconds) {
 
 async function archiveDates(db, seconds) {
   const { results } = await db.prepare(
-    "SELECT date(captured_at + 32400, 'unixepoch') AS day, COUNT(*) AS snapshots, " +
-    'MIN(captured_at) AS first_at, MAX(captured_at) AS last_at FROM snapshots ' +
-    'WHERE captured_at < ? GROUP BY day ORDER BY day DESC'
+    "SELECT date(h.captured_at + 32400, 'unixepoch') AS day, COUNT(*) AS snapshots, " +
+    'MIN(h.captured_at) AS first_at, MAX(h.captured_at) AS last_at, ' +
+    'w.temp_max,w.temp_min,w.precip_total,w.precip_daytime,w.sun_hours,w.coverage ' +
+    'FROM snapshots h LEFT JOIN weather_days w ON w.day=date(h.captured_at + 32400, \'unixepoch\') ' +
+    "WHERE h.captured_at < ? GROUP BY date(h.captured_at + 32400, 'unixepoch') ORDER BY day DESC"
   ).bind(dayStart(seconds)).all();
-  return { days: results };
+  return { days: results.map(({temp_max, temp_min, precip_total, precip_daytime, sun_hours, coverage, ...row}) => ({
+    ...row, weather: coverage > 0 ? {day: row.day, temp_max, temp_min, precip_total, precip_daytime, sun_hours, coverage} : null,
+  })) };
 }
 
 async function archiveDay(db, day) {
@@ -654,6 +721,9 @@ async function route(request, env) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(start) ||
         jstDay(start) !== day || day >= jstDay(epoch())) return json({ error: '過去の日付を指定してください' }, 400);
     const data = await archiveDay(env.DB, day);
+    if (data) data.weather = await env.DB.prepare(
+      'SELECT day,temp_max,temp_min,precip_total,precip_daytime,sun_hours,coverage FROM weather_days WHERE day=? AND coverage>0'
+    ).bind(day).first();
     return data ? json(data) : json({ error: 'この日の記録はありません' }, 404);
   }
   if (url.pathname === '/api/history') {
