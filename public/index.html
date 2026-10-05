@@ -9,6 +9,20 @@
   <meta property="og:url" content="https://usj-wait-nav.kotaro-7436.workers.dev/">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"USJ待ち時間ナビ","url":"https://usj-wait-nav.kotaro-7436.workers.dev/","description":"USJの待ち時間・履歴・営業時間・ショー開始時刻を確認できる個人運営の非公式サイト"}</script>
   <meta property="og:site_name" content="USJ待ち時間ナビ">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="USJの待ち時間・混雑状況｜USJ待ち時間ナビ">
+  <meta property="og:description" content="USJのアトラクション別待ち時間を、現在の掲載値と20分ごとの履歴で比較。営業時間、ショー開始時刻、イベント情報も確認できる個人運営の非公式サイトです。">
+  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="USJ待ち時間ナビ（非公式）：今の待ち時間と過去の混雑実績">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f4f7fa">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <style>
     :root { font-family: system-ui, sans-serif; color: #172332; background: #f4f7fa; }
     body { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
@@ -376,9 +390,9 @@
     <p id="archive-status" class="muted" role="status">過去の記録を確認中…</p>
     <p id="archive-weather" class="muted archive-weather"></p>
     <div class="archive-summary" aria-label="選択日の記録概要">
-      <div><small>記録された営業中の平均待ち時間</small><strong id="archive-average">—</strong></div>
-      <div><small>20分ごとの保存回数</small><strong id="archive-snapshots">—</strong></div>
-      <div><small>記録がある時刻</small><strong id="archive-coverage">—</strong></div>
+      <div><small>この日の平均待ち時間</small><strong id="archive-average">—</strong></div>
+      <div><small>いちばん混んだ時間帯</small><strong id="archive-peak">—</strong></div>
+      <div><small>最も待ち時間が長かったアトラクション</small><strong id="archive-top-ride">—</strong></div>
     </div>
     <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
     <p class="muted">過去の表は★お気に入りを先頭に表示し、それぞれ選択日の記録平均が長い順で並べます。</p>
@@ -507,8 +521,8 @@
     const archiveHours = document.querySelector('#archive-hours');
     const archiveStatus = document.querySelector('#archive-status');
     const archiveAverage = document.querySelector('#archive-average');
-    const archiveSnapshots = document.querySelector('#archive-snapshots');
-    const archiveCoverage = document.querySelector('#archive-coverage');
+    const archivePeak = document.querySelector('#archive-peak');
+    const archiveTopRide = document.querySelector('#archive-top-ride');
     const archiveHourBars = document.querySelector('#archive-hour-bars');
     const archiveHead = document.querySelector('#archive-head');
     const archiveBody = document.querySelector('#archive-body');
@@ -993,7 +1007,7 @@
       ['プレイバック・ゾンビ・デ・ダンス ～ハロウィーン・ホラー・ナイト 15周年～', {url: 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/zombie-de-dance'}],
     ]);
 
-    let showSelectedDate = PAGE === 'plan' ? addDays(jstToday(), 1) : jstToday();
+    let showSelectedDate = jstToday();
     let showRequest = 0;
     const SHOW_LEAD_MINUTES = 20;
     const showAutoScrolledDays = new Set();
@@ -1684,6 +1698,21 @@
       renderArchiveCalendar();
     }
 
+    function archiveHighlights(hours) {
+      let peak = null, top = null;
+      for (const hour of hours) {
+        if (Number.isFinite(hour.average_wait) && (!peak || hour.average_wait > peak.average_wait)) peak = hour;
+        for (const [id, sample] of Object.entries(hour.rides || {})) {
+          if (!sample.open_samples || !Number.isFinite(sample.average_wait)) continue;
+          if (!top || sample.average_wait > top.wait) top = {id, wait: sample.average_wait, at: hour.at};
+        }
+      }
+      return {peak, top};
+    }
+    function archiveRideName(id) {
+      const ride = currentData?.rides?.find(item => String(item.id) === String(id));
+      return ride ? rideName(ride) : japaneseNames.get(Number(id)) || `アトラクションID ${id}`;
+    }
     function renderArchive(data) {
       archiveData = data;
       const hours = data.hours || [];
@@ -1708,7 +1737,7 @@
       }
       const first = hourMinuteFormat.format(new Date(data.first_at * 1000));
       const last = hourMinuteFormat.format(new Date(data.last_at * 1000));
-      archiveStatus.textContent = `${data.day.replaceAll('-', '/')} JST · ${data.snapshots}回保存 · ${first}〜${last}の記録。記録のない時間帯は含みません。`;
+      archiveStatus.textContent = `${data.day.replaceAll('-', '/')}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
       const weather = weatherInfo(data.weather);
       document.querySelector('#archive-weather').textContent = weather
         ? `天気（気象庁アメダス大阪の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
@@ -1716,8 +1745,10 @@
       archiveDayStats.set(data.day, {average: data.average_wait, snapshots: data.snapshots});
       if (archiveCalendarDays.length) renderArchiveCalendar();
       archiveAverage.textContent = Number.isFinite(data.average_wait) ? `${Math.round(data.average_wait)}分` : '記録なし';
-      archiveSnapshots.textContent = `${data.snapshots}回`;
-      archiveCoverage.textContent = first === last ? first : `${first}〜${last}`;
+      const {peak, top} = archiveHighlights(hours);
+      const hourText = at => `${hourMinuteFormat.format(new Date(at * 1000)).slice(0, 2)}時台`;
+      archivePeak.textContent = peak ? `${hourText(peak.at)}（平均${Math.round(peak.average_wait)}分）` : '記録なし';
+      archiveTopRide.textContent = top ? `${archiveRideName(top.id)} ${Math.round(top.wait)}分（${hourText(top.at)}）` : '記録なし';
 
       archiveHourBars.replaceChildren();
       const scale = Math.max(30, ...hours.map(hour => hour.average_wait || 0));
