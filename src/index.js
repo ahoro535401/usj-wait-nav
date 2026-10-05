@@ -817,28 +817,47 @@ const API_CACHE_SECONDS = new Map([
 
 // D1 の日次上限に達した場合も、20分ごとの記録を KV に退避する。
 // D1 が復旧した Cron で同じスロットへ取り込み、成功後だけ退避データを消す。
-async function capturePendingSnapshot(env, seconds) {
-  const minute = jstMinute(seconds);
-  if (minute % 20 !== 0 && ![2, 22, 42].includes(minute)) return;
-  const slot = Math.floor(seconds / SNAPSHOT_SECONDS);
-  const key = `pending:${slot}`;
+async function captureSnapshotToKV(env, seconds, key) {
   if (await env.SNAPSHOT_BACKUP.get(key)) return;
   const [queue, wiki] = await Promise.allSettled([fetchJson(QUEUE_URL), fetchJson(WIKI_LIVE_URL)]);
   if (queue.status !== 'fulfilled') throw queue.reason;
   const rides = parseRides(queue.value, wiki.status === 'fulfilled' ? wiki.value : null, new Date().toISOString());
   if (!rides.some(ride => isRecent(ride, seconds))) return;
   await env.SNAPSHOT_BACKUP.put(key, JSON.stringify({ capturedAt: seconds, rides }));
-  console.log(`Snapshot backed up in KV: ${slot}`);
+  console.log(`Snapshot backed up in KV: ${key}`);
+}
+
+async function capturePendingSnapshot(env, seconds) {
+  const minute = jstMinute(seconds);
+  if (minute % 20 !== 0 && ![2, 22, 42].includes(minute)) return;
+  await captureSnapshotToKV(env, seconds, `pending:${Math.floor(seconds / SNAPSHOT_SECONDS)}`);
+}
+
+function isEmergencyBackupTime(seconds) {
+  const minuteOfDay = jstHour(seconds) * 60 + jstMinute(seconds);
+  return jstDay(seconds) === '2026-10-06' && minuteOfDay >= 450 &&
+    minuteOfDay <= 720 && (minuteOfDay - 450) % 20 === 0;
+}
+
+async function captureRedundantSnapshot(env, seconds, scheduledSeconds = seconds) {
+  if (!isEmergencyBackupTime(scheduledSeconds)) return;
+  await captureSnapshotToKV(env, seconds, `redundant:${Math.floor(scheduledSeconds / 60)}`);
 }
 
 async function replayPendingSnapshots(env) {
-  const list = await env.SNAPSHOT_BACKUP.list({ prefix: 'pending:', limit: 100 });
-  for (const item of list.keys) {
+  const [primary, redundant] = await Promise.all([
+    env.SNAPSHOT_BACKUP.list({ prefix: 'pending:', limit: 100 }),
+    env.SNAPSHOT_BACKUP.list({ prefix: 'redundant:', limit: 100 }),
+  ]);
+  for (const item of [...primary.keys, ...redundant.keys]) {
     const saved = await env.SNAPSHOT_BACKUP.get(item.name, 'json');
     if (!saved || !Number.isFinite(saved.capturedAt) || !Array.isArray(saved.rides)) continue;
     await saveSnapshot(env.DB, saved.rides, saved.capturedAt);
-    await env.SNAPSHOT_BACKUP.delete(item.name);
-    console.log(`Snapshot restored from KV: ${item.name}`);
+    const slot = Math.floor(saved.capturedAt / SNAPSHOT_SECONDS);
+    if (await env.DB.prepare('SELECT slot FROM snapshots WHERE slot=?').bind(slot).first()) {
+      await env.SNAPSHOT_BACKUP.delete(item.name);
+      console.log(`Snapshot restored from KV: ${item.name}`);
+    }
   }
 }
 
@@ -873,6 +892,16 @@ export default {
   },
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
+      if (event.cron === '10,30,50 * * * *') {
+        const scheduledSeconds = Math.floor(event.scheduledTime / 1000);
+        if (!isEmergencyBackupTime(scheduledSeconds)) return;
+        try {
+          await env.DB.prepare('SELECT slot FROM snapshots LIMIT 1').first();
+        } catch (error) {
+          await captureRedundantSnapshot(env, epoch(), scheduledSeconds);
+        }
+        return;
+      }
       try {
         await scheduled(event, env);
         await replayPendingSnapshots(env);
