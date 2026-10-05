@@ -120,6 +120,14 @@
     .spark-now { fill: #1058a7; }
     .spark-gap { fill: #cbd5e1; }
     .spark-base { stroke: #cbd5e1; stroke-width: 1; }
+    .card-chart { margin: 2px 0 8px; }
+    .card-chart svg { display: block; width: 100%; height: auto; }
+    .card-chart-grid { stroke: #e4e9ef; stroke-width: 1; }
+    .card-chart-base { stroke: #cbd5e1; stroke-width: 1; }
+    .card-chart-axis { font-size: 12px; fill: #526477; }
+    .card-chart-now, .card-chart-value { fill: #1058a7; font-weight: 700; }
+    .card-chart-value { font-size: 13px; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+    .card-chart-empty { font-size: 13px; color: #526477; }
     .trend-legend { display: none; }
     .mobile-heatmap-controls, .mobile-heatmap-hint { display: none; }
     .mobile-heatmap-controls[hidden], .trend-legend[hidden] { display: none !important; }
@@ -261,7 +269,7 @@
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
     <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
     <p class="muted mobile-heatmap-hint">一覧表は現在値・約1時間前との差・今日の推移です。カードを開くと保存時刻ごとの値も確認できます。</p>
-    <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位3件</strong><ol id="top-waits-list"><li>現在値を確認中…</li></ol></div>
+    <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list"><li>現在値を確認中…</li></ol></div>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <details id="heatmap-options" class="heatmap-options" open>
       <summary>絞り込み・並び順・色の見方</summary>
@@ -1265,11 +1273,90 @@
       return cell;
     }
 
+    // 当日の20分枠を補間せずに並べ、欠測と休止中は底の印で示す。
+    function cardChart(rideId, currentWait, snapshots) {
+      const wrap = document.createElement('div');
+      wrap.className = 'card-chart';
+      const bySlot = new Map(snapshots.map(snapshot => [
+        Math.floor(snapshot.captured_at / 1200), sampleWait(snapshot.rides[String(rideId)]),
+      ]));
+      if (!bySlot.size) {
+        wrap.textContent = '今日の推移は、記録が2件以上たまると表示します。';
+        wrap.classList.add('card-chart-empty');
+        return wrap;
+      }
+      const firstSlot = Math.min(...bySlot.keys());
+      const lastSlot = Math.max(...bySlot.keys());
+      const bars = [];
+      for (let slot = firstSlot; slot <= lastSlot; slot++) {
+        bars.push({slot, value: bySlot.get(slot) ?? null, now: false});
+      }
+      bars.push({slot: null, value: currentWait, now: true});
+      const values = bars.map(bar => bar.value).filter(value => value != null);
+      if (values.length < 2) {
+        wrap.textContent = '今日の推移は、記録が2件以上たまると表示します。';
+        wrap.classList.add('card-chart-empty');
+        return wrap;
+      }
+      const width = 300, height = 118, left = 30, right = 4, top = 16, bottom = 96, gap = 1.5;
+      const ceiling = Math.max(60, Math.ceil(Math.max(...values) / 30) * 30);
+      const y = value => bottom - (bottom - top) * value / ceiling;
+      const barWidth = (width - left - right - gap * (bars.length - 1)) / bars.length;
+      const xOf = index => left + index * (barWidth + gap);
+      const hourStep = bars.length > 24 ? 2 : 1;
+      const namespace = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(namespace, 'svg');
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', `今日の待ち時間の推移（20分ごと）：最小${Math.min(...values)}分・最大${Math.max(...values)}分・`
+        + (currentWait == null ? '現在値なし' : `現在${currentWait}分`));
+      const add = (tag, attributes, label) => {
+        const element = document.createElementNS(namespace, tag);
+        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+        if (label != null) element.textContent = label;
+        svg.append(element);
+        return element;
+      };
+      for (const value of [0, ceiling / 2, ceiling]) {
+        add('line', {x1: left, x2: width - right, y1: y(value), y2: y(value), class: value ? 'card-chart-grid' : 'card-chart-base'});
+        add('text', {x: left - 4, y: y(value) + 3.5, 'text-anchor': 'end', class: 'card-chart-axis'}, String(value));
+      }
+      bars.forEach((bar, index) => {
+        const x = xOf(index);
+        const time = bar.now ? '現在' : hourMinuteFormat.format(new Date(bar.slot * 1200000));
+        const rect = bar.value == null
+          ? add('rect', {x: x.toFixed(1), y: bottom - 2, width: barWidth.toFixed(1), height: 2, class: 'spark-gap'})
+          : add('rect', {x: x.toFixed(1), y: (bottom - Math.max(1.5, bottom - y(bar.value))).toFixed(1),
+            width: barWidth.toFixed(1), height: Math.max(1.5, bottom - y(bar.value)).toFixed(1), rx: 1,
+            class: bar.now ? 'spark-bar spark-now' : 'spark-bar'});
+        const title = document.createElementNS(namespace, 'title');
+        title.textContent = bar.value == null ? `${time} 記録なし・休止中` : `${time} ${bar.value}分`;
+        rect.append(title);
+        if (bar.now) {
+          add('text', {x: (x + barWidth / 2).toFixed(1), y: bottom + 13, 'text-anchor': 'end',
+            class: 'card-chart-axis card-chart-now'}, '今');
+          if (bar.value != null) {
+            add('text', {x: (x + barWidth).toFixed(1), y: Math.max(11, y(bar.value) - 4).toFixed(1),
+              'text-anchor': 'end', class: 'card-chart-value'}, `${bar.value}分`);
+          }
+        } else if (bar.slot % 3 === 0) {
+          const hour = Number(time.slice(0, 2));
+          if (hour % hourStep === 0 && index < bars.length - 3) {
+            add('text', {x: (x + barWidth / 2).toFixed(1), y: bottom + 13,
+              'text-anchor': 'middle', class: 'card-chart-axis'}, `${hour}時`);
+          }
+        }
+      });
+      add('text', {x: left - 4, y: 8, 'text-anchor': 'end', class: 'card-chart-axis'}, '分');
+      wrap.append(svg);
+      return wrap;
+    }
+
     function renderTopWaits(rides) {
       const ranked = rides.map(ride => ({ride, cell: heatCell(ride, '現在', true)}))
         .filter(item => /^heat-[0-4]$/.test(item.cell.className))
         .sort((a, b) => Number(b.cell.textContent) - Number(a.cell.textContent))
-        .slice(0, 3);
+        .slice(0, 5);
       topWaitsList.replaceChildren();
       if (!ranked.length) {
         const item = document.createElement('li');
@@ -1608,6 +1695,7 @@
           link.textContent = 'USJ公式の施設情報を見る';
           history.append(link);
         }
+        history.append(cardChart(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null, snapshots));
         if (visibleSnapshots.length) for (const snapshot of visibleSnapshots) {
           const time = `${snapshotSlotTime(snapshot)}枠`;
           const sample = heatCell(snapshot.rides[String(ride.id)], `${snapshotDescription(snapshot)}の保存値`);
