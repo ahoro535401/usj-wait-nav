@@ -652,8 +652,15 @@ async function route(request, env) {
     indexUrl.pathname = '/index.html';
     const asset = await assetFetch(new Request(indexUrl, request), env);
     let html = await asset.text();
-    const payload = await readMeta(env.DB, 'rides_payload');
-    const fetchedAt = await readMeta(env.DB, 'rides_fetched_at');
+    let payload = null;
+    let fetchedAt = null;
+    try {
+      [payload, fetchedAt] = await Promise.all([
+        readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
+      ]);
+    } catch (error) {
+      console.warn('Summary database read failed', error);
+    }
     let summary = '<p class="muted">最新の待ち時間と保存済み履歴は、この下の表で確認できます。</p>';
     if (payload && fetchedAt && Date.now() - Date.parse(fetchedAt) <= 15 * 60 * 1000) {
       const rides = JSON.parse(payload);
@@ -675,8 +682,13 @@ async function route(request, env) {
         `${max == null ? '' : `。掲載値の最長${max}分`}。掲載値は下の表をご覧ください。</p>`;
     }
     // 営業時間外は、件数ではなく現在の状態を静的HTMLにも示す。
-    const todayRow = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?')
-      .bind(jstDay(epoch())).first();
+    let todayRow = null;
+    try {
+      todayRow = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?')
+        .bind(jstDay(epoch())).first();
+    } catch (error) {
+      todayRow = FALLBACK_DATA.schedule.days.find(item => item.day === jstDay(epoch())) || null;
+    }
     const nowHm = hhmm(epoch());
     if (todayRow?.status === 'CLOSED') {
       summary = '<p class="muted">本日は休園日です。過去の混雑は「行く前に」ページで確認できます。</p>';
@@ -780,14 +792,90 @@ async function route(request, env) {
   return assetFetch(request, env);
 }
 
-export default {
-  async fetch(request, env) {
+async function fallbackRoute(request) {
+  const url = new URL(request.url);
+  const day = url.searchParams.get('date') || jstDay(epoch());
+  if (url.pathname === '/api/archive/days') return json({ ...FALLBACK_DATA.archive_days, stale: true });
+  if (url.pathname === '/api/archive/day') {
+    const data = FALLBACK_DATA.archive_by_day[day];
+    return data ? json({ ...data, stale: true }) : json({ error: 'この日の記録はありません' }, 404);
+  }
+  if (url.pathname === '/api/schedule') return json({ ...FALLBACK_DATA.schedule, stale: true });
+  if (url.pathname === '/api/today') return json({ day: jstDay(epoch()), snapshots: [], stale: true });
+  if (url.pathname === '/api/shows') {
+    if (day === jstDay(epoch())) {
+      try {
+        const raw = await fetchJson(WIKI_LIVE_URL);
+        const parsed = parseShows(raw, new Date().toISOString());
+        if (parsed.shows.length) return json(parsed);
+      } catch (error) {
+        console.warn('Show fallback fetch failed', error);
+      }
+    }
+    return json({ day, shows: [], unavailable: true, reason: 'pending', official_url: officialShowUrl(day) });
+  }
+  if (url.pathname === '/api/waits') {
     try {
-      return await route(request, env);
+      const [queue, wiki] = await Promise.allSettled([fetchJson(QUEUE_URL), fetchJson(WIKI_LIVE_URL)]);
+      if (queue.status === 'fulfilled') {
+        const fetchedAt = new Date().toISOString();
+        return json({ rides: parseRides(queue.value, wiki.status === 'fulfilled' ? wiki.value : null, fetchedAt),
+          fetched_at: fetchedAt, refresh_error: null, archive_error: '保存データの読み取りが一時的に停止中',
+          history: FALLBACK_DATA.history, comparisons: {}, stale: false });
+      }
+    } catch (error) {
+      console.warn('Wait fallback fetch failed', error);
+    }
+    return json({ rides: [], fetched_at: null, refresh_error: '待ち時間の取得を確認できません',
+      archive_error: '保存データの読み取りが一時的に停止中', history: FALLBACK_DATA.history,
+      comparisons: {}, stale: true });
+  }
+  if (url.pathname === '/api/weather') {
+    try {
+      const response = await fetch(WEATHER_URL, { headers: { Accept: 'application/json', 'User-Agent': WEATHER_AGENT } });
+      if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
+      return json({ ...weatherPayload(await response.json()), jma: null });
+    } catch (error) {
+      return json({ periods: [], unavailable: true, jma: null }, 200);
+    }
+  }
+  return json({ error: '一時的に読み込めません' }, 503);
+}
+
+const API_CACHE_SECONDS = new Map([
+  ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
+  ['/api/schedule', 1800], ['/api/shows', 300], ['/api/archive/days', 1800],
+  ['/api/archive/day', 86400],
+]);
+
+export default {
+  async fetch(request, env, ctx) {
+    const pathname = new URL(request.url).pathname;
+    const ttl = request.method === 'GET' ? API_CACHE_SECONDS.get(pathname) : null;
+    const cache = ttl && typeof caches !== 'undefined' ? caches.default : null;
+    if (cache) {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+    }
+    let response;
+    let usedFallback = false;
+    try {
+      response = await route(request, env);
     } catch (error) {
       console.error('Request failed', error);
-      return json({ error: '表示データを読み込めません' }, 500);
+      usedFallback = true;
+      response = pathname.startsWith('/api/') ? await fallbackRoute(request) :
+        json({ error: '表示データを読み込めません' }, 500);
     }
+    if (cache && response.ok) {
+      const headers = new Headers(response.headers);
+      headers.set('Cache-Control', `public, max-age=${usedFallback ? 120 : ttl}`);
+      if (usedFallback) headers.set('X-Data-Fallback', '1');
+      const cached = new Response(response.body, { status: response.status, headers });
+      ctx?.waitUntil(cache.put(request, cached.clone()).catch(error => console.warn('Cache write failed', error)));
+      return cached;
+    }
+    return response;
   },
   async scheduled(event, env, ctx) {
     ctx.waitUntil(scheduled(event, env).catch(error => {
