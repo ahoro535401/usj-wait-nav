@@ -9,6 +9,7 @@ const JMA_LATEST_URL = 'https://www.jma.go.jp/bosai/amedas/data/latest_time.txt'
 const JMA_FORECAST_URL = 'https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json';
 const JMA_POINT_URL = 'https://www.jma.go.jp/bosai/amedas/data/point/62078';
 const WEATHER_BACKFILL_DAYS = 8;
+const ARCHIVE_START_DAY = '2026-10-05';
 const WEATHER_CHECK_SECONDS = 15 * 60;
 const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
@@ -193,7 +194,9 @@ async function recordWeatherDays(db, seconds) {
   const checked = Number(await readMeta(db, 'weather_checked_at'));
   if (checked > 0 && seconds - checked < WEATHER_CHECK_SECONDS) return;
   await writeMeta(db, 'weather_checked_at', String(seconds));
-  const candidates = Array.from({ length: WEATHER_BACKFILL_DAYS }, (_, index) => jstDay(seconds - (index + 1) * 86400));
+  const candidates = Array.from({ length: WEATHER_BACKFILL_DAYS }, (_, index) => jstDay(seconds - (index + 1) * 86400))
+    .filter(day => day >= ARCHIVE_START_DAY);
+  if (!candidates.length) return;
   const { results } = await db.prepare(
     `SELECT day, coverage FROM weather_days WHERE day IN (${candidates.map(() => '?').join(',')})`
   ).bind(...candidates).all();
