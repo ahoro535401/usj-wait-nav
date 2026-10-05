@@ -19,6 +19,12 @@
       "database_id": "56859b57-f992-4bfc-883f-214e3a9dd9b3"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "SNAPSHOT_BACKUP",
+      "id": "39b66d8ed9bd4101a6adf063cc4818c0"
+    }
+  ],
   "observability": {
     "enabled": true
   }
