@@ -468,6 +468,60 @@
     :root[data-theme="dark"] .rides-more { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     .share-bar { flex-wrap: nowrap; gap: 6px; }
     .share-bar a, .share-bar button { flex: 1 1 0; min-width: 0; height: 40px; min-height: 40px; padding: 0 6px; font-size: .8rem; }
+    button.archive-cal-day { color: #172332; }
+    .archive-cal-day[aria-pressed="true"] { outline: 3px solid #1058a7; outline-offset: -3px; }
+    .archive-cal-day.is-partial { background: #eef1f4; color: #526477; }
+    .archive-cal-day.is-partial .archive-cal-value { font-size: .75rem; }
+    .archive-cal-day.is-future { background: #fff; border-style: dashed; }
+    .archive-cal-day.is-future .archive-cal-value { font-size: .75rem; color: #1058a7; }
+    .archive-cal-closures { font-size: .75rem; color: #9a3f3f; }
+    .archive-sub-title { margin: 16px 0 6px; font-size: 1rem; }
+    .archive-ride-charts { display: grid; gap: 4px; margin: 4px 0 8px; }
+    .archive-ride { padding: 8px 0; border-bottom: 1px solid #e4e9ef; }
+    .archive-ride-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: .9rem; }
+    .archive-ride-name { min-width: 0; font-weight: 700; }
+    .archive-ride-peak { flex: 0 0 auto; color: #1058a7; font-size: .85rem; }
+    .archive-ride svg { display: block; width: 100%; height: auto; margin-top: 4px; }
+    .archive-ride-charts.is-collapsed .archive-ride:nth-child(n+13) { display: none; }
+    .archive-hour-row.is-peak { font-weight: 700; }
+    .archive-hour-row.is-peak strong { color: #b42318; }
+    .archive-hour-row.is-peak strong::after { content: "（最も混雑）"; font-size: .75rem; font-weight: 400; }
+    .show-view-toggle, .show-list-box { display: none; }
+    .show-list { list-style: none; margin: 4px 0 8px; padding: 0; }
+    .show-list li { display: grid; gap: 2px; padding: 10px 2px; border-bottom: 1px solid #e4e9ef; }
+    .show-list-name { font-weight: 700; }
+    .show-list-next { display: flex; align-items: baseline; gap: 8px; }
+    .show-list-next strong { font-size: 1.1rem; color: #1058a7; font-variant-numeric: tabular-nums; }
+    .show-list-next small, .show-list-later { color: #526477; font-size: .85rem; }
+    @media (min-width: 621px) { .archive-ride-title, #archive-ride-charts, #archive-rides-more { display: none !important; } }
+    @media (max-width: 620px) {
+      .archive-panel .heatmap-scroll, .archive-panel .heatmap-scroll + p.muted, .archive-panel .archive-hour-picker { display: none !important; }
+      .show-view-toggle { display: inline-flex; align-items: center; min-height: 44px; margin: 4px 0 8px; padding: 0 14px; border: 1px solid #c5d3e3; border-radius: 999px; background: #fff; color: #1058a7; font: inherit; font-size: .85rem; font-weight: 700; }
+      .shows-panel[data-show-view="list"] .show-list-box { display: block; }
+      .shows-panel[data-show-view="list"] .show-timeline-scroll,
+      .shows-panel[data-show-view="list"] .show-timeline-scroll + p.muted { display: none; }
+    }
+    :root[data-theme="dark"] button.archive-cal-day { color: #e6edf3; }
+    :root[data-theme="dark"] .archive-cal-day.is-partial { background: #1d2730; color: #9aa8b6; }
+    :root[data-theme="dark"] .archive-cal-day.is-future { background: #17212c; }
+    :root[data-theme="dark"] .archive-cal-day.is-future .archive-cal-value, :root[data-theme="dark"] .archive-ride-peak { color: #8fb6ff; }
+    :root[data-theme="dark"] .archive-cal-closures { color: #ff9b9b; }
+    :root[data-theme="dark"] .archive-ride, :root[data-theme="dark"] .show-list li { border-color: #2c3b4b; }
+    :root[data-theme="dark"] .archive-hour-row.is-peak strong { color: #ff8a80; }
+    :root[data-theme="dark"] .show-view-toggle { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .show-list-next strong { color: #8fb6ff; }
+    :root[data-theme="dark"] .show-list-next small, :root[data-theme="dark"] .show-list-later { color: #a9b6c4; }
+    .archive-panel[data-mode="future"] .archive-controls,
+    .archive-panel[data-mode="future"] #archive-status,
+    .archive-panel[data-mode="future"] #archive-weather,
+    .archive-panel[data-mode="future"] .archive-summary,
+    .archive-panel[data-mode="future"] .archive-summary + .share-bar,
+    .archive-panel[data-mode="future"] .archive-sub-title,
+    .archive-panel[data-mode="future"] .archive-hour-bars,
+    .archive-panel[data-mode="future"] .archive-hour-bars ~ p.muted,
+    .archive-panel[data-mode="future"] .archive-ride-charts,
+    .archive-panel[data-mode="future"] #archive-rides-more,
+    .archive-panel[data-mode="future"] .heatmap-scroll { display: none !important; }
   </style>
 </head>
 <body>
@@ -479,7 +533,7 @@
   <div class="sticky-nav">
     <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/plan" data-tab="plan">行く前に</a></nav>
     <nav class="jump-nav" data-only="now" aria-label="ページ内の項目"><a href="#heatmap-title">待ち時間</a><a href="#shows-title">ショー</a><a href="#closures-title">休止</a><a href="#weather-title">天気</a></nav>
-    <nav class="jump-nav" data-only="plan" aria-label="ページ内の項目"><a href="#archive-title">混雑実績</a><a href="#shows-title">ショー</a><a href="#calendar-title">営業時間</a><a href="#events-title">イベント</a></nav>
+    <nav class="jump-nav" data-only="plan" aria-label="ページ内の項目"><a href="#archive-title">カレンダー</a><a href="#shows-title">ショー</a><a href="#events-title">イベント</a></nav>
   </div>
   <h1 data-only="now">USJの待ち時間・混雑状況</h1>
   <h1 data-only="plan">USJ混雑カレンダー</h1>
@@ -517,7 +571,7 @@
     <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
     <p class="muted">★でお気に入り登録できます（この端末のブラウザに保存され、閲覧履歴の削除やプライベートブラウズでは消える場合があります）。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
     <div class="heatmap-legend" aria-label="待ち時間の色分け">
-      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
+      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span>
     </div>
     </details>
     <div id="list-state" class="list-state" role="status">
@@ -553,9 +607,11 @@
     <span id="error" role="alert"></span>
   </div>
   <section class="archive-panel" data-only="plan" aria-labelledby="archive-title">
-    <h2 id="archive-title">過去の待ち時間・混雑傾向</h2>
-    <p class="muted">カレンダーの日付をタップすると、その日の時間帯ごとの平均待ち時間とアトラクション別の実績を確認できます。2026年10月4日から記録しています。</p>
-    <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑と天気のカレンダー"></div>
+    <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
+    <p class="muted">過去の日付をタップするとその日の混雑実績、今日以降の日付をタップすると営業時間と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
+    <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑実績と今後の営業時間のカレンダー"></div>
+    <div id="selected-day" class="selected-day" role="status" hidden>カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
+    <p class="muted">営業時間・休止予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
     <div class="archive-controls">
       <label hidden>記録日 <select id="archive-date" aria-label="過去の記録日"></select></label>
       <label class="archive-hour-picker">表示する時間帯 <select id="archive-hours" aria-label="過去の表示時間帯"></select></label>
@@ -567,20 +623,25 @@
       <div><small>いちばん混んだ時間帯</small><strong id="archive-peak">—</strong></div>
       <div><small>最も待ち時間が長かったアトラクション</small><strong id="archive-top-ride">—</strong></div>
     </div>
+    <h3 class="archive-sub-title">時間帯ごとの平均待ち時間（全アトラクション）</h3>
     <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
-    <p class="muted">過去の表は★お気に入りを先頭に表示し、それぞれ選択日の記録平均が長い順で並べます。</p>
+    <p class="muted">アトラクションは★お気に入りを先頭に表示し、それぞれ選択日の記録平均が長い順で並べます。</p>
+    <h3 class="archive-sub-title archive-ride-title">アトラクション別の1日の推移</h3>
+    <div id="archive-ride-charts" class="archive-ride-charts" aria-label="アトラクション別の1時間ごとの平均待ち時間"></div>
     <div class="heatmap-scroll" tabindex="0" aria-label="過去のアトラクション別・時間帯別待ち時間表">
       <table class="heatmap-table"><thead><tr id="archive-head"></tr></thead><tbody id="archive-body"></tbody></table>
     </div>
-    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は営業中の記録の平均を1分単位に四捨五入しています。—は記録なし、休は記録上の休止です。※は推定振替を含みます。</p>
+    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は営業中の記録の平均を1分単位に四捨五入しています。—は記録なし、休は記録上の休止です。</p>
   </section>
   <!-- 広告枠1：承認済み広告コードとプライバシー表示を設定してから有効化 -->
   <aside id="ad-slot-1" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-1"></div></aside>
   <section class="shows-panel" aria-labelledby="shows-title">
     <h2 id="shows-title">ショー開始時刻</h2>
-    <p class="muted">横軸は時刻です。青い印は開始時刻、帯は公表された所要時間または終了時刻の目安です。</p>
+    <p class="muted">ショーの開始時刻を確認できます。天候などで変更・中止される場合があります。</p>
     <div id="show-dates" class="show-date-list" role="group" aria-label="ショーの日付を選択"></div>
     <p id="shows-status" class="muted" role="status">ショー時刻を読み込み中…</p>
+    <button type="button" id="show-view-toggle" class="show-view-toggle">時間軸で見る</button>
+    <div id="show-list" class="show-list-box" aria-live="polite"></div>
     <div class="show-timeline-scroll" tabindex="0" aria-label="選択した日のショー開始時刻。左右にスクロールできます">
       <div id="show-timeline" role="table" aria-label="ショー別の時間軸" aria-busy="true">
         <div class="skeleton-block" aria-hidden="true"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
@@ -610,14 +671,13 @@
     <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
     <details class="weather-details"><summary>風速による注意表示の目安</summary><p class="muted">平均風速7m/s以上で注意、平均風速10m/s以上で強い注意を表示します。最大瞬間風速が取得できる場合は、10m/s以上の突風も強い注意の対象です。これは本サイト独自の目安で、USJの運休基準や運休の予測ではありません。</p></details>
   </section>
-  <section class="calendar-panel" data-only="plan" aria-labelledby="calendar-title">
+  <section class="calendar-panel" data-only="plan" hidden aria-labelledby="calendar-title">
     <h2 id="calendar-title">パーク営業時間</h2>
     <p class="muted">予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
     <p id="schedule-status" class="muted">営業時間を読み込み中…</p>
     <h3>日付から探す</h3>
     <div class="calendar-nav"><button id="month-prev" type="button" aria-label="前の月">‹ 前月</button><strong id="month-label"></strong><button id="month-next" type="button" aria-label="次の月">翌月 ›</button></div>
     <div id="calendar-grid" class="calendar-grid" aria-label="営業時間と休止予定のカレンダー"></div>
-    <div id="selected-day" class="selected-day" role="status">カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
   </section>
   <section class="events-panel" data-only="plan" aria-labelledby="events-title">
     <h2 id="events-title">イベント情報</h2>
@@ -659,7 +719,7 @@
   <footer>
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
-    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。10月4日のジュラシック夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
+    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。</p>
     <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
   <script>
@@ -1030,6 +1090,7 @@
         if (!Array.isArray(data.closures) || !data.checked_at) throw new Error('休止予定データの形式が不正です');
         closuresData = data;
         renderTodayClosures();
+        if (PAGE === 'plan') renderArchiveCalendar();
         if (selectedDate) showSelectedDay(selectedDate);
         else renderCalendar();
       } catch (cause) {
@@ -1039,6 +1100,8 @@
 
     function showSelectedDay(day) {
       selectedDate = day;
+      selectedDay.hidden = false;
+      if (PAGE === 'plan') document.querySelector('.archive-panel').dataset.mode = 'future';
       selectedDay.replaceChildren();
       const heading = document.createElement('strong');
       heading.textContent = `${day.slice(0, 4)}年${Number(day.slice(5, 7))}月${Number(day.slice(8))}日（${weekdays[new Date(`${day}T00:00:00Z`).getUTCDay()]}）`;
@@ -1136,11 +1199,13 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         scheduleDays = new Map(data.days.map(item => [item.day, item]));
+        if (PAGE === 'plan') renderArchiveCalendar();
         todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
         updateParkStateBanner();
         if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length) {
           selectedDate = null;
           selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
+          selectedDay.hidden = true;
         }
         const fetched = data.fetched_at ? `${timeFormat.format(new Date(data.fetched_at))} JST` : '未取得';
         scheduleStatus.textContent = `予定データ取得 ${fetched}${data.error ? ' · 更新に失敗したため前回取得した予定を表示中' : ''}`;
@@ -1287,8 +1352,75 @@
       observer.observe(scroller);
     }
 
+    function renderShowList(data) {
+      const box = document.querySelector('#show-list');
+      if (!box) return;
+      box.replaceChildren();
+      if (data.unavailable || !(data.shows || []).length) return;
+      const now = Date.now();
+      const isToday = data.day === jstToday();
+      const rows = data.shows.map(show => {
+        const starts = show.times.map(slot => Date.parse(slot.start)).filter(Number.isFinite).sort((a, b) => a - b);
+        const remaining = isToday ? starts.filter(time => time >= now - 10 * 60 * 1000) : starts;
+        return {show, remaining};
+      });
+      const active = rows.filter(row => row.remaining.length).sort((a, b) => a.remaining[0] - b.remaining[0]);
+      const finished = rows.length - active.length;
+      if (!active.length) {
+        const p = document.createElement('p');
+        p.className = 'muted';
+        p.textContent = 'この日のショーはすべて終了しました。';
+        box.append(p);
+        return;
+      }
+      const list = document.createElement('ul');
+      list.className = 'show-list';
+      for (const {show, remaining} of active) {
+        const item = document.createElement('li');
+        const detail = showDetails.get(show.name);
+        const name = document.createElement(detail?.url ? 'a' : 'span');
+        name.className = 'show-list-name';
+        name.textContent = show.name;
+        if (detail?.url) { name.href = detail.url; name.target = '_blank'; name.rel = 'noopener noreferrer'; }
+        const next = document.createElement('div');
+        next.className = 'show-list-next';
+        const first = remaining[0];
+        const time = document.createElement('strong');
+        time.textContent = hourMinuteFormat.format(new Date(first));
+        next.append(time);
+        const notes = [];
+        if (isToday) {
+          const minutes = Math.round((first - now) / 60000);
+          notes.push(minutes <= 0 ? '開始済み' : minutes < 60 ? `あと${minutes}分` : `あと${Math.floor(minutes / 60)}時間${minutes % 60}分`);
+        }
+        if (detail?.note) notes.push(detail.note);
+        if (notes.length) {
+          const small = document.createElement('small');
+          small.textContent = notes.join('・');
+          next.append(small);
+        }
+        item.append(name, next);
+        if (remaining.length > 1) {
+          const later = document.createElement('div');
+          later.className = 'show-list-later';
+          const shown = remaining.slice(1, 6).map(value => hourMinuteFormat.format(new Date(value)));
+          later.textContent = `その後：${shown.join('・')}${remaining.length > 6 ? ` ほか${remaining.length - 6}回` : ''}`;
+          item.append(later);
+        }
+        list.append(item);
+      }
+      box.append(list);
+      if (finished) {
+        const p = document.createElement('p');
+        p.className = 'muted';
+        p.textContent = `本日の回がすべて終わったショー：${finished}件（「時間軸で見る」で確認できます）`;
+        box.append(p);
+      }
+    }
+
     function renderShows(data) {
       showTimeline.replaceChildren();
+      renderShowList(data);
       showTimeline.removeAttribute('aria-busy');
       showsStatus.replaceChildren();
       if (data.unavailable) {
@@ -1447,6 +1579,7 @@
       } catch (cause) {
         if (requestNumber !== showRequest) return;
         showTimeline.replaceChildren();
+        document.querySelector('#show-list')?.replaceChildren();
         showTimeline.removeAttribute('aria-busy');
         showsStatus.textContent = `ショー時刻を読み込めません: ${cause.message}`;
       }
@@ -1820,6 +1953,9 @@
       return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
     }
     function selectArchiveDay(day) {
+      selectedDay.hidden = true;
+      selectedDate = null;
+      document.querySelector('.archive-panel').dataset.mode = 'record';
       archiveDate.value = day;
       archivePage = 0;
       loadArchiveDay();
@@ -1834,7 +1970,8 @@
       const days = [...recorded.keys()].sort();
       const today = jstToday();
       const minMonth = (days[0] || today).slice(0, 7);
-      const maxMonth = today.slice(0, 7);
+      const lastPlanDay = [...scheduleDays.keys()].sort().at(-1) || today;
+      const maxMonth = [today.slice(0, 7), lastPlanDay.slice(0, 7)].sort().at(-1);
       if (!archiveCalendarMonth) archiveCalendarMonth = (days.at(-1) || today).slice(0, 7);
       const [year, month] = archiveCalendarMonth.split('-').map(Number);
       const head = document.createElement('div');
@@ -1869,7 +2006,8 @@
         const key = `${archiveCalendarMonth}-${String(date).padStart(2, '0')}`;
         const dow = (firstDow + date - 1) % 7;
         const item = recorded.get(key);
-        const cell = document.createElement(item ? 'button' : 'span');
+        const plan = key >= today ? scheduleDays.get(key) : null;
+        const cell = document.createElement(item || plan ? 'button' : 'span');
         cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${key === today ? ' today' : ''}`;
         const label = document.createElement('span');
         label.className = 'archive-cal-date';
@@ -1884,17 +2022,19 @@
         }
         const value = document.createElement('span');
         value.className = 'archive-cal-value';
-        if (item) {
+        if (item && !plan) {
           cell.type = 'button';
           cell.setAttribute('aria-pressed', String(archiveDate.value === key));
           const stats = archiveDayStats.get(key);
-          if (Number.isFinite(stats?.average)) {
+          if (Number.isFinite(stats?.average) && stats.snapshots < PARTIAL_DAY_SNAPSHOTS) {
+            cell.classList.add('is-partial');
+            value.textContent = '一部のみ';
+            cell.title = `${month}/${date}：記録が一部の時間帯のみのため、混雑の目安は表示しません`;
+          } else if (Number.isFinite(stats?.average)) {
             const level = crowdLevel(stats.average);
             cell.classList.add(level.cls);
-            const partial = stats.snapshots < PARTIAL_DAY_SNAPSHOTS;
-            value.textContent = `${Math.round(stats.average)}分${partial ? '※' : ''}`;
-            cell.title = `${month}/${date}：平均${Math.round(stats.average)}分（${level.label}）` +
-              (partial ? '。一部の時間帯のみの記録です' : '');
+            value.textContent = `${Math.round(stats.average)}分`;
+            cell.title = `${month}/${date}：平均${Math.round(stats.average)}分（${level.label}）`;
           } else {
             value.textContent = stats?.error ? '—' : '…';
             cell.title = `${month}/${date}：記録あり`;
@@ -1902,8 +2042,29 @@
           if (weather) cell.title += `・${weather.short}`;
           cell.setAttribute('aria-label', `${cell.title}。タップでこの日の詳細を表示`);
           cell.addEventListener('click', () => selectArchiveDay(key));
+        } else if (plan) {
+          cell.type = 'button';
+          cell.classList.add('is-future');
+          cell.setAttribute('aria-pressed', String(selectedDate === key));
+          value.textContent = plan.status === 'CLOSED' ? '休園' : plan.opens ? `${plan.opens.replace(/^0/, '')}〜` : '未掲載';
+          const closureCount = closuresFor(key).length;
+          cell.title = `${month}/${date}${key === today ? '（今日）' : ''}：営業時間 ${hoursLabel(plan)}` +
+            (closureCount ? `・休止予定${closureCount}件` : '');
+          cell.setAttribute('aria-label', `${cell.title}。タップで営業時間と休止予定を表示`);
+          cell.addEventListener('click', () => {
+            showSelectedDay(key);
+            renderArchiveCalendar();
+            history.replaceState(null, '', '/plan');
+            selectedDay.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+          });
+          if (closureCount) {
+            const closures = document.createElement('span');
+            closures.className = 'archive-cal-closures';
+            closures.textContent = `休止${closureCount}`;
+            cell.append(label, value, closures);
+          }
         } else if (key === today) value.textContent = '今日';
-        cell.append(label, value);
+        if (!cell.firstChild) cell.append(label, value);
         grid.append(cell);
       }
       const legend = document.createElement('div');
@@ -1918,7 +2079,7 @@
       }
       const note = document.createElement('p');
       note.className = 'muted';
-      note.textContent = '数字は記録された営業中の待ち時間の平均です。※は一部の時間帯のみの記録。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。';
+      note.textContent = '今日以降の日付には公表の開園時刻（休止予定がある日は件数）を表示します。数字は記録された営業中の待ち時間の平均です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。';
       box.append(head, grid, legend, note);
       loadArchiveMonthStats();
     }
@@ -1954,6 +2115,92 @@
     function archiveRideName(id) {
       const ride = currentData?.rides?.find(item => String(item.id) === String(id));
       return ride ? rideName(ride) : japaneseNames.get(Number(id)) || `アトラクションID ${id}`;
+    }
+    const ARCHIVE_RIDES_PREVIEW = 12;
+    let archiveRidesExpanded = false;
+    function renderArchiveRideCharts(hours, rideIds, nameOf) {
+      const box = document.querySelector('#archive-ride-charts');
+      if (!box) return;
+      box.replaceChildren();
+      const hourOf = at => Number(hourMinuteFormat.format(new Date(at * 1000)).slice(0, 2));
+      const ns = 'http://www.w3.org/2000/svg';
+      for (const id of rideIds) {
+        const values = hours.map(hour => {
+          const sample = hour.rides?.[id];
+          return sample?.open_samples && Number.isFinite(sample.average_wait) ? Math.round(sample.average_wait) : null;
+        });
+        const valid = values.filter(value => value != null);
+        const item = document.createElement('div');
+        item.className = 'archive-ride';
+        const head = document.createElement('div');
+        head.className = 'archive-ride-head';
+        const name = document.createElement('span');
+        name.className = 'archive-ride-name';
+        name.textContent = nameOf(id);
+        const peak = document.createElement('strong');
+        peak.className = 'archive-ride-peak';
+        let peakIndex = -1;
+        if (valid.length) {
+          const max = Math.max(...valid);
+          peakIndex = values.indexOf(max);
+          peak.textContent = `最長${max}分（${hourOf(hours[peakIndex].at)}時台）`;
+        } else {
+          peak.textContent = '記録なし・休止';
+        }
+        head.append(name, peak);
+        item.append(head);
+        if (valid.length) {
+          const W = 300, H = 70, LEFT = 4, RIGHT = 4, TOP = 6, BOTTOM = 52, GAP = 2;
+          const ceiling = Math.max(60, Math.ceil(Math.max(...valid) / 30) * 30);
+          const barW = (W - LEFT - RIGHT - GAP * (values.length - 1)) / values.length;
+          const svg = document.createElementNS(ns, 'svg');
+          svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+          svg.setAttribute('role', 'img');
+          svg.setAttribute('aria-label', `${nameOf(id)}の1時間ごとの平均待ち時間。${peak.textContent}`);
+          values.forEach((value, index) => {
+            const x = LEFT + index * (barW + GAP);
+            const h = value == null ? 2 : Math.max(2, (BOTTOM - TOP) * value / ceiling);
+            const rect = document.createElementNS(ns, 'rect');
+            rect.setAttribute('x', x.toFixed(1));
+            rect.setAttribute('y', (BOTTOM - h).toFixed(1));
+            rect.setAttribute('width', barW.toFixed(1));
+            rect.setAttribute('height', h.toFixed(1));
+            rect.setAttribute('class', value == null ? 'spark-gap' : index === peakIndex ? 'spark-bar spark-now' : 'spark-bar');
+            const title = document.createElementNS(ns, 'title');
+            title.textContent = `${hourOf(hours[index].at)}時台：${value == null ? '記録なし・休止' : `平均${value}分`}`;
+            rect.append(title);
+            svg.append(rect);
+            const hour = hourOf(hours[index].at);
+            if (hour % 2 === 0) {
+              const text = document.createElementNS(ns, 'text');
+              text.setAttribute('x', (x + barW / 2).toFixed(1));
+              text.setAttribute('y', String(H - 4));
+              text.setAttribute('text-anchor', 'middle');
+              text.setAttribute('class', 'card-chart-axis');
+              text.textContent = `${hour}時`;
+              svg.append(text);
+            }
+          });
+          item.append(svg);
+        }
+        box.append(item);
+      }
+      box.classList.toggle('is-collapsed', !archiveRidesExpanded && rideIds.length > ARCHIVE_RIDES_PREVIEW);
+      let more = document.querySelector('#archive-rides-more');
+      if (!more) {
+        more = document.createElement('button');
+        more.type = 'button';
+        more.id = 'archive-rides-more';
+        more.className = 'rides-more';
+        more.addEventListener('click', () => {
+          archiveRidesExpanded = !archiveRidesExpanded;
+          if (archiveData) renderArchive(archiveData);
+          if (!archiveRidesExpanded) document.querySelector('.archive-ride-title')?.scrollIntoView({block: 'start'});
+        });
+        box.after(more);
+      }
+      more.hidden = rideIds.length <= ARCHIVE_RIDES_PREVIEW;
+      more.textContent = archiveRidesExpanded ? '12件に戻す' : `残り${rideIds.length - ARCHIVE_RIDES_PREVIEW}件も表示`;
     }
     function renderArchive(data) {
       archiveData = data;
@@ -2013,6 +2260,8 @@
         row.append(label, track, value);
         archiveHourBars.append(row);
       }
+      const peakHour = archiveHighlights(hours).peak;
+      if (peakHour) archiveHourBars.children[hours.indexOf(peakHour)]?.classList.add('is-peak');
 
       const rideMap = new Map((currentData?.rides || []).map(ride => [String(ride.id), ride]));
       const scores = new Map();
@@ -2050,6 +2299,7 @@
         for (const hour of visibleHours) row.append(archiveCell(hour.rides[id], `${hourMinuteFormat.format(new Date(hour.at * 1000))}時台`));
         archiveBody.append(row);
       }
+      renderArchiveRideCharts(hours, rideIds, nameOf);
       if (!rideIds.length) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
@@ -2729,6 +2979,22 @@
       update();
     }
     setupScrollSpy();
+    const SHOW_VIEW_KEY = 'usj-wait-nav:show-view';
+    const showsPanel = document.querySelector('.shows-panel');
+    const showViewToggle = document.querySelector('#show-view-toggle');
+    let showView = 'list';
+    try { showView = localStorage.getItem(SHOW_VIEW_KEY) === 'timeline' ? 'timeline' : 'list'; } catch (_) { /* 既定は一覧 */ }
+    function applyShowView() {
+      if (!showsPanel || !showViewToggle) return;
+      showsPanel.dataset.showView = showView;
+      showViewToggle.textContent = showView === 'list' ? '時間軸で見る' : '一覧で見る';
+    }
+    showViewToggle?.addEventListener('click', () => {
+      showView = showView === 'list' ? 'timeline' : 'list';
+      try { localStorage.setItem(SHOW_VIEW_KEY, showView); } catch (_) { /* 何もしない */ }
+      applyShowView();
+    });
+    applyShowView();
     // 表示テーマ（自動／ダーク／ライト）。自動は端末の設定に合わせる。
     const THEME_KEY = 'usj-wait-nav:theme';
     const themeToggle = document.querySelector('#theme-toggle');
