@@ -24,6 +24,7 @@ const binaryFiles = {
   '/apple-touch-icon.png': 'apple-touch-icon.png',
   '/icon-192.png': 'icon-192.png',
   '/icon-512.png': 'icon-512.png',
+  '/icon-maskable-512.png': 'icon-maskable-512.png',
 };
 const binaryAssets = {};
 for (const [route, name] of Object.entries(binaryFiles)) {
