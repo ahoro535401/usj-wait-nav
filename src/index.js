@@ -521,9 +521,9 @@ async function todayMatrix(db, seconds) {
   const start = dayStart(seconds);
   const { results } = await db.prepare(
     'SELECT h.slot,h.captured_at,s.ride_id,s.wait_minutes,s.is_open,s.source FROM snapshots h ' +
-    'LEFT JOIN ride_samples s USING(slot) WHERE h.captured_at>=? AND h.captured_at<? ' +
+    'LEFT JOIN ride_samples s USING(slot) WHERE h.slot>=? AND h.slot<? ' +
     'ORDER BY h.slot DESC,s.ride_id'
-  ).bind(start, start + 86400).all();
+  ).bind(start / SNAPSHOT_SECONDS, (start + 86400) / SNAPSHOT_SECONDS).all();
   const snapshots = [];
   for (const row of results) {
     if (!snapshots.length || snapshots.at(-1).slot !== row.slot) {
@@ -555,8 +555,8 @@ async function archiveDay(db, day) {
   const { results } = await db.prepare(
     'SELECT h.slot,h.captured_at,s.ride_id,s.wait_minutes,s.is_open,s.source ' +
     'FROM snapshots h LEFT JOIN ride_samples s USING(slot) ' +
-    'WHERE h.captured_at>=? AND h.captured_at<? ORDER BY h.slot,s.ride_id'
-  ).bind(start, start + 86400).all();
+    'WHERE h.slot>=? AND h.slot<? ORDER BY h.slot,s.ride_id'
+  ).bind(start / SNAPSHOT_SECONDS, (start + 86400) / SNAPSHOT_SECONDS).all();
   const slots = new Set();
   const hours = new Map();
   let totalWait = 0;
