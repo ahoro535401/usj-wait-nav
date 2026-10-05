@@ -1693,6 +1693,7 @@
         const item = document.createElement('li');
         item.textContent = '現在表示できる待ち時間はありません（営業時間外は表示されません）。';
         topWaitsList.append(item);
+        topShareBar.updateLinks();
         return;
       }
       for (const {ride, cell} of ranked) {
@@ -1704,6 +1705,7 @@
         item.append(name, wait);
         topWaitsList.append(item);
       }
+      topShareBar.updateLinks();
     }
 
     function snapshotSlotTime(snapshot) {
@@ -1978,6 +1980,7 @@
       const hourText = at => `${hourMinuteFormat.format(new Date(at * 1000)).slice(0, 2)}時台`;
       archivePeak.textContent = peak ? `${hourText(peak.at)}（平均${Math.round(peak.average_wait)}分）` : '記録なし';
       archiveTopRide.textContent = top ? `${archiveRideName(top.id)} ${Math.round(top.wait)}分（${hourText(top.at)}）` : '記録なし';
+      archiveShareBar.updateLinks();
       archiveShareBar.hidden = false;
 
       archiveHourBars.replaceChildren();
@@ -2182,6 +2185,7 @@
       more.textContent = 'その他・コピー';
       more.addEventListener('click', () => shareOrCopy(getPayload()));
       updateLinks();
+      bar.updateLinks = updateLinks;
       bar.append(line, x, more);
       return bar;
     }
