@@ -19,15 +19,19 @@
     .logo-usj { display: inline-block; margin-right: 5px; padding: 2px 7px; border-radius: 5px; background: #1058a7; color: #fff; letter-spacing: .05em; }
     .unofficial { display: inline-block; padding: 2px 7px; border-radius: 4px; background: #eef5ff; color: #526477; font-size: .76rem; font-weight: 700; }
     p { line-height: 1.6; }
-    .sub { color: #526477; margin: 0 0 22px; }
+    .sub { color: #435569; margin: 0 0 14px; }
+    .jump-nav { position: sticky; top: 0; z-index: 20; display: flex; gap: 4px; margin: 0 0 14px; padding: 5px; border: 1px solid #cbd8e6; border-radius: 9px; background: #fff; }
+    .jump-nav a { display: flex; flex: 1; min-height: 44px; align-items: center; justify-content: center; border-radius: 6px; font-size: .86rem; font-weight: 700; text-align: center; text-decoration: none; }
+    .jump-nav a:focus-visible, .jump-nav a:hover { background: #eaf3ff; outline: 2px solid #1058a7; }
+    h2[id] { scroll-margin-top: 64px; }
     .today-hours { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 14px; margin: 0 0 18px; padding: 12px 16px; border: 1px solid #bcd2eb; border-radius: 10px; background: #eaf3ff; }
     .today-hours strong { font-size: .9rem; }
     .today-hours-time { color: #1058a7; font-size: 1.45rem; font-weight: 800; }
-    .today-hours a { margin-left: auto; font-size: .85rem; }
+    .today-hours a { display: inline-flex; min-height: 44px; align-items: center; margin-left: auto; font-size: .85rem; }
     .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
     button { border: 0; border-radius: 8px; padding: 10px 18px; color: white; background: #1058a7; font: inherit; cursor: pointer; }
     button:disabled { opacity: .6; cursor: wait; }
-    #status { color: #526477; }
+    #status { color: #435569; }
     #error { color: #a42222; }
     .history-panel, .calendar-panel, .events-panel, .heatmap-panel, .archive-panel, .shows-panel, .weather-panel { background: white; border: 1px solid #dce4ed; border-radius: 14px; padding: 20px; margin: 10px 0 28px; }
     .weather-panel h2 { margin: 0 0 7px; font-size: 1.35rem; }
@@ -43,6 +47,13 @@
     .weather-values strong { display: block; font-size: 1.18rem; }
     .weather-alert { padding: 10px 12px; border-radius: 8px; background: #fff4d2; color: #654700; }
     .weather-alert[data-level="high"] { background: #ffe4df; color: #822f27; }
+    .top-waits { display: none; margin: 10px 0; padding: 9px 11px; border: 1px solid #bcd2eb; border-radius: 9px; background: #eaf3ff; }
+    .top-waits > strong { display: block; margin-bottom: 4px; }
+    .top-waits ol { margin: 0; padding-left: 22px; }
+    .top-waits li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; line-height: 1.3; }
+    .top-waits li strong { flex: none; color: #1058a7; }
+    .heatmap-options { margin: 10px 0; }
+    .heatmap-options > summary { display: list-item; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd8e6; border-radius: 8px; background: #f8fafc; color: #1058a7; cursor: pointer; font-weight: 700; }
     .ride-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 9px 14px; margin: 12px 0; }
     .ride-filters label { display: grid; gap: 4px; font-size: .85rem; font-weight: 700; }
     .ride-filters .check-filter { display: flex; align-items: center; gap: 4px; min-height: 40px; }
@@ -164,13 +175,30 @@
     .history-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
     .history-table th, .history-table td { border-bottom: 1px solid #e4e9ef; padding: 8px; text-align: left; }
     .history-table th { color: #526477; font-weight: 600; }
-    .muted { color: #526477; font-size: .9rem; }
+    .muted { color: #435569; font-size: .9rem; }
     footer { margin-top: 28px; border-top: 1px solid #dce4ed; padding-top: 16px; font-size: .9rem; }
     .ad-slot { margin: 10px 0 28px; min-height: 120px; border: 1px solid #dce4ed; border-radius: 12px; background: white; padding: 12px; }
     .ad-slot[hidden] { display: none; }
     .ad-label { display: block; margin-bottom: 8px; color: #526477; font-size: .8rem; }
     a { color: #1058a7; }
     @media (max-width: 620px) {
+      body { padding: 12px 10px 40px; }
+      h1 { font-size: 1.6rem; }
+      .jump-nav { margin-left: -5px; margin-right: -5px; }
+      .jump-nav a { font-size: .8rem; }
+      .today-hours { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; align-items: center; }
+      .today-hours strong, .today-hours-time { grid-column: 1; }
+      .today-hours a { grid-column: 2; grid-row: 1 / 3; margin: 0; }
+      .top-waits { display: block; }
+      .ride-filters .check-filter { min-height: 44px; padding: 4px 0; }
+      .ride-filters .check-filter input { width: 20px; height: 20px; }
+      select, .ride-filters select, .mobile-heatmap-controls select { min-height: 44px; box-sizing: border-box; }
+      .favorite-button { min-width: 44px; min-height: 44px; margin-right: 2px; padding: 0; font-size: 1.3rem; }
+      .heatmap-table tbody th .favorite-button { float: left; }
+      .weather-details summary { min-height: 44px; align-items: center; }
+      .ride-card { align-items: center; }
+      .ride-card summary { min-height: 44px; }
+      .ride-card-history a { display: flex; min-height: 44px; align-items: center; }
       .metrics { grid-template-columns: 1fr; }
       .history-panel, .calendar-panel, .events-panel, .shows-panel, .weather-panel { padding: 15px; }
       .heatmap-panel, .archive-panel { padding: 12px; }
@@ -185,14 +213,15 @@
       .archive-hour-picker { display: grid !important; }
       .controls label { width: 100%; min-width: 0; }
       .controls select { box-sizing: border-box; width: 100%; min-width: 0; }
-      .heatmap-legend { gap: 4px; font-size: .72rem; }
+      .heatmap-legend { gap: 4px; font-size: .8rem; }
       .heatmap-legend span { padding: 2px 4px; }
       .heatmap-scroll { max-height: none; overflow: visible; border: 0; }
-      .heatmap-table { width: 100%; min-width: 0; table-layout: fixed; font-size: .72rem; }
+      .heatmap-table { width: 100%; min-width: 0; table-layout: fixed; font-size: .82rem; }
       .heatmap-table th, .heatmap-table td { box-sizing: border-box; min-width: 0 !important; max-width: none !important; padding: 6px 3px; overflow-wrap: anywhere; }
       .heatmap-table thead th, .heatmap-table tbody th { position: static; }
-      .heatmap-table thead th:first-child, .heatmap-table tbody th { width: 43%; font-size: .72rem; }
-      .heatmap-table tbody td { font-size: .72rem; }
+      .heatmap-table thead th:first-child, .heatmap-table tbody th { width: 52%; font-size: .82rem; }
+      .heatmap-table tbody th a { display: block; min-height: 44px; align-content: center; }
+      .heatmap-table tbody td { font-size: .82rem; }
       .mobile-card-list:not([hidden]) { display: grid; border: 1px solid #dce4ed; border-radius: 9px; }
       .show-label { flex-basis: 175px; width: 175px; }
     }
@@ -203,19 +232,48 @@
     <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
     <span class="unofficial">非公式</span>
   </header>
+  <nav class="jump-nav" aria-label="ページ内の項目"><a href="#heatmap-title">待ち時間</a><a href="#shows-title">ショー</a><a href="#calendar-title">営業時間</a><a href="#events-title">イベント</a></nav>
   <h1>USJの待ち時間・混雑状況</h1>
   <p class="sub">掲載する待ち時間は提供元の公開データに基づく値で、現地で実測した待機時間ではありません。本サイトは個人運営の非公式サイトです。</p>
-  <!--PUBLIC_SUMMARY-->
   <div class="today-hours" role="status" aria-label="本日の公表営業時間">
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
     <a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">公式で確認</a>
   </div>
+  <main>
+  <section class="heatmap-panel" aria-labelledby="heatmap-title">
+    <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted mobile-heatmap-hint">現在値と直近の保存値。単位は分、過去の時刻は下で切り替えられます。</p>
+    <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位3件</strong><ol id="top-waits-list"><li>現在値を確認中…</li></ol></div>
+    <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
+    <details id="heatmap-options" class="heatmap-options" open>
+      <summary>絞り込み・並び順・色の見方</summary>
+    <div class="ride-filters" aria-label="アトラクション絞り込み">
+      <label>身長の目安 <select id="height-filter"><option value="all">指定なし</option><option value="0">身長制限なし</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
+      <label class="check-filter"><input id="child-switch-filter" type="checkbox">チャイルドスイッチ対応のみ</label>
+      <label class="check-filter"><input id="favorites-filter" type="checkbox">お気に入りのみ</label>
+      <label>並び順 <select id="ride-sort"><option value="wait-desc">現在の待ち時間が長い順</option><option value="wait-asc">現在の待ち時間が短い順</option><option value="name">名前順</option></select></label>
+    </div>
+    <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
+    <p class="muted">★でお気に入り登録できます。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
+    <div class="heatmap-legend" aria-label="待ち時間の色分け">
+      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
+    </div>
+    </details>
+    <label class="mobile-heatmap-controls" for="heatmap-range">保存時刻 <select id="heatmap-range" aria-label="表示する保存時刻"></select></label>
+    <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="スマホでの表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
+    <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
+      <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
+    </div>
+    <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
+    <!--PUBLIC_SUMMARY-->
+    <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は、公式案内では10月9日まで18:30から、10月10日以降は18:00から閉園までの夜間版です。表示する運行状況はデータ提供元の掲載値です。</p>
+  </section>
   <div class="bar">
     <button id="refresh" type="button">表示を更新</button>
     <span id="status" role="status"></span>
     <span id="error" role="alert"></span>
   </div>
-  <main>
   <section class="weather-panel" aria-labelledby="weather-title">
     <details class="weather-details">
       <summary><h2 id="weather-title">大阪の天気とUSJ付近の予報</h2><small id="weather-summary">予報を読み込み中…</small></summary>
@@ -230,31 +288,7 @@
       </div>
     </details>
     <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
-    <p class="muted">平均風速7m/s以上で注意、平均風速10m/s以上で強い注意を表示します。最大瞬間風速が取得できる場合は、10m/s以上の突風も強い注意の対象です。これは本サイト独自の目安で、USJの運休基準や運休の予測ではありません。</p>
-  </section>
-  <section class="heatmap-panel" aria-labelledby="heatmap-title">
-    <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
-    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
-    <p class="muted mobile-heatmap-hint">全アトラクションの現在値と直近の保存値を一覧できます。過去の時間帯は下で切り替えられます。数値の単位は分です。</p>
-    <div class="ride-filters" aria-label="アトラクション絞り込み">
-      <label>身長の目安 <select id="height-filter"><option value="all">指定なし</option><option value="0">身長制限なし</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
-      <label class="check-filter"><input id="child-switch-filter" type="checkbox">チャイルドスイッチ対応のみ</label>
-      <label class="check-filter"><input id="favorites-filter" type="checkbox">お気に入りのみ</label>
-      <label>並び順 <select id="ride-sort"><option value="wait-desc">現在の待ち時間が長い順</option><option value="wait-asc">現在の待ち時間が短い順</option><option value="name">名前順</option></select></label>
-    </div>
-    <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
-    <p class="muted">★でお気に入り登録できます。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
-    <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
-    <div class="heatmap-legend" aria-label="待ち時間の色分け">
-      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
-    </div>
-    <label class="mobile-heatmap-controls" for="heatmap-range">保存時刻 <select id="heatmap-range" aria-label="表示する保存時刻"></select></label>
-    <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="スマホでの表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
-    <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
-      <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
-    </div>
-    <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
-    <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は、公式案内では10月9日まで18:30から、10月10日以降は18:00から閉園までの夜間版です。表示する運行状況はデータ提供元の掲載値です。</p>
+    <details class="weather-details"><summary>風速による注意表示の目安</summary><p class="muted">平均風速7m/s以上で注意、平均風速10m/s以上で強い注意を表示します。最大瞬間風速が取得できる場合は、10m/s以上の突風も強い注意の対象です。これは本サイト独自の目安で、USJの運休基準や運休の予測ではありません。</p></details>
   </section>
   <section class="archive-panel" aria-labelledby="archive-title">
     <h2 id="archive-title">過去の待ち時間・混雑傾向</h2>
@@ -342,7 +376,7 @@
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
     <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。10月4日のジュラシック夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
-    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分の取得値を保存します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
+    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分の枠で、その数分後に取得した値を保存します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
   <script>
     const button = document.querySelector('#refresh');
@@ -379,6 +413,8 @@
     const heatmapStatus = document.querySelector('#heatmap-status');
     const heatmapHead = document.querySelector('#heatmap-head');
     const heatmapBody = document.querySelector('#heatmap-body');
+    const topWaitsList = document.querySelector('#top-waits-list');
+    const heatmapOptions = document.querySelector('#heatmap-options');
     const heatmapRange = document.querySelector('#heatmap-range');
     const todayTable = document.querySelector('#today-table');
     const mobileCards = document.querySelector('#mobile-cards');
@@ -395,7 +431,8 @@
     const archiveHead = document.querySelector('#archive-head');
     const archiveBody = document.querySelector('#archive-body');
     const mobileHeatmap = window.matchMedia('(max-width: 620px)');
-    const narrowHeatmap = window.matchMedia('(max-width: 360px)');
+    const narrowHeatmap = window.matchMedia('(max-width: 420px)');
+    if (mobileHeatmap.matches) heatmapOptions.open = false;
     const heightFilter = document.querySelector('#height-filter');
     const childSwitchFilter = document.querySelector('#child-switch-filter');
     const favoritesFilter = document.querySelector('#favorites-filter');
@@ -1104,6 +1141,37 @@
       return cell;
     }
 
+    function renderTopWaits(rides) {
+      const ranked = rides.map(ride => ({ride, cell: heatCell(ride, '現在', true)}))
+        .filter(item => /^heat-[0-4]$/.test(item.cell.className))
+        .sort((a, b) => Number(b.cell.textContent) - Number(a.cell.textContent))
+        .slice(0, 3);
+      topWaitsList.replaceChildren();
+      if (!ranked.length) {
+        const item = document.createElement('li');
+        item.textContent = '確認できる待ち時間はありません。';
+        topWaitsList.append(item);
+        return;
+      }
+      for (const {ride, cell} of ranked) {
+        const item = document.createElement('li');
+        const name = document.createElement('span');
+        name.textContent = rideName(ride);
+        const wait = document.createElement('strong');
+        wait.textContent = `${cell.textContent}分`;
+        item.append(name, wait);
+        topWaitsList.append(item);
+      }
+    }
+
+    function snapshotSlotTime(snapshot) {
+      return hourMinuteFormat.format(new Date(Math.floor(snapshot.captured_at / 1200) * 1200 * 1000));
+    }
+
+    function snapshotDescription(snapshot) {
+      return `${snapshotSlotTime(snapshot)}枠（実取得${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}）`;
+    }
+
     function archiveCell(sample, label) {
       const cell = document.createElement('td');
       if (!sample) {
@@ -1276,9 +1344,9 @@
           const option = document.createElement('option');
           option.value = String(page);
           if (group.length) {
-            const newest = hourMinuteFormat.format(new Date(group[0].captured_at * 1000));
-            const oldest = hourMinuteFormat.format(new Date(group.at(-1).captured_at * 1000));
-            option.textContent = `${page === 0 ? '直近' : '過去'} ${newest}${newest === oldest ? '' : `〜${oldest}`}`;
+            const newest = snapshotSlotTime(group[0]);
+            const oldest = snapshotSlotTime(group.at(-1));
+            option.textContent = `${page === 0 ? '直近' : '過去'} ${newest}枠${newest === oldest ? '' : `〜${oldest}枠`}（新しい順）`;
           } else {
             option.textContent = '保存記録なし';
           }
@@ -1313,7 +1381,7 @@
         : `★お気に入りを先頭に表示し、それぞれ現在の待ち時間が${rideSort.value === 'wait-asc' ? '短い' : '長い'}順で並べます。未取得・休止中は末尾です。`;
       heatmapHead.replaceChildren();
       heatmapBody.replaceChildren();
-      for (const label of ['アトラクション', '現在', ...visibleSnapshots.map(item => hourMinuteFormat.format(new Date(item.captured_at * 1000)))]) {
+      for (const label of ['アトラクション', '現在', ...visibleSnapshots.map(item => `${snapshotSlotTime(item)}枠`)]) {
         const heading = document.createElement('th');
         heading.scope = 'col';
         heading.textContent = label;
@@ -1326,17 +1394,20 @@
         setAttractionName(name, ride.id, rideName(ride));
         row.append(name, currentCells.get(ride.id));
         for (const snapshot of visibleSnapshots) {
-          const label = `${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}の保存値`;
+          const label = `${snapshotDescription(snapshot)}の保存値`;
           row.append(heatCell(snapshot.rides[String(ride.id)], label));
         }
         heatmapBody.append(row);
       }
+      const openCardIds = new Set([...mobileCards.querySelectorAll('details[open]')].map(card => card.dataset.rideId));
       mobileCards.replaceChildren();
       if (mobileHeatmap.matches) for (const ride of rides) {
         const card = document.createElement('div');
         card.className = 'ride-card';
         const label = rideName(ride);
         const details = document.createElement('details');
+        details.dataset.rideId = String(ride.id);
+        details.open = openCardIds.has(String(ride.id));
         const summary = document.createElement('summary');
         const name = document.createElement('span');
         name.className = 'ride-card-name';
@@ -1359,8 +1430,8 @@
           history.append(link);
         }
         if (visibleSnapshots.length) for (const snapshot of visibleSnapshots) {
-          const time = hourMinuteFormat.format(new Date(snapshot.captured_at * 1000));
-          const sample = heatCell(snapshot.rides[String(ride.id)], `${time}の保存値`);
+          const time = `${snapshotSlotTime(snapshot)}枠`;
+          const sample = heatCell(snapshot.rides[String(ride.id)], `${snapshotDescription(snapshot)}の保存値`);
           const record = document.createElement('div');
           record.className = 'ride-card-record';
           const timeLabel = document.createElement('span');
@@ -1386,7 +1457,9 @@
         heatmapBody.append(row);
       }
       const day = data.day ? data.day.replaceAll('-', '/') : '今日';
-      heatmapStatus.textContent = `${day} JST · ${rides.length}/${currentData.rides.length}件表示 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存値は毎時0・20・40分に更新`;
+      heatmapStatus.textContent = mobileHeatmap.matches
+        ? `${day} · ${rides.length}件表示 · 保存${snapshots.length}回（0・20・40分枠）`
+        : `${day} JST · ${rides.length}/${currentData.rides.length}件表示 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存は毎時0・20・40分枠（実取得は数分後の場合あり）`;
       syncMobileView();
     }
 
@@ -1556,6 +1629,7 @@
           return (b.wait_time || 0) - (a.wait_time || 0);
         });
         currentData = data;
+        renderTopWaits(rides);
         loadToday();
         if (archiveData) renderArchive(archiveData);
         const selected = rideSelect.value;
@@ -1614,6 +1688,7 @@
     });
     for (const breakpoint of [mobileHeatmap, narrowHeatmap]) {
       breakpoint.addEventListener('change', () => {
+        if (breakpoint === mobileHeatmap) heatmapOptions.open = !mobileHeatmap.matches;
         heatmapPage = 0;
         if (todayData) renderToday(todayData);
         archivePage = 0;
