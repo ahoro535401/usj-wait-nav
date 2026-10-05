@@ -671,9 +671,22 @@ async function route(request, env) {
         `${unknown ? `、現在値を確認できない${unknown}件` : ''}${closed ? `、休止中${closed}件` : ''}` +
         `${max == null ? '' : `。掲載値の最長${max}分`}。掲載値は下の表をご覧ください。</p>`;
     }
+    // 営業時間外は、件数ではなく現在の状態を静的HTMLにも示す。
+    const todayRow = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?')
+      .bind(jstDay(epoch())).first();
+    const nowHm = hhmm(epoch());
+    if (todayRow?.status === 'CLOSED') {
+      summary = '<p class="muted">本日は休園日です。過去の混雑は「行く前に」ページで確認できます。</p>';
+    } else if (todayRow?.opens && todayRow?.closes && (nowHm < todayRow.opens || nowHm > todayRow.closes)) {
+      summary = `<p class="muted">現在は営業時間外です（本日 ${todayRow.opens}〜${todayRow.closes}）。` +
+        '待ち時間は開園の約2時間前から表示します。過去の混雑は「行く前に」ページで確認できます。</p>';
+    }
     html = html.replace('<!--PUBLIC_SUMMARY-->', summary);
     const page = url.pathname === '/plan' ? 'plan' : 'now';
     html = html.replace('<html lang="ja">', `<html lang="ja" data-page="${page}">`);
+    html = html.replace(
+      page === 'plan' ? /<h1 data-only="now">[\s\S]*?<\/h1>\s*/ : /<h1 data-only="plan">[\s\S]*?<\/h1>\s*/,
+      '');
     if (page === 'plan') {
       html = html
         .replace(/<title>[^<]*<\/title>/,
