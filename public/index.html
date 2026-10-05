@@ -116,8 +116,10 @@
     .trend-flat, .trend-none { color: #435569; }
     .spark-cell { padding: 4px 2px !important; }
     .spark-cell svg { display: block; margin: 0 auto; width: 100%; max-width: 72px; height: 26px; }
-    .spark-line { fill: none; stroke: #1058a7; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
-    .spark-dot { fill: #1058a7; }
+    .spark-bar { fill: #9db7d8; }
+    .spark-now { fill: #1058a7; }
+    .spark-gap { fill: #cbd5e1; }
+    .spark-base { stroke: #cbd5e1; stroke-width: 1; }
     .trend-legend { display: none; }
     .mobile-heatmap-controls, .mobile-heatmap-hint { display: none; }
     .mobile-heatmap-controls[hidden], .trend-legend[hidden] { display: none !important; }
@@ -280,7 +282,7 @@
     <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
     </div>
-    <p id="trend-legend" class="muted trend-legend">1時間＝約1時間前の保存値との差。↑は増加、↓は減少、→は差が5分未満です。今日＝開園後の保存値と現在値の推移で、右端の点が現在値です。欠測・休止の区間は線をつなぎません。</p>
+    <p id="trend-legend" class="muted trend-legend">1時間＝約1時間前の保存値との差。↑は増加、↓は減少、→は差が5分未満です。今日＝直近約6時間の20分枠と現在値。右端の濃い棒が現在値で、薄い線は欠測・休止中です。棒の高さは行ごとに異なる目盛りです。</p>
     <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
     <!--PUBLIC_SUMMARY-->
     <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は、公式案内では10月9日まで18:30から、10月10日以降は18:00から閉園までの夜間版です。表示する運行状況はデータ提供元の掲載値です。</p>
@@ -1203,6 +1205,9 @@
       return cell;
     }
 
+    const SPARK_MAX_BARS = 18;
+    const SPARK_MIN_SCALE = 60;
+
     function sparkCell(rideId, currentWait, snapshots) {
       const cell = document.createElement('td');
       cell.className = 'spark-cell';
@@ -1210,49 +1215,51 @@
         Math.floor(snapshot.captured_at / 1200), sampleWait(snapshot.rides[String(rideId)]),
       ]));
       const currentSlot = Math.floor(Date.now() / 1200000);
-      const firstSlot = Math.min(currentSlot, ...bySlot.keys());
-      const points = [];
-      for (let slot = firstSlot; slot <= currentSlot; slot++) points.push(bySlot.get(slot) ?? null);
-      points.push(currentWait);
-      const values = points.filter(value => value != null);
+      const firstSlot = Math.max(currentSlot - SPARK_MAX_BARS + 2, Math.min(currentSlot, ...bySlot.keys()));
+      const shown = [];
+      for (let slot = firstSlot; slot <= currentSlot; slot++) shown.push(bySlot.get(slot) ?? null);
+      shown.push(currentWait);
+      const values = shown.filter(value => value != null);
       if (values.length < 2) {
         cell.textContent = '—';
-        cell.title = '今日の比較可能な記録が2件未満です';
+        cell.title = '直近約6時間の比較可能な記録が2件未満です';
         cell.setAttribute('aria-label', cell.title);
         return cell;
       }
-      const width = 72, height = 26, padding = 3;
-      const maximum = Math.max(60, ...values);
-      const x = index => padding + (width - padding * 2) * index / (points.length - 1);
-      const y = value => height - padding - (height - padding * 2) * value / maximum;
-      let pathData = '';
-      let connected = false;
-      points.forEach((value, index) => {
-        if (value == null) {
-          connected = false;
-          return;
-        }
-        pathData += `${connected ? 'L' : 'M'}${x(index).toFixed(1)},${y(value).toFixed(1)}`;
-        connected = true;
-      });
+      const width = 72, height = 26, baseline = height - 1, top = 2, gap = 1;
+      const maximum = Math.max(SPARK_MIN_SCALE, ...values);
+      const barWidth = Math.min(6, (width - gap * (shown.length - 1)) / shown.length);
+      const offset = width - (barWidth * shown.length + gap * (shown.length - 1));
       const namespace = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(namespace, 'svg');
       svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('preserveAspectRatio', 'xMaxYMax meet');
       svg.setAttribute('role', 'img');
-      const label = `今日の待ち時間の推移。最小${Math.min(...values)}分、最大${Math.max(...values)}分、${currentWait == null ? '現在値なし' : `現在${currentWait}分`}`;
+      const label = `直近約6時間の待ち時間。最小${Math.min(...values)}分、最大${Math.max(...values)}分、${currentWait == null ? '現在値なし' : `現在${currentWait}分`}`;
       svg.setAttribute('aria-label', label);
-      const path = document.createElementNS(namespace, 'path');
-      path.setAttribute('d', pathData);
-      path.setAttribute('class', 'spark-line');
-      svg.append(path);
-      if (currentWait != null) {
-        const dot = document.createElementNS(namespace, 'circle');
-        dot.setAttribute('cx', x(points.length - 1).toFixed(1));
-        dot.setAttribute('cy', y(currentWait).toFixed(1));
-        dot.setAttribute('r', '2.5');
-        dot.setAttribute('class', 'spark-dot');
-        svg.append(dot);
-      }
+      shown.forEach((value, index) => {
+        const bar = document.createElementNS(namespace, 'rect');
+        bar.setAttribute('x', (offset + index * (barWidth + gap)).toFixed(1));
+        bar.setAttribute('width', barWidth.toFixed(1));
+        if (value == null) {
+          bar.setAttribute('class', 'spark-gap');
+          bar.setAttribute('y', String(baseline - 1));
+          bar.setAttribute('height', '1');
+        } else {
+          const barHeight = Math.max(1.5, (baseline - top) * value / maximum);
+          bar.setAttribute('class', index === shown.length - 1 ? 'spark-bar spark-now' : 'spark-bar');
+          bar.setAttribute('y', (baseline - barHeight).toFixed(1));
+          bar.setAttribute('height', barHeight.toFixed(1));
+        }
+        svg.append(bar);
+      });
+      const base = document.createElementNS(namespace, 'line');
+      base.setAttribute('x1', '0');
+      base.setAttribute('x2', String(width));
+      base.setAttribute('y1', String(baseline + 0.5));
+      base.setAttribute('y2', String(baseline + 0.5));
+      base.setAttribute('class', 'spark-base');
+      svg.append(base);
       cell.title = label;
       cell.append(svg);
       return cell;
