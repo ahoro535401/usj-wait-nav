@@ -384,8 +384,8 @@
     <h3>1時間ごとの平均待ち時間</h3>
     <p id="chart-note" class="muted">履歴を読み込み中…</p>
     <div class="chart-wrap"><svg id="trend" viewBox="0 0 760 260" role="img" aria-label="選択したアトラクションの待ち時間推移"></svg></div>
-    <h3>最近の時間平均</h3>
-    <table class="history-table"><thead><tr><th scope="col">時間帯</th><th scope="col">平均待ち時間</th><th scope="col">記録数</th></tr></thead><tbody id="recent-records"></tbody></table>
+    <h3>最近の記録（20分ごと）</h3>
+    <table class="history-table"><thead><tr><th scope="col">時刻</th><th scope="col">待ち時間</th><th scope="col">前回から</th></tr></thead><tbody id="recent-records"></tbody></table>
   </section>
   <!-- 広告枠2：関連するアフィリエイト紹介のみ。広告であることを表示してから有効化 -->
   <aside id="ad-slot-2" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-2"></div></aside>
@@ -1292,6 +1292,50 @@
       return hourMinuteFormat.format(new Date(Math.floor(snapshot.captured_at / 1200) * 1200 * 1000));
     }
 
+    const RECENT_RECORD_ROWS = 8;
+
+    function recordLabel(sample) {
+      if (!sample || sample.data_unavailable) return '未取得';
+      if (!sample.is_open) return '休止中';
+      return Number.isFinite(sample.wait_minutes) ? `${sample.wait_minutes}分${sample.estimated ? '※' : ''}` : '未取得';
+    }
+
+    function renderRecentRecords() {
+      recentRecords.replaceChildren();
+      const rideId = rideSelect.value;
+      const snapshots = todayData?.snapshots || [];
+      if (!rideId || !snapshots.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 3;
+        cell.textContent = '今日の記録はまだありません（毎時0・20・40分に記録します）。';
+        row.append(cell);
+        recentRecords.append(row);
+        return;
+      }
+      snapshots.slice(0, RECENT_RECORD_ROWS).forEach((snapshot, index) => {
+        const sample = snapshot.rides[String(rideId)];
+        const older = snapshots[index + 1];
+        const row = document.createElement('tr');
+        const at = document.createElement('td');
+        at.textContent = `${snapshotSlotTime(snapshot)}枠`;
+        const wait = document.createElement('td');
+        wait.textContent = recordLabel(sample);
+        const change = document.createElement('td');
+        const currentWait = sampleWait(sample);
+        const olderWait = older ? sampleWait(older.rides[String(rideId)]) : null;
+        if (currentWait == null || olderWait == null) {
+          change.textContent = '—';
+        } else {
+          const difference = currentWait - olderWait;
+          change.textContent = difference === 0 ? '±0' : `${difference > 0 ? '↑' : '↓'}${Math.abs(difference)}分`;
+          change.className = difference > 0 ? 'trend-up' : difference < 0 ? 'trend-down' : 'trend-flat';
+        }
+        row.append(at, wait, change);
+        recentRecords.append(row);
+      });
+    }
+
     function snapshotDescription(snapshot) {
       return `${snapshotSlotTime(snapshot)}枠（実取得${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}）`;
     }
@@ -1459,7 +1503,7 @@
       const snapshots = data.snapshots || [];
       let visibleSnapshots = snapshots;
       if (mobileHeatmap.matches) {
-        const pageSize = narrowHeatmap.matches ? 2 : 3;
+        const pageSize = 5;
         const pages = Math.max(1, Math.ceil(snapshots.length / pageSize));
         if (heatmapPage >= pages) heatmapPage = 0;
         heatmapRange.replaceChildren();
@@ -1595,6 +1639,7 @@
       heatmapStatus.textContent = mobileHeatmap.matches
         ? `${day} · ${rides.length}件表示 · 保存${snapshots.length}回（0・20・40分枠）`
         : `${day} JST · ${rides.length}/${currentData.rides.length}件表示 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存は毎時0・20・40分枠（実取得は数分後の場合あり）`;
+      renderRecentRecords();
       syncMobileView();
     }
 
@@ -1668,26 +1713,14 @@
 
     function renderHistory(hours, days) {
       trend.replaceChildren();
-      recentRecords.replaceChildren();
-      const recent = [...hours].reverse().slice(0, 8);
-      for (const hour of recent) {
-        const row = document.createElement('tr');
-        const at = document.createElement('td');
-        at.textContent = `${timeFormat.format(new Date(hour.at * 1000))}～ JST`;
-        const wait = document.createElement('td');
-        wait.textContent = Number.isFinite(hour.average_wait) ? `${Math.round(hour.average_wait)}分${hour.estimated_samples ? '※' : ''}` : '休止中';
-        const count = document.createElement('td');
-        count.textContent = `${hour.open_samples}/3件${hour.estimated_samples ? `・推定${hour.estimated_samples}件` : ''}${hour.samples < 3 ? '（記録不足）' : ''}`;
-        row.append(at, wait, count);
-        recentRecords.append(row);
-      }
+      renderRecentRecords();
       if (!hours.length) {
         chartNote.textContent = 'この期間の記録はまだありません。毎時0・20・40分の取得時に蓄積します。';
         return;
       }
       chartNote.textContent = hours.length === 1
         ? '時間平均は1時間帯です。0・20・40分のうち取得できた記録で計算しています。'
-        : `${hours.length}時間帯の平均値。1時間につき最大3記録で計算し、記録数は下表に表示します。線の途切れは未記録または休止中、破線は現在値です。`;
+        : `${hours.length}時間帯の平均値。1時間につき最大3記録（0・20・40分）で計算しています。線の途切れは未記録または休止中、破線は現在値です。`;
       if (hours.some(hour => hour.estimated_samples)) chartNote.textContent += ' ※と橙点は旧通常版IDからの推定振替を含みます。';
 
       const now = Date.now();
@@ -1834,7 +1867,7 @@
     }
     monthPrev.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, -1); renderCalendar(); });
     monthNext.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, 1); renderCalendar(); });
-    rideSelect.addEventListener('change', () => { updateMetrics(); loadHistory(); });
+    rideSelect.addEventListener('change', () => { updateMetrics(); renderRecentRecords(); loadHistory(); });
     rangeSelect.addEventListener('change', loadHistory);
     refresh();
     setInterval(refresh, 5 * 60 * 1000);
