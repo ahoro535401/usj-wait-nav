@@ -457,6 +457,17 @@
     :root[data-theme="dark"] .share-line { color: #fff; }
     :root[data-theme="dark"] .share-more { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     :root[data-theme="dark"] .share-x { background: #e6edf3; color: #0f1419; }
+    @media (max-width: 620px) {
+      body > h1 { font-size: 1.35rem; margin: 6px 0 4px; }
+      .sub { font-size: .8rem; margin: 0 0 10px; }
+      .heatmap-table.is-collapsed tbody tr:nth-child(n+13),
+      .mobile-card-list.is-collapsed .ride-card:nth-child(n+13) { display: none; }
+    }
+    .rides-more { display: block; width: 100%; min-height: 44px; margin: 10px 0 0; border: 1px solid #c5d3e3; border-radius: 10px; background: #fff; color: #1058a7; font: inherit; font-weight: 700; }
+    .rides-more[hidden] { display: none; }
+    :root[data-theme="dark"] .rides-more { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
+    .share-bar { flex-wrap: nowrap; gap: 6px; }
+    .share-bar a, .share-bar button { flex: 1 1 0; min-width: 0; height: 40px; min-height: 40px; padding: 0 6px; font-size: .8rem; }
   </style>
 </head>
 <body>
@@ -472,7 +483,7 @@
   </div>
   <h1 data-only="now">USJの待ち時間・混雑状況</h1>
   <h1 data-only="plan">USJ混雑カレンダー</h1>
-  <p class="sub">掲載する待ち時間は提供元の公開データに基づく値で、現地で実測した待機時間ではありません。本サイトは個人運営の非公式サイトです。</p>
+  <p class="sub">提供元の公開データに基づく掲載値です（現地の実測ではありません）。個人運営の非公式サイトです。</p>
   <div class="today-hours" data-only="now" role="status" aria-label="本日の公表営業時間">
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
     <a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">公式で確認</a>
@@ -541,22 +552,6 @@
     <span id="status" role="status"></span>
     <span id="error" role="alert"></span>
   </div>
-  <section class="weather-panel" data-only="now" aria-labelledby="weather-title">
-    <details class="weather-details">
-      <summary><h2 id="weather-title">大阪の天気とUSJ付近の予報</h2><small id="weather-summary">予報を読み込み中…</small></summary>
-      <div class="weather-details-body">
-    <p id="jma-forecast" class="muted">気象庁の大阪府予報を読み込み中…</p>
-    <p id="jma-status" class="muted" role="status">大阪観測所の実測値を読み込み中…</p>
-    <div class="weather-values" aria-label="大阪観測所の実測値"><div><small>気象庁・実測気温</small><strong id="jma-temperature">—</strong></div><div><small>気象庁・実測風速</small><strong id="jma-wind">—</strong></div><div><small>気象庁・実測1時間降水量</small><strong id="jma-rain">—</strong></div></div>
-    <h3>USJ付近の時間別予報</h3>
-    <p id="weather-status" class="muted" role="status">予報を読み込み中…</p>
-    <div class="weather-values" aria-label="USJ付近の予報値"><div><small>予報・天気</small><strong id="weather-condition">—</strong></div><div><small>予報・気温</small><strong id="weather-temperature">—</strong></div><div><small>予報・平均風速</small><strong id="weather-wind">—</strong></div><div id="weather-gust-cell" hidden><small>予報・最大瞬間風速</small><strong id="weather-gust">—</strong></div><div><small>予報・1時間降水量</small><strong id="weather-rain">—</strong></div></div>
-    <p class="muted">気象庁の実測は大阪観測所の値で、USJ現地の測定値ではありません。USJ付近の時間別予報はノルウェー気象研究所の値です。予報の平均風速は地上約10mの10分平均です。<span id="weather-gust-note">最大瞬間風速はこの地点の予報に含まれないため、突風は自動判定できません。</span></p>
-      </div>
-    </details>
-    <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
-    <details class="weather-details"><summary>風速による注意表示の目安</summary><p class="muted">平均風速7m/s以上で注意、平均風速10m/s以上で強い注意を表示します。最大瞬間風速が取得できる場合は、10m/s以上の突風も強い注意の対象です。これは本サイト独自の目安で、USJの運休基準や運休の予測ではありません。</p></details>
-  </section>
   <section class="archive-panel" data-only="plan" aria-labelledby="archive-title">
     <h2 id="archive-title">過去の待ち時間・混雑傾向</h2>
     <p class="muted">カレンダーの日付をタップすると、その日の時間帯ごとの平均待ち時間とアトラクション別の実績を確認できます。2026年10月4日から記録しています。</p>
@@ -598,6 +593,22 @@
     <p id="closures-status" class="muted">休止予定を読み込み中…</p>
     <ul id="today-closures" class="closure-list"></ul>
     <p class="muted">休止予定は確認日現在の掲載情報です。急な中止・変更は反映されません。<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure" target="_blank" rel="noopener noreferrer">USJ公式の休止情報</a>で最新情報をご確認ください。</p>
+  </section>
+  <section class="weather-panel" data-only="now" aria-labelledby="weather-title">
+    <details class="weather-details">
+      <summary><h2 id="weather-title">大阪の天気とUSJ付近の予報</h2><small id="weather-summary">予報を読み込み中…</small></summary>
+      <div class="weather-details-body">
+    <p id="jma-forecast" class="muted">気象庁の大阪府予報を読み込み中…</p>
+    <p id="jma-status" class="muted" role="status">大阪観測所の実測値を読み込み中…</p>
+    <div class="weather-values" aria-label="大阪観測所の実測値"><div><small>気象庁・実測気温</small><strong id="jma-temperature">—</strong></div><div><small>気象庁・実測風速</small><strong id="jma-wind">—</strong></div><div><small>気象庁・実測1時間降水量</small><strong id="jma-rain">—</strong></div></div>
+    <h3>USJ付近の時間別予報</h3>
+    <p id="weather-status" class="muted" role="status">予報を読み込み中…</p>
+    <div class="weather-values" aria-label="USJ付近の予報値"><div><small>予報・天気</small><strong id="weather-condition">—</strong></div><div><small>予報・気温</small><strong id="weather-temperature">—</strong></div><div><small>予報・平均風速</small><strong id="weather-wind">—</strong></div><div id="weather-gust-cell" hidden><small>予報・最大瞬間風速</small><strong id="weather-gust">—</strong></div><div><small>予報・1時間降水量</small><strong id="weather-rain">—</strong></div></div>
+    <p class="muted">気象庁の実測は大阪観測所の値で、USJ現地の測定値ではありません。USJ付近の時間別予報はノルウェー気象研究所の値です。予報の平均風速は地上約10mの10分平均です。<span id="weather-gust-note">最大瞬間風速はこの地点の予報に含まれないため、突風は自動判定できません。</span></p>
+      </div>
+    </details>
+    <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
+    <details class="weather-details"><summary>風速による注意表示の目安</summary><p class="muted">平均風速7m/s以上で注意、平均風速10m/s以上で強い注意を表示します。最大瞬間風速が取得できる場合は、10m/s以上の突風も強い注意の対象です。これは本サイト独自の目安で、USJの運休基準や運休の予測ではありません。</p></details>
   </section>
   <section class="calendar-panel" data-only="plan" aria-labelledby="calendar-title">
     <h2 id="calendar-title">パーク営業時間</h2>
@@ -1688,7 +1699,7 @@
         .slice(0, 5);
       topWaitsList.replaceChildren();
       topWaitsList.removeAttribute('aria-busy');
-      topShareBar.hidden = false;
+      topShareBar.hidden = !ranked.length;
       if (!ranked.length) {
         const item = document.createElement('li');
         item.textContent = '現在表示できる待ち時間はありません（営業時間外は表示されません）。';
@@ -2182,7 +2193,7 @@
       const more = document.createElement('button');
       more.type = 'button';
       more.className = 'share-more';
-      more.textContent = 'その他・コピー';
+      more.textContent = 'その他';
       more.addEventListener('click', () => shareOrCopy(getPayload()));
       updateLinks();
       bar.updateLinks = updateLinks;
@@ -2243,10 +2254,38 @@
 
     const linkedRide = shareParams.get('ride');
     let linkedRideHandled = false;
+    const RIDES_PREVIEW = 12;
+    let ridesExpanded = false;
+    function updateRidesPreview() {
+      const table = heatmapBody.closest('table');
+      const total = heatmapBody.querySelectorAll('tr[data-ride-id]').length;
+      const collapse = mobileHeatmap.matches && !ridesExpanded && total > RIDES_PREVIEW;
+      table.classList.toggle('is-collapsed', collapse);
+      mobileCards.classList.toggle('is-collapsed', collapse);
+      let button = document.querySelector('#rides-more');
+      if (!button) {
+        button = document.createElement('button');
+        button.type = 'button';
+        button.id = 'rides-more';
+        button.className = 'rides-more';
+        button.addEventListener('click', () => {
+          ridesExpanded = !ridesExpanded;
+          updateRidesPreview();
+          if (!ridesExpanded) heatmapBody.closest('section')?.scrollIntoView({block: 'start'});
+        });
+        mobileCards.after(button);
+      }
+      button.hidden = !mobileHeatmap.matches || total <= RIDES_PREVIEW;
+      button.textContent = ridesExpanded ? `${RIDES_PREVIEW}件に戻す` : `残り${total - RIDES_PREVIEW}件も表示`;
+    }
     function focusLinkedRide() {
       if (!linkedRide || !/^\d+$/.test(linkedRide)) return;
       const card = mobileCards.querySelector(`details[data-ride-id="${linkedRide}"]`);
       const row = heatmapBody.querySelector(`tr[data-ride-id="${linkedRide}"]`);
+      if (mobileHeatmap.matches && !ridesExpanded && row && [...heatmapBody.querySelectorAll('tr[data-ride-id]')].indexOf(row) >= RIDES_PREVIEW) {
+        ridesExpanded = true;
+        updateRidesPreview();
+      }
       const target = !mobileCards.hidden && card ? card : row;
       if (!target) return;
       if (target === card) card.open = true;
@@ -2406,6 +2445,7 @@
       renderRecentRecords();
       renderListState();
       syncMobileView();
+      updateRidesPreview();
       focusLinkedRide();
     }
 
