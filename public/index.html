@@ -308,6 +308,14 @@
       .mobile-card-list:not([hidden]) { display: grid; border: 1px solid #dce4ed; border-radius: 9px; }
       .show-label { flex-basis: 175px; width: 175px; }
     }
+    .archive-controls label[hidden] { display: none !important; }
+    .archive-cal-value { font-size: .8rem; }
+    .archive-calendar-legend span { font-size: .8rem; }
+    .show-point, .show-time-label { font-size: .8rem; }
+    .show-label small { font-size: .8rem; }
+    @media (max-width: 620px) {
+      .calendar-grid small { font-size: .75rem; }
+    }
   </style>
 </head>
 <body>
@@ -330,8 +338,8 @@
   <main>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
-    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの保存値です。表は左右にスクロールできます。数値の単位は分です。</p>
-    <p class="muted mobile-heatmap-hint">一覧表は現在値・約1時間前との差・今日の推移です。カードを開くと保存時刻ごとの値も確認できます。</p>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの記録です。表は左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted mobile-heatmap-hint">一覧表は現在値・約1時間前との差・今日の推移です。カードを開くと20分ごとの記録も確認できます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list"><li>現在値を確認中…</li></ol></div>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <details id="heatmap-options" class="heatmap-options" open>
@@ -348,12 +356,12 @@
       <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span><span>※＝夜間版への推定振替</span>
     </div>
     </details>
-    <label class="mobile-heatmap-controls" for="heatmap-range">保存時刻 <select id="heatmap-range" aria-label="表示する保存時刻"></select></label>
+    <label class="mobile-heatmap-controls" for="heatmap-range">時刻 <select id="heatmap-range" aria-label="表示する時刻"></select></label>
     <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="スマホでの表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
     <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body"></tbody></table>
     </div>
-    <p id="trend-legend" class="muted trend-legend">1時間＝約1時間前の保存値との差。↑は増加、↓は減少、→は差が5分未満です。今日＝直近約6時間の20分枠と現在値。右端の濃い棒が現在値で、薄い線は欠測・休止中です。棒の高さは行ごとに異なる目盛りです。</p>
+    <p id="trend-legend" class="muted trend-legend">1時間＝約1時間前の記録との差。↑は増加、↓は減少、→は差が5分未満です。今日＝直近約6時間の20分ごとの記録と現在値。右端の濃い棒が現在値で、薄い線は欠測・休止中です。棒の高さは行ごとに異なる目盛りです。</p>
     <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
     <!--PUBLIC_SUMMARY-->
     <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は、公式案内では10月9日まで18:30から、10月10日以降は18:00から閉園までの夜間版です。表示する運行状況はデータ提供元の掲載値です。</p>
@@ -381,10 +389,10 @@
   </section>
   <section class="archive-panel" data-only="plan" aria-labelledby="archive-title">
     <h2 id="archive-title">過去の待ち時間・混雑傾向</h2>
-    <p class="muted">記録した日を選ぶと、時間帯ごとの平均待ち時間とアトラクション別の履歴を確認できます。</p>
+    <p class="muted">カレンダーの日付をタップすると、その日の時間帯ごとの平均待ち時間とアトラクション別の実績を確認できます。2026年10月4日から記録しています。</p>
     <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑と天気のカレンダー"></div>
     <div class="archive-controls">
-      <label>記録日 <select id="archive-date" aria-label="過去の記録日"></select></label>
+      <label hidden>記録日 <select id="archive-date" aria-label="過去の記録日"></select></label>
       <label class="archive-hour-picker">表示する時間帯 <select id="archive-hours" aria-label="過去の表示時間帯"></select></label>
     </div>
     <p id="archive-status" class="muted" role="status">過去の記録を確認中…</p>
@@ -399,7 +407,7 @@
     <div class="heatmap-scroll" tabindex="0" aria-label="過去のアトラクション別・時間帯別待ち時間表">
       <table class="heatmap-table"><thead><tr id="archive-head"></tr></thead><tbody id="archive-body"></tbody></table>
     </div>
-    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は保存された営業中の記録の平均を1分単位に四捨五入しています。—は記録なし、休は記録上の休止です。※は推定振替を含みます。</p>
+    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は営業中の記録の平均を1分単位に四捨五入しています。—は記録なし、休は記録上の休止です。※は推定振替を含みます。</p>
   </section>
   <!-- 広告枠1：承認済み広告コードとプライバシー表示を設定してから有効化 -->
   <aside id="ad-slot-1" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-1"></div></aside>
@@ -469,7 +477,7 @@
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
     <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。10月4日のジュラシック夜間版に付けた「※」は、旧通常版の掲載値を推定して振り替えた記録で、公式に確認された過去値ではありません。</p>
-    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分の枠で、その数分後に取得した値を保存します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
+    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
   <script>
     const PAGE = document.documentElement.dataset.page || (location.pathname === '/plan' ? 'plan' : 'now');
@@ -903,13 +911,13 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         scheduleDays = new Map(data.days.map(item => [item.day, item]));
-        todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（保存済みの予定）' : ''}`;
+        todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
         if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length) {
           selectedDate = null;
           selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
         }
         const fetched = data.fetched_at ? `${timeFormat.format(new Date(data.fetched_at))} JST` : '未取得';
-        scheduleStatus.textContent = `予定データ取得 ${fetched}${data.error ? ' · 更新に失敗したため保存済みの予定を表示中' : ''}`;
+        scheduleStatus.textContent = `予定データ取得 ${fetched}${data.error ? ' · 更新に失敗したため前回取得した予定を表示中' : ''}`;
         if (selectedDate) showSelectedDay(selectedDate);
         else renderCalendar();
       } catch (cause) {
@@ -1508,7 +1516,7 @@
         const older = snapshots[index + 1];
         const row = document.createElement('tr');
         const at = document.createElement('td');
-        at.textContent = `${snapshotSlotTime(snapshot)}枠`;
+        at.textContent = snapshotSlotTime(snapshot);
         const wait = document.createElement('td');
         wait.textContent = recordLabel(sample);
         const change = document.createElement('td');
@@ -1527,7 +1535,7 @@
     }
 
     function snapshotDescription(snapshot) {
-      return `${snapshotSlotTime(snapshot)}枠（実取得${hourMinuteFormat.format(new Date(snapshot.captured_at * 1000))}）`;
+      return `${snapshotSlotTime(snapshot)}時点`;
     }
 
     function archiveCell(sample, label) {
@@ -1651,11 +1659,11 @@
             cell.classList.add(level.cls);
             const partial = stats.snapshots < PARTIAL_DAY_SNAPSHOTS;
             value.textContent = `${Math.round(stats.average)}分${partial ? '※' : ''}`;
-            cell.title = `${month}/${date}：平均${Math.round(stats.average)}分（${level.label}）・保存${stats.snapshots}回` +
+            cell.title = `${month}/${date}：平均${Math.round(stats.average)}分（${level.label}）` +
               (partial ? '。一部の時間帯のみの記録です' : '');
           } else {
             value.textContent = stats?.error ? '—' : '…';
-            cell.title = `${month}/${date}：保存${item.snapshots}回`;
+            cell.title = `${month}/${date}：記録あり`;
           }
           if (weather) cell.title += `・${weather.short}`;
           cell.setAttribute('aria-label', `${cell.title}。タップでこの日の詳細を表示`);
@@ -1765,7 +1773,7 @@
         track.append(fill);
         const value = document.createElement('strong');
         value.textContent = Number.isFinite(hour.average_wait) ? `${Math.round(hour.average_wait)}分` : '—';
-        row.title = `${label.textContent}台・${hour.snapshots}/3回保存・営業中${hour.open_samples}件`;
+        row.title = `${label.textContent}台の平均待ち時間`;
         row.append(label, track, value);
         archiveHourBars.append(row);
       }
@@ -1845,7 +1853,7 @@
         for (const item of data.days || []) {
           const option = document.createElement('option');
           option.value = item.day;
-          option.textContent = `${item.day.replaceAll('-', '/')} · ${item.snapshots}回保存`;
+          option.textContent = item.day.replaceAll('-', '/');
           archiveDate.append(option);
         }
         archiveDate.disabled = !archiveDate.options.length;
@@ -1854,7 +1862,7 @@
           if ([...archiveDate.options].some(option => option.value === selected)) archiveDate.value = selected;
           archivePage = 0;
           loadArchiveDay();
-        } else archiveStatus.textContent = '過去の日付の記録はまだありません。保存が始まった翌日から表示します。';
+        } else archiveStatus.textContent = '過去の日付の記録はまだありません。記録が始まった翌日から表示します。';
       } catch (cause) {
         archiveListingDay = '';
         archiveListingAt = 0;
@@ -1879,9 +1887,9 @@
           if (group.length) {
             const newest = snapshotSlotTime(group[0]);
             const oldest = snapshotSlotTime(group.at(-1));
-            option.textContent = `${page === 0 ? '直近' : '過去'} ${newest}枠${newest === oldest ? '' : `〜${oldest}枠`}（新しい順）`;
+            option.textContent = `${page === 0 ? '直近' : 'それ以前'} ${newest}${newest === oldest ? '' : `〜${oldest}`}（新しい順）`;
           } else {
-            option.textContent = '保存記録なし';
+            option.textContent = '記録なし';
           }
           heatmapRange.append(option);
         }
@@ -1918,7 +1926,7 @@
       heatmapBody.closest('table').classList.toggle('trend-mode', trendMode);
       const headLabels = trendMode
         ? ['アトラクション', '現在', '1時間', '今日']
-        : ['アトラクション', '現在', ...visibleSnapshots.map(item => `${snapshotSlotTime(item)}枠`)];
+        : ['アトラクション', '現在', ...visibleSnapshots.map(item => snapshotSlotTime(item))];
       for (const label of headLabels) {
         const heading = document.createElement('th');
         heading.scope = 'col';
@@ -1937,7 +1945,7 @@
           row.append(trendCell(ride.id, currentWait, snapshots), sparkCell(ride.id, currentWait, snapshots));
         } else {
           for (const snapshot of visibleSnapshots) {
-            const label = `${snapshotDescription(snapshot)}の保存値`;
+            const label = `${snapshotDescription(snapshot)}の記録`;
             row.append(heatCell(snapshot.rides[String(ride.id)], label));
           }
         }
@@ -1975,8 +1983,8 @@
         }
         history.append(cardChart(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null, snapshots));
         if (visibleSnapshots.length) for (const snapshot of visibleSnapshots) {
-          const time = `${snapshotSlotTime(snapshot)}枠`;
-          const sample = heatCell(snapshot.rides[String(ride.id)], `${snapshotDescription(snapshot)}の保存値`);
+          const time = snapshotSlotTime(snapshot);
+          const sample = heatCell(snapshot.rides[String(ride.id)], `${snapshotDescription(snapshot)}の記録`);
           const record = document.createElement('div');
           record.className = 'ride-card-record';
           const timeLabel = document.createElement('span');
@@ -1987,7 +1995,7 @@
           value.title = sample.title;
           record.append(timeLabel, value);
           history.append(record);
-        } else history.append(document.createTextNode('この時間帯の保存記録はありません。'));
+        } else history.append(document.createTextNode('この時間帯の記録はありません。'));
         details.append(summary, history);
         card.append(favoriteButton(ride.id, label), details);
         mobileCards.append(card);
@@ -2003,8 +2011,8 @@
       }
       const day = data.day ? data.day.replaceAll('-', '/') : '今日';
       heatmapStatus.textContent = mobileHeatmap.matches
-        ? `${day} · ${rides.length}件表示 · 保存${snapshots.length}回（0・20・40分枠）`
-        : `${day} JST · ${rides.length}/${currentData.rides.length}件表示 · 今日の保存 ${snapshots.length}回 · 現在値は約5分ごと、保存は毎時0・20・40分枠（実取得は数分後の場合あり）`;
+        ? `${day} · ${rides.length}件表示 · 20分ごとに記録`
+        : `${day} · ${rides.length}/${currentData.rides.length}件表示 · 現在値は約5分ごとに更新、記録は20分ごと（毎時0・20・40分）`;
       renderRecentRecords();
       syncMobileView();
     }
@@ -2179,12 +2187,12 @@
         if (rides.some(ride => String(ride.id) === selected)) rideSelect.value = selected;
         if (PAGE === 'now') updateMetrics();
         const fetched = new Date(data.fetched_at);
-        const fetchedText = Number.isNaN(fetched.getTime()) ? '不明' : `${timeFormat.format(fetched)} JST`;
-        status.textContent = `アトラクション${rides.length}件 · サーバー取得 ${fetchedText} · 画面確認 ${timeFormat.format(new Date())} JST`;
+        const fetchedText = Number.isNaN(fetched.getTime()) ? '不明' : timeFormat.format(fetched);
+        status.textContent = `${fetchedText}時点の情報 · 5分ごとに自動更新`;
         if (data.history) {
           const since = data.history.first_at ? `${timeFormat.format(new Date(data.history.first_at * 1000))} JST` : '未記録';
           const latest = data.history.last_at ? `${timeFormat.format(new Date(data.history.last_at * 1000))} JST` : '未記録';
-          historyStatus.textContent = `毎時0・20・40分に保存 · ${data.history.snapshots}回記録 · 最終記録 ${latest} · 記録開始 ${since}`;
+          historyStatus.textContent = `20分ごとに記録 · ${data.history.snapshots}回記録 · 最終記録 ${latest} · 記録開始 ${since}`;
         } else {
           historyStatus.textContent = '履歴の状態を確認できません';
         }
@@ -2192,7 +2200,7 @@
           error.textContent = '最新データの取得に失敗したため、前回のデータを表示しています。';
         }
         if (data.archive_error) {
-          error.textContent += ' 履歴の保存に失敗しています。';
+          error.textContent += ' 一部の記録に失敗しています。';
         }
         if (rides.some(ride => ride.data_unavailable)) {
           error.textContent += ' 一部アトラクションのライブ情報を確認できません。';
