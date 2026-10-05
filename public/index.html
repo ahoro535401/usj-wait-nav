@@ -138,6 +138,36 @@
     .archive-summary div { flex: 1 1 150px; border: 1px solid #dce4ed; border-radius: 9px; padding: 10px; background: #f8fafc; }
     .archive-summary small { display: block; color: #526477; }
     .archive-summary strong { display: block; margin-top: 3px; color: #1058a7; font-size: 1.15rem; }
+    .archive-calendar { margin: 14px 0; }
+    .archive-calendar-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 8px; }
+    .archive-calendar-head button { min-height: 44px; padding: 8px; background: #eef5ff; color: #1058a7; }
+    .archive-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .archive-cal-dow { text-align: center; color: #526477; font-size: .8rem; }
+    .archive-cal-dow.sun, .archive-cal-day.sun { color: #9a3f3f; }
+    .archive-cal-dow.sat, .archive-cal-day.sat { color: #315b97; }
+    .archive-cal-day { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: 58px; padding: 4px 1px; border: 1px solid #dce4ed; border-radius: 7px; background: #f8fafc; font-size: .75rem; }
+    button.archive-cal-day { width: 100%; cursor: pointer; }
+    .archive-cal-day[aria-pressed="true"] { outline: 2px solid #1058a7; outline-offset: -2px; }
+    .archive-cal-day.today { border-color: #1058a7; }
+    .archive-cal-date { font-weight: 700; white-space: nowrap; }
+    .archive-cal-value { font-size: .7rem; white-space: nowrap; }
+    .archive-cal-weather { margin-left: 2px; font-size: .9rem; }
+    .archive-cal-weather.wx-sun { color: #a85800; }
+    .archive-cal-weather.wx-cloud { color: #526477; }
+    .archive-cal-weather.wx-rain { color: #1d4ed8; }
+    .archive-cal-day.crowd-1 { background: #e3f4ec; }
+    .archive-cal-day.crowd-2 { background: #c5ead6; }
+    .archive-cal-day.crowd-3 { background: #fff0b8; }
+    .archive-cal-day.crowd-4 { background: #ffd6ad; }
+    .archive-cal-day.crowd-5 { background: #f8b8b8; }
+    .archive-calendar-legend { display: flex; flex-wrap: wrap; gap: 5px; margin: 9px 0; font-size: .72rem; }
+    .archive-calendar-legend span { padding: 2px 5px; border-radius: 4px; }
+    .archive-calendar-legend .crowd-1 { background: #e3f4ec; }
+    .archive-calendar-legend .crowd-2 { background: #c5ead6; }
+    .archive-calendar-legend .crowd-3 { background: #fff0b8; }
+    .archive-calendar-legend .crowd-4 { background: #ffd6ad; }
+    .archive-calendar-legend .crowd-5 { background: #f8b8b8; }
+    .archive-weather { margin: 4px 0 8px; }
     .archive-hour-bars { display: grid; gap: 5px; margin: 14px 0 20px; max-width: 720px; }
     .archive-hour-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 68px; align-items: center; gap: 7px; font-size: .84rem; }
     .archive-hour-track { height: 17px; border-radius: 4px; background: #f0f3f6; overflow: hidden; }
@@ -319,11 +349,13 @@
   <section class="archive-panel" aria-labelledby="archive-title">
     <h2 id="archive-title">過去の待ち時間・混雑傾向</h2>
     <p class="muted">記録した日を選ぶと、時間帯ごとの平均待ち時間とアトラクション別の履歴を確認できます。</p>
+    <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑と天気のカレンダー"></div>
     <div class="archive-controls">
       <label>記録日 <select id="archive-date" aria-label="過去の記録日"></select></label>
       <label class="archive-hour-picker">表示する時間帯 <select id="archive-hours" aria-label="過去の表示時間帯"></select></label>
     </div>
     <p id="archive-status" class="muted" role="status">過去の記録を確認中…</p>
+    <p id="archive-weather" class="muted archive-weather"></p>
     <div class="archive-summary" aria-label="選択日の記録概要">
       <div><small>記録された営業中の平均待ち時間</small><strong id="archive-average">—</strong></div>
       <div><small>20分ごとの保存回数</small><strong id="archive-snapshots">—</strong></div>
@@ -475,6 +507,10 @@
     let archivePage = 0;
     let archiveRequest = 0;
     let archiveListingDay = '';
+    let archiveListingAt = 0;
+    let archiveCalendarDays = [];
+    let archiveCalendarMonth = '';
+    const archiveDayStats = new Map();
     let scheduleDays = new Map();
     let closuresData = null;
     let calendarMonth = null;
@@ -1476,6 +1512,154 @@
       return cell;
     }
 
+    // 過去の混雑カレンダーと大阪観測所の日別天気実績
+    const CROWD_LEVELS = [
+      {max: 20, label: '空いている', cls: 'crowd-1'},
+      {max: 30, label: 'やや空き', cls: 'crowd-2'},
+      {max: 40, label: '普通', cls: 'crowd-3'},
+      {max: 50, label: '混雑', cls: 'crowd-4'},
+      {max: Infinity, label: '大混雑', cls: 'crowd-5'},
+    ];
+    const PARTIAL_DAY_SNAPSHOTS = 18;
+    function weatherInfo(weather) {
+      if (!weather) return null;
+      const complete = Number(weather.coverage) >= 0.9;
+      const kind = !complete ? {icon: '？', label: '不明', cls: 'wx-cloud'}
+        : weather.precip_daytime >= 1 ? {icon: '☂', label: '雨', cls: 'wx-rain'}
+        : weather.sun_hours >= 5 ? {icon: '☀', label: '晴れ', cls: 'wx-sun'}
+        : {icon: '☁', label: 'くもり', cls: 'wx-cloud'};
+      const temp = Number.isFinite(weather.temp_max) && Number.isFinite(weather.temp_min)
+        ? `最高${weather.temp_max.toFixed(1)}℃／最低${weather.temp_min.toFixed(1)}℃` : '気温の記録なし';
+      return { ...kind, short: `${kind.label}・${temp}`,
+        detail: `${kind.label}　${temp}　降水${weather.precip_total}mm（8〜22時 ${weather.precip_daytime}mm）　日照${weather.sun_hours}時間` +
+          (complete ? '' : '　※欠測が多いため天気判定は不明') };
+    }
+    const crowdLevel = average => CROWD_LEVELS.find(level => average < level.max);
+    function shiftArchiveMonth(key, delta) {
+      const [year, month] = key.split('-').map(Number);
+      const date = new Date(Date.UTC(year, month - 1 + delta, 1));
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    function selectArchiveDay(day) {
+      archiveDate.value = day;
+      archivePage = 0;
+      loadArchiveDay();
+      renderArchiveCalendar();
+      archiveStatus.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+    function renderArchiveCalendar() {
+      const box = document.querySelector('#archive-calendar');
+      box.replaceChildren();
+      const recorded = new Map(archiveCalendarDays.map(item => [item.day, item]));
+      const days = [...recorded.keys()].sort();
+      const today = jstToday();
+      const minMonth = (days[0] || today).slice(0, 7);
+      const maxMonth = today.slice(0, 7);
+      if (!archiveCalendarMonth) archiveCalendarMonth = (days.at(-1) || today).slice(0, 7);
+      const [year, month] = archiveCalendarMonth.split('-').map(Number);
+      const head = document.createElement('div');
+      head.className = 'archive-calendar-head';
+      function monthButton(label, delta, enabled) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.disabled = !enabled;
+        button.addEventListener('click', () => {
+          archiveCalendarMonth = shiftArchiveMonth(archiveCalendarMonth, delta);
+          renderArchiveCalendar();
+        });
+        return button;
+      }
+      const title = document.createElement('strong');
+      title.textContent = `${year}年${month}月`;
+      head.append(monthButton('‹ 前月', -1, archiveCalendarMonth > minMonth), title,
+        monthButton('次月 ›', 1, archiveCalendarMonth < maxMonth));
+      const grid = document.createElement('div');
+      grid.className = 'archive-calendar-grid';
+      ['日', '月', '火', '水', '木', '金', '土'].forEach((label, index) => {
+        const cell = document.createElement('span');
+        cell.className = `archive-cal-dow${index === 0 ? ' sun' : index === 6 ? ' sat' : ''}`;
+        cell.textContent = label;
+        grid.append(cell);
+      });
+      const firstDow = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      for (let index = 0; index < firstDow; index++) grid.append(document.createElement('span'));
+      for (let date = 1; date <= daysInMonth; date++) {
+        const key = `${archiveCalendarMonth}-${String(date).padStart(2, '0')}`;
+        const dow = (firstDow + date - 1) % 7;
+        const item = recorded.get(key);
+        const cell = document.createElement(item ? 'button' : 'span');
+        cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${key === today ? ' today' : ''}`;
+        const label = document.createElement('span');
+        label.className = 'archive-cal-date';
+        label.textContent = String(date);
+        const weather = weatherInfo(item?.weather);
+        if (weather) {
+          const icon = document.createElement('span');
+          icon.className = `archive-cal-weather ${weather.cls}`;
+          icon.textContent = weather.icon;
+          icon.setAttribute('aria-hidden', 'true');
+          label.append(icon);
+        }
+        const value = document.createElement('span');
+        value.className = 'archive-cal-value';
+        if (item) {
+          cell.type = 'button';
+          cell.setAttribute('aria-pressed', String(archiveDate.value === key));
+          const stats = archiveDayStats.get(key);
+          if (Number.isFinite(stats?.average)) {
+            const level = crowdLevel(stats.average);
+            cell.classList.add(level.cls);
+            const partial = stats.snapshots < PARTIAL_DAY_SNAPSHOTS;
+            value.textContent = `${Math.round(stats.average)}分${partial ? '※' : ''}`;
+            cell.title = `${month}/${date}：平均${Math.round(stats.average)}分（${level.label}）・保存${stats.snapshots}回` +
+              (partial ? '。一部の時間帯のみの記録です' : '');
+          } else {
+            value.textContent = stats?.error ? '—' : '…';
+            cell.title = `${month}/${date}：保存${item.snapshots}回`;
+          }
+          if (weather) cell.title += `・${weather.short}`;
+          cell.setAttribute('aria-label', `${cell.title}。タップでこの日の詳細を表示`);
+          cell.addEventListener('click', () => selectArchiveDay(key));
+        } else if (key === today) value.textContent = '今日';
+        cell.append(label, value);
+        grid.append(cell);
+      }
+      const legend = document.createElement('div');
+      legend.className = 'archive-calendar-legend';
+      let lower = 0;
+      for (const level of CROWD_LEVELS) {
+        const chip = document.createElement('span');
+        chip.className = level.cls;
+        chip.textContent = `${level.label}（${Number.isFinite(level.max) ? `${lower}〜${level.max - 1}分` : `${lower}分〜`}）`;
+        legend.append(chip);
+        lower = level.max;
+      }
+      const note = document.createElement('p');
+      note.className = 'muted';
+      note.textContent = '数字は記録された営業中の待ち時間の平均です。※は一部の時間帯のみの記録。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。';
+      box.append(head, grid, legend, note);
+      loadArchiveMonthStats();
+    }
+    async function loadArchiveMonthStats() {
+      const month = archiveCalendarMonth;
+      const targets = archiveCalendarDays.filter(item => item.day.startsWith(month) && !archiveDayStats.has(item.day));
+      if (!targets.length) return;
+      for (const item of targets) archiveDayStats.set(item.day, {loading: true});
+      await Promise.all(targets.map(async item => {
+        try {
+          const response = await fetch(`/api/archive/day?date=${encodeURIComponent(item.day)}`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+          archiveDayStats.set(item.day, {average: data.average_wait, snapshots: data.snapshots});
+        } catch {
+          archiveDayStats.set(item.day, {error: true});
+        }
+      }));
+      renderArchiveCalendar();
+    }
+
     function renderArchive(data) {
       archiveData = data;
       const hours = data.hours || [];
@@ -1501,6 +1685,12 @@
       const first = hourMinuteFormat.format(new Date(data.first_at * 1000));
       const last = hourMinuteFormat.format(new Date(data.last_at * 1000));
       archiveStatus.textContent = `${data.day.replaceAll('-', '/')} JST · ${data.snapshots}回保存 · ${first}〜${last}の記録。記録のない時間帯は含みません。`;
+      const weather = weatherInfo(data.weather);
+      document.querySelector('#archive-weather').textContent = weather
+        ? `天気（気象庁アメダス大阪の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
+        : '天気：この日の記録はありません。';
+      archiveDayStats.set(data.day, {average: data.average_wait, snapshots: data.snapshots});
+      if (archiveCalendarDays.length) renderArchiveCalendar();
       archiveAverage.textContent = Number.isFinite(data.average_wait) ? `${Math.round(data.average_wait)}分` : '記録なし';
       archiveSnapshots.textContent = `${data.snapshots}回`;
       archiveCoverage.textContent = first === last ? first : `${first}〜${last}`;
@@ -1587,12 +1777,14 @@
 
     async function loadArchiveDates() {
       const today = jstToday();
-      if (archiveListingDay === today) return;
+      if (archiveListingDay === today && Date.now() - archiveListingAt < 15 * 60 * 1000) return;
       archiveListingDay = today;
       try {
         const response = await fetch('/api/archive/days', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        archiveListingAt = Date.now();
+        archiveCalendarDays = data.days || [];
         const selected = archiveDate.value;
         archiveDate.replaceChildren();
         for (const item of data.days || []) {
@@ -1602,6 +1794,7 @@
           archiveDate.append(option);
         }
         archiveDate.disabled = !archiveDate.options.length;
+        renderArchiveCalendar();
         if (archiveDate.options.length) {
           if ([...archiveDate.options].some(option => option.value === selected)) archiveDate.value = selected;
           archivePage = 0;
@@ -1609,6 +1802,7 @@
         } else archiveStatus.textContent = '過去の日付の記録はまだありません。保存が始まった翌日から表示します。';
       } catch (cause) {
         archiveListingDay = '';
+        archiveListingAt = 0;
         archiveStatus.textContent = `記録日を読み込めません: ${cause.message}`;
       }
     }
