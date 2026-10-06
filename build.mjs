@@ -9,6 +9,7 @@ const files = {
   '/events.json': 'events.json',
   '/closures.json': 'closures.json',
   '/pass-exclusions.json': 'pass-exclusions.json',
+  '/ticket-prices.json': 'ticket-prices.json',
   '/robots.txt': 'robots.txt',
   '/sitemap.xml': 'sitemap.xml',
   '/manifest.webmanifest': 'manifest.webmanifest',
