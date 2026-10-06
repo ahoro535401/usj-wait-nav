@@ -795,9 +795,10 @@ async function route(request, env) {
     return assetFetch(new Request(url, request), env);
   }
   if (url.pathname === '/sitemap.xml') return embeddedFetch(request);
-  if (url.pathname === '/api/events' || url.pathname === '/api/closures' || url.pathname === '/api/pass-exclusions') {
+  if (url.pathname === '/api/events' || url.pathname === '/api/closures' || url.pathname === '/api/pass-exclusions' || url.pathname === '/api/ticket-prices') {
     url.pathname = url.pathname === '/api/events' ? '/events.json'
-      : url.pathname === '/api/closures' ? '/closures.json' : '/pass-exclusions.json';
+      : url.pathname === '/api/closures' ? '/closures.json'
+      : url.pathname === '/api/ticket-prices' ? '/ticket-prices.json' : '/pass-exclusions.json';
     return assetFetch(new Request(url, request), env);
   }
   if (url.pathname === '/api/weather') {
