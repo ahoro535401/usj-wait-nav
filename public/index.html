@@ -99,6 +99,11 @@
     .favorite-button:focus-visible { outline: 2px solid #1058a7; }
     .sort-note { margin-top: 0 !important; }
     .mobile-card-list { display: none; }
+    @media (min-width: 621px) {
+      label.mobile-heatmap-controls[for="mobile-view"] { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 10px; font-size: .9rem; font-weight: 700; }
+      label.mobile-heatmap-controls[for="mobile-view"] select { min-height: 36px; padding: 4px 8px; }
+      .mobile-card-list:not([hidden]) { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; column-gap: 20px; padding: 4px 12px; border: 1px solid #dce4ed; border-radius: 9px; }
+    }
     .ride-card { display: flex; align-items: start; gap: 5px; padding: 9px 6px; border-bottom: 1px solid #dce4ed; }
     .ride-card details { flex: 1; min-width: 0; }
     .ride-card summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
@@ -581,7 +586,7 @@
   <main>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
-    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの記録です。表は左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの記録です。表は左右にスクロールできます。数値の単位は分です。「表示方法」でカード表示（今日の推移の棒グラフ）に切り替えられます。</p>
     <p class="muted mobile-heatmap-hint">一覧表は現在値・約1時間前との差・今日の推移です。カードを開くと20分ごとの記録も確認できます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
       <li class="skeleton-row"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:3em"></span><span class="visually-hidden">現在値を確認中…</span></li>
@@ -610,7 +615,7 @@
       <button type="button" class="list-state-edit">変更</button>
     </div>
     <label class="mobile-heatmap-controls" for="heatmap-range">時刻 <select id="heatmap-range" aria-label="表示する時刻"></select></label>
-    <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="スマホでの表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
+    <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
     <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body" aria-busy="true">
         <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
@@ -641,6 +646,7 @@
     <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
     <p class="muted">過去の日付をタップするとその日の混雑実績、今日以降の日付をタップすると営業時間と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
     <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑実績と今後の営業時間のカレンダー"></div>
+    <p class="muted">年間パス（スタンダード）の入場除外日は、<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/exclusion-dates/universal-prime-annual-pass-standard-exclusison-date" target="_blank" rel="noopener noreferrer">USJ公式の除外日一覧</a>をご確認ください。</p>
     <div id="selected-day" class="selected-day" role="status" hidden>カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
     <p class="muted">営業時間・休止予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
     <div class="archive-controls">
@@ -2749,7 +2755,7 @@
       }
       const openCardIds = new Set([...mobileCards.querySelectorAll('details[open]')].map(card => card.dataset.rideId));
       mobileCards.replaceChildren();
-      if (mobileHeatmap.matches) for (const ride of rides) {
+      for (const ride of rides) {
         const card = document.createElement('div');
         card.className = 'ride-card';
         const label = rideName(ride);
@@ -2778,7 +2784,8 @@
           history.append(link);
         }
         history.append(cardChart(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null, snapshots));
-        if (visibleSnapshots.length) for (const snapshot of visibleSnapshots) {
+        const cardSnapshots = mobileHeatmap.matches ? visibleSnapshots : snapshots.slice(0, 6);
+        if (cardSnapshots.length) for (const snapshot of cardSnapshots) {
           const time = snapshotSlotTime(snapshot);
           const sample = heatCell(snapshot.rides[String(ride.id)], `${snapshotDescription(snapshot)}の記録`);
           const record = document.createElement('div');
@@ -2797,7 +2804,7 @@
         card.append(favoriteButton(ride.id, label), details);
         mobileCards.append(card);
       }
-      if (mobileHeatmap.matches && !rides.length) mobileCards.textContent = '絞り込みに一致するアトラクションはありません。';
+      if (!rides.length) mobileCards.textContent = '絞り込みに一致するアトラクションはありません。';
       if (!rides.length) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
@@ -2820,10 +2827,10 @@
     }
 
     function syncMobileView() {
-      const showCards = mobileHeatmap.matches && mobileView.value === 'cards';
+      const showCards = mobileView.value === 'cards';
       todayTable.hidden = showCards;
       mobileCards.hidden = !showCards;
-      heatmapRange.closest('label').hidden = !showCards;
+      heatmapRange.closest('label').hidden = !(showCards && mobileHeatmap.matches);
       document.querySelector('#trend-legend').hidden = !mobileHeatmap.matches || showCards;
     }
 
