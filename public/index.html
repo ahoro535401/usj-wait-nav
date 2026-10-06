@@ -1340,7 +1340,7 @@
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.textContent = 'USJ公式の価格カレンダー';
-        note.replaceChildren(`1デイ・スタジオ・パスの大人（12歳以上・小学生除く）税込価格です。10月5日・6日は利用者申告、それ以降は${formatEventDate(data.checked_at)}の購入画面から手動転記しました。画面の最安表示から大人料金と判定しています。価格は変わる場合があります。掲載のない日は未確認です。購入前に`, link, 'で最新価格をご確認ください。');
+        note.replaceChildren('1デイ・スタジオ・パスの大人（12歳以上・小学生除く）税込価格です。価格は変わる場合があります。掲載のない日は価格未確認です。購入前に', link, 'で最新価格をご確認ください。');
         renderArchiveCalendar();
         if (selectedDate) showSelectedDay(selectedDate);
         if (archiveData) renderArchiveTicketPrice(archiveData.day);
