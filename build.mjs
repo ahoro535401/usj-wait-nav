@@ -8,6 +8,7 @@ const files = {
   '/privacy.html': 'privacy.html',
   '/events.json': 'events.json',
   '/closures.json': 'closures.json',
+  '/pass-exclusions.json': 'pass-exclusions.json',
   '/robots.txt': 'robots.txt',
   '/sitemap.xml': 'sitemap.xml',
   '/manifest.webmanifest': 'manifest.webmanifest',
