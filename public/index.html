@@ -193,6 +193,7 @@
     .archive-cal-date { font-weight: 700; white-space: nowrap; }
     .archive-cal-holiday { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .62rem; line-height: 1.2; font-weight: 600; }
     .archive-cal-value { font-size: .7rem; white-space: nowrap; }
+    .archive-cal-price { display: block; color: #704318; font-size: .6rem; font-weight: 700; white-space: nowrap; }
     .archive-cal-weather { margin-left: 2px; font-size: .9rem; }
     .archive-cal-weather.wx-sun { color: #a85800; }
     .archive-cal-weather.wx-cloud { color: #526477; }
@@ -512,6 +513,7 @@
     :root[data-theme="dark"] .archive-cal-day.is-partial { background: #1d2730; color: #9aa8b6; }
     :root[data-theme="dark"] .archive-cal-day.is-future { background: #17212c; }
     :root[data-theme="dark"] .archive-cal-day.is-future .archive-cal-value, :root[data-theme="dark"] .archive-ride-peak { color: #8fb6ff; }
+    :root[data-theme="dark"] .archive-cal-price { color: #f6c58f; }
     :root[data-theme="dark"] .archive-cal-closures { color: #ff9b9b; }
     :root[data-theme="dark"] .archive-ride, :root[data-theme="dark"] .show-list li { border-color: #2c3b4b; }
     :root[data-theme="dark"] .archive-hour-row.is-peak strong { color: #ff8a80; }
@@ -653,6 +655,7 @@
     <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
     <p class="muted">過去の日付をタップするとその日の混雑実績、今日以降の日付をタップすると営業時間と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
     <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑実績と今後の営業時間のカレンダー"></div>
+    <p id="ticket-price-note" class="muted">1デイ・スタジオ・パスの価格は、<a href="https://www.usj.co.jp/web/ja/jp/tickets/buy/price-calendar" target="_blank" rel="noopener noreferrer">USJ公式の価格カレンダー</a>をご確認ください。</p>
     <p id="pass-exclusion-note" class="muted">年間パス（スタンダード）の入場除外日は、<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/exclusion-dates/universal-prime-annual-pass-standard-exclusison-date" target="_blank" rel="noopener noreferrer">USJ公式の除外日一覧</a>をご確認ください。</p>
     <div id="selected-day" class="selected-day" role="status" hidden>カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
     <p class="muted">営業時間・休止予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
@@ -850,6 +853,7 @@
     const archiveDayStats = new Map();
     let scheduleDays = new Map();
     let passExclusion = { days: new Set(), months: new Set(), checkedAt: null, url: null, label: '' };
+    let ticketPrices = { adult: new Map(), checkedAt: null, url: null };
     let holidayDays = new Map();
     const HOLIDAY_LABELS = { substitute: '振替休日', citizens: '国民の休日' };
     let closuresData = null;
@@ -1159,6 +1163,12 @@
       const hours = document.createElement('span');
       hours.textContent = `営業時間：${hoursLabel(scheduleDays.get(day))}`;
       selectedDay.append(heading, hours);
+      const adultPrice = ticketPrices.adult.get(day);
+      if (Number.isInteger(adultPrice)) {
+        const priceLine = document.createElement('span');
+        priceLine.textContent = `1デイ・スタジオ・パス（大人・税込）：${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認）`;
+        selectedDay.append(priceLine);
+      }
       if (passExclusion.url) {
         const passLine = document.createElement('span');
         const excluded = passExclusion.days.has(day);
@@ -1306,6 +1316,35 @@
         console.warn('年パス除外日を読み込めません（公式一覧への案内を表示します）', cause);
       }
     }
+    async function loadTicketPrices() {
+      if (ticketPrices.url) return;
+      try {
+        const response = await fetch('/api/ticket-prices', {cache: 'no-store'});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(data.checked_at) || !data.source_url ||
+            !data.adult_prices || typeof data.adult_prices !== 'object' || Array.isArray(data.adult_prices))
+          throw new Error('チケット価格データの形式が不正です');
+        const adult = new Map();
+        for (const [day, price] of Object.entries(data.adult_prices)) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isInteger(price) || price <= 0)
+            throw new Error('チケット価格データの日付または価格が不正です');
+          adult.set(day, price);
+        }
+        ticketPrices = {adult, checkedAt: data.checked_at, url: data.source_url};
+        const note = document.querySelector('#ticket-price-note');
+        const link = document.createElement('a');
+        link.href = data.source_url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'USJ公式の価格カレンダー';
+        note.replaceChildren(`1デイ・スタジオ・パスの大人（12歳以上・小学生除く）税込価格を${formatEventDate(data.checked_at)}の購入画面から手動転記しました。画面の最安表示から大人料金と判定しています。価格は変わる場合があります。掲載のない日は未確認です。購入前に`, link, 'で最新価格をご確認ください。');
+        renderArchiveCalendar();
+        if (selectedDate) showSelectedDay(selectedDate);
+      } catch (cause) {
+        console.warn('チケット価格を読み込めません（公式の価格カレンダーをご案内します）', cause);
+      }
+    }
     function renderPassExclusionNote() {
       const note = document.querySelector('#pass-exclusion-note');
       if (!note || !passExclusion.url) return;
@@ -1331,7 +1370,7 @@
         if (PAGE === 'plan') renderArchiveCalendar();
         todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
         updateParkStateBanner();
-        if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length && !passExclusion.url) {
+        if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length && !passExclusion.url && !ticketPrices.adult.has(selectedDate)) {
           selectedDate = null;
           selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
           selectedDay.hidden = true;
@@ -2121,7 +2160,9 @@
       const lastPlanDay = [...scheduleDays.keys()].sort().at(-1) || today;
       const lastClosureDay = closuresData ? closuresData.closures.map(item => item.end).filter(Boolean).sort().at(-1) : null;
       const lastPassMonth = [...passExclusion.months].sort().at(-1);
+      const lastPriceDay = [...ticketPrices.adult.keys()].sort().at(-1);
       const maxMonth = [today.slice(0, 7), lastPlanDay.slice(0, 7), (lastClosureDay || today).slice(0, 7),
+        (lastPriceDay || today).slice(0, 7),
         lastPassMonth ? shiftArchiveMonth(lastPassMonth, 1) : today.slice(0, 7)].sort().at(-1);
       if (!archiveCalendarMonth) archiveCalendarMonth = (days.at(-1) || today).slice(0, 7);
       const [year, month] = archiveCalendarMonth.split('-').map(Number);
@@ -2158,7 +2199,7 @@
         const dow = (firstDow + date - 1) % 7;
         const item = recorded.get(key);
         const plan = key >= today
-          ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) || passExclusion.url ? {} : null)) : null;
+          ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) || passExclusion.url || ticketPrices.adult.has(key) ? {} : null)) : null;
         const cell = document.createElement(item || plan ? 'button' : 'span');
         cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${holidayDays.has(key) ? ' holiday' : ''}${key === today ? ' today' : ''}`;
         const label = document.createElement('span');
@@ -2200,20 +2241,29 @@
           cell.setAttribute('aria-pressed', String(selectedDate === key));
           value.textContent = plan.status === 'CLOSED' ? '休園' : plan.opens ? `${plan.opens.replace(/^0/, '')}〜` : '未掲載';
           const closureCount = closuresFor(key).filter(item => item.end).length;
+          const adultPrice = ticketPrices.adult.get(key);
           cell.title = `${month}/${date}${key === today ? '（今日）' : ''}：営業時間 ${hoursLabel(plan)}` +
+            (Number.isInteger(adultPrice) ? `・1デイ大人${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認）` : '') +
             (closureCount ? `・休止予定${closureCount}件` : '');
-          cell.setAttribute('aria-label', `${cell.title}。タップで営業時間と休止予定を表示`);
+          cell.setAttribute('aria-label', `${cell.title}。タップで詳細を表示`);
           cell.addEventListener('click', () => {
             showSelectedDay(key);
             renderArchiveCalendar();
             history.replaceState(null, '', '/plan');
             selectedDay.scrollIntoView({behavior: 'smooth', block: 'nearest'});
           });
+          cell.append(label, value);
           if (closureCount) {
             const closures = document.createElement('span');
             closures.className = 'archive-cal-closures';
             closures.textContent = `休止${closureCount}`;
-            cell.append(label, value, closures);
+            cell.append(closures);
+          }
+          if (Number.isInteger(adultPrice)) {
+            const price = document.createElement('span');
+            price.className = 'archive-cal-price';
+            price.textContent = `¥${adultPrice.toLocaleString('ja-JP')}`;
+            cell.append(price);
           }
         } else if (key === today) value.textContent = '今日';
         if (!cell.firstChild) cell.append(label, value);
@@ -3048,6 +3098,7 @@
       if (button.disabled) return;
       loadHolidays();
       if (PAGE === 'plan') loadPassExclusions();
+      if (PAGE === 'plan') loadTicketPrices();
       loadSchedule();
       loadClosures();
       if (PAGE === 'plan') loadEvents();
