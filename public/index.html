@@ -496,7 +496,6 @@
     .show-list-next { display: flex; align-items: baseline; gap: 8px; }
     .show-list-next strong { font-size: 1.1rem; color: #1058a7; font-variant-numeric: tabular-nums; }
     .show-list-next small, .show-list-later { color: #526477; font-size: .85rem; }
-    @media (min-width: 621px) { .archive-ride-title, #archive-ride-charts, #archive-rides-more { display: none !important; } }
     @media (max-width: 620px) {
       .archive-panel .heatmap-scroll, .archive-panel .heatmap-scroll + p.muted, .archive-panel .archive-hour-picker { display: none !important; }
       .show-view-toggle { display: inline-flex; align-items: center; min-height: 44px; margin: 4px 0 8px; padding: 0 14px; border: 1px solid #c5d3e3; border-radius: 999px; background: #fff; color: #1058a7; font: inherit; font-size: .85rem; font-weight: 700; }
@@ -527,12 +526,28 @@
     .archive-cal-help > p { margin: 6px 0 0; }
     :root[data-theme="dark"] .archive-cal-longterm { background: #33241f; color: #ffb8ad; }
     :root[data-theme="dark"] .archive-cal-help > summary { color: #9cc4ff; }
+    .archive-view-switch { display: none; }
+    @media (min-width: 621px) {
+      .archive-view-switch { display: inline-flex; margin: 0 0 10px; border: 1px solid #c5d3e3; border-radius: 999px; overflow: hidden; }
+      .archive-view-switch button { min-height: 36px; padding: 0 18px; border: 0; border-radius: 0; background: #fff; color: #1058a7; font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
+      .archive-view-switch button[aria-pressed="true"] { background: #1058a7; color: #fff; }
+      .archive-ride-charts { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); column-gap: 24px; }
+      .archive-panel[data-archive-view="chart"] .heatmap-scroll,
+      .archive-panel[data-archive-view="chart"] .heatmap-scroll + p.muted,
+      .archive-panel[data-archive-view="chart"] .archive-hour-picker { display: none; }
+      .archive-panel[data-archive-view="table"] #archive-ride-charts,
+      .archive-panel[data-archive-view="table"] #archive-rides-more { display: none; }
+    }
+    :root[data-theme="dark"] .archive-view-switch { border-color: #3a4b5d; }
+    :root[data-theme="dark"] .archive-view-switch button { background: #17212c; color: #9cc4ff; }
+    :root[data-theme="dark"] .archive-view-switch button[aria-pressed="true"] { background: #2f6fc0; color: #fff; }
     .archive-panel[data-mode="future"] .archive-controls,
     .archive-panel[data-mode="future"] #archive-status,
     .archive-panel[data-mode="future"] #archive-weather,
     .archive-panel[data-mode="future"] .archive-summary,
     .archive-panel[data-mode="future"] .archive-summary + .share-bar,
     .archive-panel[data-mode="future"] .archive-sub-title,
+    .archive-panel[data-mode="future"] .archive-view-switch,
     .archive-panel[data-mode="future"] .archive-hour-bars,
     .archive-panel[data-mode="future"] .archive-hour-bars ~ p.muted,
     .archive-panel[data-mode="future"] .archive-ride-charts,
@@ -643,6 +658,10 @@
     <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
     <p class="muted">アトラクションは★お気に入りを先頭に表示し、それぞれ選択日の記録平均が長い順で並べます。</p>
     <h3 class="archive-sub-title archive-ride-title">アトラクション別の1日の推移</h3>
+    <div class="archive-view-switch" role="group" aria-label="アトラクション別の表示方法">
+      <button type="button" data-archive-view="chart" aria-pressed="true">グラフ</button>
+      <button type="button" data-archive-view="table" aria-pressed="false">表</button>
+    </div>
     <div id="archive-ride-charts" class="archive-ride-charts" aria-label="アトラクション別の1時間ごとの平均待ち時間"></div>
     <div class="heatmap-scroll" tabindex="0" aria-label="過去のアトラクション別・時間帯別待ち時間表">
       <table class="heatmap-table"><thead><tr id="archive-head"></tr></thead><tbody id="archive-body"></tbody></table>
@@ -2281,6 +2300,25 @@
       more.hidden = rideIds.length <= ARCHIVE_RIDES_PREVIEW;
       more.textContent = archiveRidesExpanded ? '12件に戻す' : `残り${rideIds.length - ARCHIVE_RIDES_PREVIEW}件も表示`;
     }
+
+    // PCの「グラフ／表」切り替え。選んだ表示はこの端末に保持する。
+    const ARCHIVE_VIEW_KEY = 'usj-wait-nav:archive-view';
+    function setArchiveView(view) {
+      const panel = document.querySelector('.archive-panel');
+      if (!panel) return;
+      panel.dataset.archiveView = view;
+      document.querySelectorAll('.archive-view-switch button').forEach(button =>
+        button.setAttribute('aria-pressed', String(button.dataset.archiveView === view)));
+    }
+    let savedArchiveView = 'chart';
+    try { if (localStorage.getItem(ARCHIVE_VIEW_KEY) === 'table') savedArchiveView = 'table'; } catch (_) { /* 保存できない環境ではグラフ表示 */ }
+    setArchiveView(savedArchiveView);
+    document.querySelectorAll('.archive-view-switch button').forEach(button => {
+      button.addEventListener('click', () => {
+        setArchiveView(button.dataset.archiveView);
+        try { localStorage.setItem(ARCHIVE_VIEW_KEY, button.dataset.archiveView); } catch (_) { /* 保存できなくても表示は切り替わる */ }
+      });
+    });
     function renderArchive(data) {
       archiveData = data;
       const hours = data.hours || [];
