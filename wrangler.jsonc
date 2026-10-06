@@ -10,19 +10,13 @@
     "run_worker_first": ["/", "/plan", "/privacy", "/sitemap.xml", "/api/*"]
   },
   "triggers": {
-    "crons": ["*/5 * * * *", "2,22,42 * * * *", "0,20,40 * * * *"]
+    "crons": ["*/5 * * * *", "2,22,42 * * * *"]
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "usj-wait-nav-db",
       "database_id": "56859b57-f992-4bfc-883f-214e3a9dd9b3"
-    }
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "SNAPSHOT_BACKUP",
-      "id": "39b66d8ed9bd4101a6adf063cc4818c0"
     }
   ],
   "observability": {
