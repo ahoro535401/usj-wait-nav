@@ -558,6 +558,12 @@
     .archive-panel[data-mode="future"] .archive-ride-charts,
     .archive-panel[data-mode="future"] #archive-rides-more,
     .archive-panel[data-mode="future"] .heatmap-scroll { display: none !important; }
+    .archive-cal-pass { display: block; max-width: 100%; margin-top: 2px; padding: 0 2px; border-radius: 3px; background: #5b3a8c; color: #fff; font-size: .55rem; line-height: 1.5; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .archive-cal-day .archive-cal-pass { white-space: normal; overflow-wrap: anywhere; line-height: 1.2; text-align: center; }
+    .pass-exclusion-note .archive-cal-pass { display: inline-block; margin-right: 4px; font-size: .7rem; vertical-align: 1px; }
+    .selected-pass-excluded { color: #5b3a8c; font-weight: 700; }
+    :root[data-theme="dark"] .archive-cal-pass { background: #8e6cc4; color: #fff; }
+    :root[data-theme="dark"] .selected-pass-excluded { color: #c9b3f0; }
   </style>
 </head>
 <body>
@@ -646,7 +652,7 @@
     <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
     <p class="muted">過去の日付をタップするとその日の混雑実績、今日以降の日付をタップすると営業時間と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
     <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑実績と今後の営業時間のカレンダー"></div>
-    <p class="muted">年間パス（スタンダード）の入場除外日は、<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/exclusion-dates/universal-prime-annual-pass-standard-exclusison-date" target="_blank" rel="noopener noreferrer">USJ公式の除外日一覧</a>をご確認ください。</p>
+    <p id="pass-exclusion-note" class="muted">年間パス（スタンダード）の入場除外日は、<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/exclusion-dates/universal-prime-annual-pass-standard-exclusison-date" target="_blank" rel="noopener noreferrer">USJ公式の除外日一覧</a>をご確認ください。</p>
     <div id="selected-day" class="selected-day" role="status" hidden>カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
     <p class="muted">営業時間・休止予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
     <div class="archive-controls">
@@ -842,6 +848,7 @@
     let archiveCalendarMonth = '';
     const archiveDayStats = new Map();
     let scheduleDays = new Map();
+    let passExclusion = { days: new Set(), months: new Set(), checkedAt: null, url: null, label: '' };
     let holidayDays = new Map();
     const HOLIDAY_LABELS = { substitute: '振替休日', citizens: '国民の休日' };
     let closuresData = null;
@@ -1151,6 +1158,15 @@
       const hours = document.createElement('span');
       hours.textContent = `営業時間：${hoursLabel(scheduleDays.get(day))}`;
       selectedDay.append(heading, hours);
+      if (passExclusion.url) {
+        const passLine = document.createElement('span');
+        const excluded = passExclusion.days.has(day);
+        passLine.textContent = excluded ? '年パス（スタンダード）：入場除外日'
+          : passExclusion.months.has(day.slice(0, 7)) ? '年パス（スタンダード）：除外日ではありません'
+          : '年パス（スタンダード）：除外日は未発表（または当サイト未反映）';
+        if (excluded) passLine.className = 'selected-pass-excluded';
+        selectedDay.append(passLine);
+      }
       const closures = closuresFor(day);
       const closureHeading = document.createElement('span');
       closureHeading.textContent = closuresData ? `公式掲載の休止予定：${closures.length}件` : '休止予定：未読込';
@@ -1255,6 +1271,56 @@
       }
     }
 
+    // 運営者が手作業で転記した日付だけを読み込む。USJ公式サイトへの通信はしない。
+    function expandPassMonths(months) {
+      const days = new Set();
+      for (const [month, spec] of Object.entries(months)) {
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || typeof spec !== 'string') throw new Error('除外日データの形式が不正です');
+        const [year, number] = month.split('-').map(Number);
+        const lastDay = new Date(Date.UTC(year, number, 0)).getUTCDate();
+        if (!spec) continue;
+        for (const part of spec.split(',')) {
+          if (!/^\d{1,2}(?:-\d{1,2})?$/.test(part)) throw new Error('除外日データの形式が不正です');
+          const [from, to = from] = part.split('-').map(Number);
+          if (from < 1 || to < from || to > lastDay) throw new Error('除外日データの日付が不正です');
+          for (let day = from; day <= to; day++) days.add(`${month}-${String(day).padStart(2, '0')}`);
+        }
+      }
+      return days;
+    }
+    async function loadPassExclusions() {
+      if (passExclusion.url) return;
+      try {
+        const response = await fetch('/api/pass-exclusions', {cache: 'no-store'});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data.months || typeof data.months !== 'object' || Array.isArray(data.months) ||
+            !data.source_url || !data.checked_at) throw new Error('除外日データの形式が不正です');
+        passExclusion = { days: expandPassMonths(data.months), months: new Set(Object.keys(data.months)),
+          checkedAt: data.checked_at, url: data.source_url, label: data.label || '年間パス スタンダード' };
+        renderPassExclusionNote();
+        renderArchiveCalendar();
+        if (selectedDate) showSelectedDay(selectedDate);
+      } catch (cause) {
+        console.warn('年パス除外日を読み込めません（公式一覧への案内を表示します）', cause);
+      }
+    }
+    function renderPassExclusionNote() {
+      const note = document.querySelector('#pass-exclusion-note');
+      if (!note || !passExclusion.url) return;
+      const mark = document.createElement('span');
+      mark.className = 'archive-cal-pass';
+      mark.textContent = '年パス除外';
+      const link = document.createElement('a');
+      link.href = passExclusion.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'USJ公式の除外日一覧';
+      const checked = passExclusion.checkedAt.replaceAll('-', '/');
+      note.replaceChildren(mark, `＝${passExclusion.label}の入場除外日です（${checked}時点で`,
+        link, 'を運営者が確認して転記）。最新の情報は公式でご確認ください。');
+      note.classList.add('pass-exclusion-note');
+    }
     async function loadSchedule() {
       try {
         const response = await fetch('/api/schedule', {cache: 'no-store'});
@@ -1264,7 +1330,7 @@
         if (PAGE === 'plan') renderArchiveCalendar();
         todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
         updateParkStateBanner();
-        if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length) {
+        if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length && !passExclusion.url) {
           selectedDate = null;
           selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
           selectedDay.hidden = true;
@@ -2053,7 +2119,9 @@
       const minMonth = (days[0] || today).slice(0, 7);
       const lastPlanDay = [...scheduleDays.keys()].sort().at(-1) || today;
       const lastClosureDay = closuresData ? closuresData.closures.map(item => item.end).filter(Boolean).sort().at(-1) : null;
-      const maxMonth = [today.slice(0, 7), lastPlanDay.slice(0, 7), (lastClosureDay || today).slice(0, 7)].sort().at(-1);
+      const lastPassMonth = [...passExclusion.months].sort().at(-1);
+      const maxMonth = [today.slice(0, 7), lastPlanDay.slice(0, 7), (lastClosureDay || today).slice(0, 7),
+        lastPassMonth ? shiftArchiveMonth(lastPassMonth, 1) : today.slice(0, 7)].sort().at(-1);
       if (!archiveCalendarMonth) archiveCalendarMonth = (days.at(-1) || today).slice(0, 7);
       const [year, month] = archiveCalendarMonth.split('-').map(Number);
       const head = document.createElement('div');
@@ -2089,7 +2157,7 @@
         const dow = (firstDow + date - 1) % 7;
         const item = recorded.get(key);
         const plan = key >= today
-          ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) ? {} : null)) : null;
+          ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) || passExclusion.url ? {} : null)) : null;
         const cell = document.createElement(item || plan ? 'button' : 'span');
         cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${holidayDays.has(key) ? ' holiday' : ''}${key === today ? ' today' : ''}`;
         const label = document.createElement('span');
@@ -2157,6 +2225,15 @@
           cell.title = cell.title ? `${cell.title}・${holiday.label}` : `${month}/${date}：${holiday.label}`;
           if (cell.hasAttribute('aria-label'))
             cell.setAttribute('aria-label', `${holiday.label}。${cell.getAttribute('aria-label')}`);
+        }
+        if (passExclusion.days.has(key)) {
+          cell.classList.add('is-pass-excluded');
+          const pass = document.createElement('span');
+          pass.className = 'archive-cal-pass';
+          pass.textContent = '年パス除外';
+          cell.append(pass);
+          cell.title = `${cell.title || `${month}/${date}`}・年パス（スタンダード）除外日`;
+          if (cell.hasAttribute('aria-label')) cell.setAttribute('aria-label', `年パス スタンダード除外日。${cell.getAttribute('aria-label')}`);
         }
         grid.append(cell);
       }
@@ -2351,6 +2428,7 @@
       const last = hourMinuteFormat.format(new Date(data.last_at * 1000));
       const archiveHoliday = holidayDays.get(data.day);
       archiveStatus.textContent = `${data.day.replaceAll('-', '/')}${archiveHoliday ? `（${archiveHoliday.label}）` : ''}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
+      if (passExclusion.days.has(data.day)) archiveStatus.textContent += '（年パス スタンダード除外日）';
       const weather = weatherInfo(data.weather);
       document.querySelector('#archive-weather').textContent = weather
         ? `天気（気象庁アメダス大阪の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
@@ -2968,6 +3046,7 @@
     async function refresh() {
       if (button.disabled) return;
       loadHolidays();
+      if (PAGE === 'plan') loadPassExclusions();
       loadSchedule();
       loadClosures();
       if (PAGE === 'plan') loadEvents();
