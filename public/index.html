@@ -514,6 +514,19 @@
     :root[data-theme="dark"] .show-view-toggle { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     :root[data-theme="dark"] .show-list-next strong { color: #8fb6ff; }
     :root[data-theme="dark"] .show-list-next small, :root[data-theme="dark"] .show-list-later { color: #a9b6c4; }
+    #public-summary[hidden] { display: none; }
+    .show-list-group { margin: 14px 0 0; font-size: .85rem; font-weight: 700; color: #526477; }
+    .show-list li.is-started { opacity: .75; }
+    .show-list li.is-started .show-list-next strong { color: #526477; }
+    :root[data-theme="dark"] .show-list-group,
+    :root[data-theme="dark"] .show-list li.is-started .show-list-next strong { color: #a9b6c4; }
+    .archive-cal-longterm { margin: 8px 0 4px; padding: 8px 10px; border-radius: 8px; background: #fbf1f1; color: #7b1f1f; font-size: .85rem; line-height: 1.5; }
+    .archive-cal-longterm[hidden] { display: none; }
+    .archive-cal-help { margin-top: 8px; }
+    .archive-cal-help > summary { cursor: pointer; color: #1058a7; font-size: .85rem; font-weight: 700; min-height: 32px; }
+    .archive-cal-help > p { margin: 6px 0 0; }
+    :root[data-theme="dark"] .archive-cal-longterm { background: #33241f; color: #ffb8ad; }
+    :root[data-theme="dark"] .archive-cal-help > summary { color: #9cc4ff; }
     .archive-panel[data-mode="future"] .archive-controls,
     .archive-panel[data-mode="future"] #archive-status,
     .archive-panel[data-mode="future"] #archive-weather,
@@ -601,7 +614,7 @@
       </ul>
     </div>
     <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
-    <!--PUBLIC_SUMMARY-->
+    <div id="public-summary"><!--PUBLIC_SUMMARY--></div>
     <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は、公式案内では10月9日まで18:30から、10月10日以降は18:00から閉園までの夜間版です。表示する運行状況はデータ提供元の掲載値です。</p>
   </section>
   <div class="bar" data-only="now">
@@ -1385,22 +1398,26 @@
       const isToday = data.day === jstToday();
       const rows = data.shows.map(show => {
         const starts = show.times.map(slot => Date.parse(slot.start)).filter(Number.isFinite).sort((a, b) => a - b);
+        // 今日は、これからの回と、開始から10分以内の回だけを残す。
         const remaining = isToday ? starts.filter(time => time >= now - 10 * 60 * 1000) : starts;
-        return {show, remaining};
+        const upcoming = isToday ? remaining.filter(time => time > now) : remaining;
+        const started = isToday ? (remaining.filter(time => time <= now).at(-1) ?? null) : null;
+        return {show, upcoming, started};
       });
-      const active = rows.filter(row => row.remaining.length).sort((a, b) => a.remaining[0] - b.remaining[0]);
-      const finished = rows.length - active.length;
-      if (!active.length) {
+      const upcomingRows = rows.filter(row => row.upcoming.length).sort((a, b) => a.upcoming[0] - b.upcoming[0]);
+      const startedRows = rows.filter(row => !row.upcoming.length && row.started).sort((a, b) => b.started - a.started);
+      const finished = rows.length - upcomingRows.length - startedRows.length;
+      if (!upcomingRows.length && !startedRows.length) {
         const p = document.createElement('p');
         p.className = 'muted';
         p.textContent = 'この日のショーはすべて終了しました。';
         box.append(p);
         return;
       }
-      const list = document.createElement('ul');
-      list.className = 'show-list';
-      for (const {show, remaining} of active) {
+      const fmt = value => hourMinuteFormat.format(new Date(value));
+      function showItem(show, first, later, notes, started) {
         const item = document.createElement('li');
+        if (started) item.className = 'is-started';
         const detail = showDetails.get(show.name);
         const name = document.createElement(detail?.url ? 'a' : 'span');
         name.className = 'show-list-name';
@@ -1408,15 +1425,9 @@
         if (detail?.url) { name.href = detail.url; name.target = '_blank'; name.rel = 'noopener noreferrer'; }
         const next = document.createElement('div');
         next.className = 'show-list-next';
-        const first = remaining[0];
         const time = document.createElement('strong');
-        time.textContent = hourMinuteFormat.format(new Date(first));
+        time.textContent = fmt(first);
         next.append(time);
-        const notes = [];
-        if (isToday) {
-          const minutes = Math.round((first - now) / 60000);
-          notes.push(minutes <= 0 ? '開始済み' : minutes < 60 ? `あと${minutes}分` : `あと${Math.floor(minutes / 60)}時間${minutes % 60}分`);
-        }
         if (detail?.note) notes.push(detail.note);
         if (notes.length) {
           const small = document.createElement('small');
@@ -1424,16 +1435,37 @@
           next.append(small);
         }
         item.append(name, next);
-        if (remaining.length > 1) {
-          const later = document.createElement('div');
-          later.className = 'show-list-later';
-          const shown = remaining.slice(1, 6).map(value => hourMinuteFormat.format(new Date(value)));
-          later.textContent = `その後：${shown.join('・')}${remaining.length > 6 ? ` ほか${remaining.length - 6}回` : ''}`;
-          item.append(later);
+        if (later.length) {
+          const rest = document.createElement('div');
+          rest.className = 'show-list-later';
+          rest.textContent = `その後：${later.slice(0, 5).map(fmt).join('・')}${later.length > 5 ? ` ほか${later.length - 5}回` : ''}`;
+          item.append(rest);
         }
-        list.append(item);
+        return item;
       }
-      box.append(list);
+      if (upcomingRows.length) {
+        const list = document.createElement('ul');
+        list.className = 'show-list';
+        for (const {show, upcoming, started} of upcomingRows) {
+          const notes = [];
+          if (isToday) {
+            const minutes = Math.round((upcoming[0] - now) / 60000);
+            notes.push(minutes < 60 ? `あと${minutes}分` : `あと${Math.floor(minutes / 60)}時間${minutes % 60}分`);
+            if (started) notes.push(`${fmt(started)}の回は開始済み`);
+          }
+          list.append(showItem(show, upcoming[0], upcoming.slice(1), notes, false));
+        }
+        box.append(list);
+      }
+      if (startedRows.length) {
+        const heading = document.createElement('p');
+        heading.className = 'show-list-group';
+        heading.textContent = '開始したばかりのショー（開始から10分以内）';
+        const list = document.createElement('ul');
+        list.className = 'show-list';
+        for (const {show, started} of startedRows) list.append(showItem(show, started, [], ['開始済み'], true));
+        box.append(heading, list);
+      }
       if (finished) {
         const p = document.createElement('p');
         p.className = 'muted';
@@ -1995,7 +2027,8 @@
       const today = jstToday();
       const minMonth = (days[0] || today).slice(0, 7);
       const lastPlanDay = [...scheduleDays.keys()].sort().at(-1) || today;
-      const maxMonth = [today.slice(0, 7), lastPlanDay.slice(0, 7)].sort().at(-1);
+      const lastClosureDay = closuresData ? closuresData.closures.map(item => item.end).filter(Boolean).sort().at(-1) : null;
+      const maxMonth = [today.slice(0, 7), lastPlanDay.slice(0, 7), (lastClosureDay || today).slice(0, 7)].sort().at(-1);
       if (!archiveCalendarMonth) archiveCalendarMonth = (days.at(-1) || today).slice(0, 7);
       const [year, month] = archiveCalendarMonth.split('-').map(Number);
       const head = document.createElement('div');
@@ -2030,7 +2063,8 @@
         const key = `${archiveCalendarMonth}-${String(date).padStart(2, '0')}`;
         const dow = (firstDow + date - 1) % 7;
         const item = recorded.get(key);
-        const plan = key >= today ? scheduleDays.get(key) : null;
+        const plan = key >= today
+          ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) ? {} : null)) : null;
         const cell = document.createElement(item || plan ? 'button' : 'span');
         cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${holidayDays.has(key) ? ' holiday' : ''}${key === today ? ' today' : ''}`;
         const label = document.createElement('span');
@@ -2071,7 +2105,7 @@
           cell.classList.add('is-future');
           cell.setAttribute('aria-pressed', String(selectedDate === key));
           value.textContent = plan.status === 'CLOSED' ? '休園' : plan.opens ? `${plan.opens.replace(/^0/, '')}〜` : '未掲載';
-          const closureCount = closuresFor(key).length;
+          const closureCount = closuresFor(key).filter(item => item.end).length;
           cell.title = `${month}/${date}${key === today ? '（今日）' : ''}：営業時間 ${hoursLabel(plan)}` +
             (closureCount ? `・休止予定${closureCount}件` : '');
           cell.setAttribute('aria-label', `${cell.title}。タップで営業時間と休止予定を表示`);
@@ -2113,8 +2147,19 @@
       }
       const note = document.createElement('p');
       note.className = 'muted';
-      note.textContent = '今日以降の日付には公表の開園時刻（休止予定がある日は件数）を表示します。数字は記録された営業中の待ち時間の平均です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
-      box.append(head, grid, legend, note);
+      note.textContent = '今日以降の日付には公表の開園時刻（期間が決まっている休止がある日は件数）を表示します。数字は記録された営業中の待ち時間の平均です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
+      const longTerm = closuresData ? closuresData.closures.filter(item => !item.end) : [];
+      const longNote = document.createElement('p');
+      longNote.className = 'archive-cal-longterm';
+      longNote.hidden = !longTerm.length;
+      longNote.textContent = `長期休止中（${longTerm.length}件・当面の間）：` +
+        longTerm.map(item => item.title + (item.start > today ? `（${formatEventDate(item.start)}から）` : '')).join('、');
+      const help = document.createElement('details');
+      help.className = 'archive-cal-help';
+      const helpSummary = document.createElement('summary');
+      helpSummary.textContent = 'カレンダーの見方';
+      help.append(helpSummary, note);
+      box.append(head, grid, longNote, legend, help);
       loadArchiveMonthStats();
     }
     async function loadArchiveMonthStats() {
@@ -2731,6 +2776,8 @@
       renderListState();
       syncMobileView();
       updateRidesPreview();
+      const publicSummary = document.querySelector('#public-summary');
+      if (publicSummary) publicSummary.hidden = rides.length > 0;
       focusLinkedRide();
     }
 
