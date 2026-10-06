@@ -1360,8 +1360,8 @@
       link.rel = 'noopener noreferrer';
       link.textContent = 'USJ公式の除外日一覧';
       const checked = passExclusion.checkedAt.replaceAll('-', '/');
-      note.replaceChildren(mark, `＝${passExclusion.label}の入場除外日です（${checked}時点で`,
-        link, 'を運営者が確認して転記）。最新の情報は公式でご確認ください。');
+      note.replaceChildren(mark, `＝${passExclusion.label}の入場除外日です（${checked}確認）。最新の情報は`,
+        link, 'でご確認ください。');
       note.classList.add('pass-exclusion-note');
     }
     async function loadSchedule() {
