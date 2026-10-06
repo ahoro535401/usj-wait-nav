@@ -550,6 +550,7 @@
     :root[data-theme="dark"] .archive-view-switch button[aria-pressed="true"] { background: #2f6fc0; color: #fff; }
     .archive-panel[data-mode="future"] .archive-controls,
     .archive-panel[data-mode="future"] #archive-status,
+    .archive-panel[data-mode="future"] #archive-ticket-price,
     .archive-panel[data-mode="future"] #archive-weather,
     .archive-panel[data-mode="future"] .archive-summary,
     .archive-panel[data-mode="future"] .archive-summary + .share-bar,
@@ -664,6 +665,7 @@
       <label class="archive-hour-picker">表示する時間帯 <select id="archive-hours" aria-label="過去の表示時間帯"></select></label>
     </div>
     <p id="archive-status" class="muted" role="status">過去の記録を確認中…</p>
+    <p id="archive-ticket-price" class="muted" hidden></p>
     <p id="archive-weather" class="muted archive-weather"></p>
     <div class="archive-summary" aria-label="選択日の記録概要">
       <div><small>この日の平均待ち時間</small><strong id="archive-average">—</strong></div>
@@ -1338,9 +1340,10 @@
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.textContent = 'USJ公式の価格カレンダー';
-        note.replaceChildren(`1デイ・スタジオ・パスの大人（12歳以上・小学生除く）税込価格を${formatEventDate(data.checked_at)}の購入画面から手動転記しました。画面の最安表示から大人料金と判定しています。価格は変わる場合があります。掲載のない日は未確認です。購入前に`, link, 'で最新価格をご確認ください。');
+        note.replaceChildren(`1デイ・スタジオ・パスの大人（12歳以上・小学生除く）税込価格です。10月5日・6日は利用者申告、それ以降は${formatEventDate(data.checked_at)}の購入画面から手動転記しました。画面の最安表示から大人料金と判定しています。価格は変わる場合があります。掲載のない日は未確認です。購入前に`, link, 'で最新価格をご確認ください。');
         renderArchiveCalendar();
         if (selectedDate) showSelectedDay(selectedDate);
+        if (archiveData) renderArchiveTicketPrice(archiveData.day);
       } catch (cause) {
         console.warn('チケット価格を読み込めません（公式の価格カレンダーをご案内します）', cause);
       }
@@ -2150,6 +2153,14 @@
       archiveStatus.scrollIntoView({behavior: 'smooth', block: 'start'});
       history.replaceState(null, '', `/plan?date=${encodeURIComponent(day)}`);
     }
+    function renderArchiveTicketPrice(day) {
+      const line = document.querySelector('#archive-ticket-price');
+      const price = ticketPrices.adult.get(day);
+      line.hidden = !Number.isInteger(price);
+      line.textContent = Number.isInteger(price)
+        ? `当日の1デイ・スタジオ・パス（大人・税込）：${price.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認の掲載価格）`
+        : '';
+    }
     function renderArchiveCalendar() {
       const box = document.querySelector('#archive-calendar');
       box.replaceChildren();
@@ -2198,6 +2209,7 @@
         const key = `${archiveCalendarMonth}-${String(date).padStart(2, '0')}`;
         const dow = (firstDow + date - 1) % 7;
         const item = recorded.get(key);
+        const adultPrice = ticketPrices.adult.get(key);
         const plan = key >= today
           ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) || passExclusion.url || ticketPrices.adult.has(key) ? {} : null)) : null;
         const cell = document.createElement(item || plan ? 'button' : 'span');
@@ -2241,7 +2253,6 @@
           cell.setAttribute('aria-pressed', String(selectedDate === key));
           value.textContent = plan.status === 'CLOSED' ? '休園' : plan.opens ? `${plan.opens.replace(/^0/, '')}〜` : '未掲載';
           const closureCount = closuresFor(key).filter(item => item.end).length;
-          const adultPrice = ticketPrices.adult.get(key);
           cell.title = `${month}/${date}${key === today ? '（今日）' : ''}：営業時間 ${hoursLabel(plan)}` +
             (Number.isInteger(adultPrice) ? `・1デイ大人${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認）` : '') +
             (closureCount ? `・休止予定${closureCount}件` : '');
@@ -2267,6 +2278,15 @@
           }
         } else if (key === today) value.textContent = '今日';
         if (!cell.firstChild) cell.append(label, value);
+        if (key < today && Number.isInteger(adultPrice)) {
+          const price = document.createElement('span');
+          price.className = 'archive-cal-price';
+          price.textContent = `¥${adultPrice.toLocaleString('ja-JP')}`;
+          cell.append(price);
+          const priceLabel = `1デイ大人${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認の掲載価格）`;
+          cell.title = `${cell.title || `${month}/${date}`}・${priceLabel}`;
+          if (cell.hasAttribute('aria-label')) cell.setAttribute('aria-label', `${cell.getAttribute('aria-label')}。${priceLabel}`);
+        }
         const holiday = holidayDays.get(key);
         if (holiday) {
           const tag = document.createElement('span');
@@ -2480,6 +2500,7 @@
       const archiveHoliday = holidayDays.get(data.day);
       archiveStatus.textContent = `${data.day.replaceAll('-', '/')}${archiveHoliday ? `（${archiveHoliday.label}）` : ''}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
       if (passExclusion.days.has(data.day)) archiveStatus.textContent += '（年パス スタンダード除外日）';
+      renderArchiveTicketPrice(data.day);
       const weather = weatherInfo(data.weather);
       document.querySelector('#archive-weather').textContent = weather
         ? `天気（気象庁アメダス大阪の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
