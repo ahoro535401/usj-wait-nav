@@ -695,7 +695,7 @@ async function route(request, env) {
     } catch (error) {
       console.warn('Summary database read failed', error);
     }
-    let summary = '<p class="muted">最新の待ち時間と保存済み履歴は、この下の表で確認できます。</p>';
+    let summary = '<p class="muted">最新の待ち時間と保存済み履歴は、このページの表で確認できます。</p>';
     if (payload && fetchedAt && Date.now() - Date.parse(fetchedAt) <= 15 * 60 * 1000) {
       const rides = JSON.parse(payload);
       const now = Date.now();
@@ -713,7 +713,7 @@ async function route(request, env) {
         .format(new Date(fetchedAt));
       summary = `<p class="muted">${time} JST取得：待ち時間を確認できるアトラクション${open.length}件` +
         `${unknown ? `、現在値を確認できない${unknown}件` : ''}${closed ? `、休止中${closed}件` : ''}` +
-        `${max == null ? '' : `。掲載値の最長${max}分`}。掲載値は下の表をご覧ください。</p>`;
+        `${max == null ? '' : `。掲載値の最長${max}分`}。アトラクションごとの掲載値はこのページの表で確認できます。</p>`;
     }
     // 営業時間外は、件数ではなく現在の状態を静的HTMLにも示す。
     let todayRow = null;
