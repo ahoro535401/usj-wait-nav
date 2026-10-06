@@ -68,7 +68,7 @@ const json = (value, status = 200) => Response.json(value, {
 });
 const readMeta = async (db, key) => (await db.prepare('SELECT value FROM app_meta WHERE key = ?').bind(key).first())?.value ?? null;
 const writeMeta = (db, key, value) => db.prepare(
-  'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+  'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE value <> excluded.value'
 ).bind(key, value).run();
 const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : embeddedFetch(request);
 async function fallbackData(request, env) {
@@ -377,7 +377,7 @@ async function refreshLive(env, capturedAt = epoch(), save = false) {
     await env.DB.batch([
       env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('rides_payload', JSON.stringify(rides)),
       env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('rides_fetched_at', fetchedAt),
-      env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('rides_error', ''),
+      env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE value <> excluded.value').bind('rides_error', ''),
     ]);
     if (save) await saveSnapshot(env.DB, rides, capturedAt);
     return true;
@@ -393,14 +393,31 @@ async function saveSnapshot(db, rides, capturedAt) {
   if (!recent.length) return false;
   const existing = await db.prepare('SELECT slot FROM snapshots WHERE slot = ?').bind(slot).first();
   if (existing) return false;
+  const day = jstDay(capturedAt);
+  let today = null;
+  try { today = JSON.parse(await readMeta(db, 'today_payload')); } catch (_) { /* 初回はD1の記録から構築する */ }
+  const latest = await db.prepare('SELECT slot FROM snapshots WHERE slot>=? AND slot<? ORDER BY slot DESC LIMIT 1')
+    .bind(dayStart(capturedAt) / SNAPSHOT_SECONDS, (dayStart(capturedAt) + 86400) / SNAPSHOT_SECONDS).first();
+  if (today?.day !== day || !Array.isArray(today.snapshots) ||
+      (latest?.slot ?? null) !== (today.snapshots[0]?.slot ?? null)) {
+    today = await readTodayMatrix(db, capturedAt);
+  }
+  const snapshot = { slot, captured_at: capturedAt, rides: {} };
   const statements = [db.prepare('INSERT OR IGNORE INTO snapshots (slot,captured_at) VALUES (?,?)').bind(slot, capturedAt)];
   for (const ride of recent) {
     const wait = ride.is_open ? Number(ride.wait_time) : null;
     if (ride.is_open && (!Number.isInteger(wait) || wait < 0 || wait > 9999)) continue;
+    const sample = { ride_id: ride.id, source: ride.source };
+    if (visibleSample(sample)) snapshot.rides[String(ride.id)] = {
+      wait_minutes: wait, is_open: !!ride.is_open, estimated: ride.source === DARK_ESTIMATE_SOURCE,
+    };
     statements.push(db.prepare(
       'INSERT OR IGNORE INTO ride_samples (slot,ride_id,wait_minutes,is_open,source) VALUES (?,?,?,?,?)'
     ).bind(slot, ride.id, wait, ride.is_open ? 1 : 0, ride.source));
   }
+  statements.push(db.prepare(
+    'INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value'
+  ).bind('today_payload', JSON.stringify({ day, snapshots: [snapshot, ...today.snapshots] })));
   await db.batch(statements);
   return true;
 }
@@ -423,10 +440,21 @@ async function refreshSchedule(db) {
     }
   }
   if (!days.length) throw new Error('営業時間データが空です');
-  const statements = [db.prepare('DELETE FROM park_days')];
-  for (const item of days) statements.push(db.prepare(
-    'INSERT INTO park_days (day,opens,closes,status) VALUES (?,?,?,?)'
-  ).bind(item.day, item.opens, item.closes, item.status));
+  const { results: existing } = await db.prepare('SELECT day,opens,closes,status FROM park_days').all();
+  const previous = new Map(existing.map(item => [item.day, item]));
+  const next = new Set(days.map(item => item.day));
+  const statements = [];
+  for (const item of days) {
+    const old = previous.get(item.day);
+    if (old && old.opens === item.opens && old.closes === item.closes && old.status === item.status) continue;
+    statements.push(db.prepare(
+      'INSERT INTO park_days (day,opens,closes,status) VALUES (?,?,?,?) ' +
+      'ON CONFLICT(day) DO UPDATE SET opens=excluded.opens,closes=excluded.closes,status=excluded.status'
+    ).bind(item.day, item.opens, item.closes, item.status));
+  }
+  for (const item of existing) {
+    if (!next.has(item.day)) statements.push(db.prepare('DELETE FROM park_days WHERE day=?').bind(item.day));
+  }
   statements.push(db.prepare(
     'INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value'
   ).bind('schedule_fetched_at', new Date().toISOString()));
@@ -566,8 +594,8 @@ async function history(db, rideId, days) {
   const since = epoch() - days * 86400;
   const { results } = await db.prepare(
     'SELECT h.captured_at,s.wait_minutes,s.is_open,s.source,s.ride_id FROM ride_samples s JOIN snapshots h USING(slot) ' +
-    'WHERE s.ride_id=? AND h.captured_at>=? ORDER BY s.slot LIMIT 2200'
-  ).bind(rideId, since).all();
+    'WHERE s.ride_id=? AND s.slot>=? AND h.captured_at>=? ORDER BY s.slot LIMIT 2200'
+  ).bind(rideId, Math.floor(since / SNAPSHOT_SECONDS), since).all();
   const hours = new Map();
   for (const row of results.filter(visibleSample)) {
     const at = Math.floor((row.captured_at + JST_OFFSET) / 3600) * 3600 - JST_OFFSET;
@@ -587,7 +615,7 @@ async function history(db, rideId, days) {
   })) };
 }
 
-async function todayMatrix(db, seconds) {
+async function readTodayMatrix(db, seconds) {
   const start = dayStart(seconds);
   const { results } = await db.prepare(
     'SELECT h.slot,h.captured_at,s.ride_id,s.wait_minutes,s.is_open,s.source FROM snapshots h ' +
@@ -607,14 +635,21 @@ async function todayMatrix(db, seconds) {
   return { day: jstDay(seconds), snapshots };
 }
 
+async function todayMatrix(db, seconds) {
+  let stored = null;
+  try { stored = JSON.parse(await readMeta(db, 'today_payload')); } catch (_) { /* 未保存なら従来のSQLで読む */ }
+  if (stored?.day === jstDay(seconds) && Array.isArray(stored.snapshots)) return stored;
+  return readTodayMatrix(db, seconds);
+}
+
 async function archiveDates(db, seconds) {
   const { results } = await db.prepare(
     "SELECT date(h.captured_at + 32400, 'unixepoch') AS day, COUNT(*) AS snapshots, " +
     'MIN(h.captured_at) AS first_at, MAX(h.captured_at) AS last_at, ' +
     'w.temp_max,w.temp_min,w.precip_total,w.precip_daytime,w.sun_hours,w.coverage ' +
     'FROM snapshots h LEFT JOIN weather_days w ON w.day=date(h.captured_at + 32400, \'unixepoch\') ' +
-    "WHERE h.captured_at < ? GROUP BY date(h.captured_at + 32400, 'unixepoch') ORDER BY day DESC"
-  ).bind(dayStart(seconds)).all();
+    "WHERE h.slot < ? GROUP BY date(h.captured_at + 32400, 'unixepoch') ORDER BY day DESC"
+  ).bind(dayStart(seconds) / SNAPSHOT_SECONDS).all();
   return { days: results.map(({temp_max, temp_min, precip_total, precip_daytime, sun_hours, coverage, ...row}) => ({
     ...row, weather: coverage > 0 ? {day: row.day, temp_max, temp_min, precip_total, precip_daytime, sun_hours, coverage} : null,
   })) };
@@ -887,9 +922,10 @@ async function fallbackRoute(request, env) {
 }
 
 const API_CACHE_SECONDS = new Map([
+  ['/', 60], ['/plan', 60],
   ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
-  ['/api/archive/day', 86400],
+  ['/api/archive/day', 86400], ['/api/history', 300],
 ]);
 
 export default {
