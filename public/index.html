@@ -624,7 +624,7 @@
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:65%"></span><span class="skeleton" style="width:3em"></span></li>
     </ol></div>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
-    <details id="heatmap-options" class="heatmap-options" open>
+    <details id="heatmap-options" class="heatmap-options">
       <summary>絞り込み・並び順・色の見方</summary>
     <div class="ride-filters" aria-label="アトラクション絞り込み">
       <label>身長の目安 <select id="height-filter"><option value="all">指定なし</option><option value="0">身長制限なし</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
@@ -860,7 +860,6 @@
     const archiveBody = document.querySelector('#archive-body');
     const mobileHeatmap = window.matchMedia('(max-width: 620px)');
     const narrowHeatmap = window.matchMedia('(max-width: 420px)');
-    if (mobileHeatmap.matches) heatmapOptions.open = false;
     const heightFilter = document.querySelector('#height-filter');
     const childSwitchFilter = document.querySelector('#child-switch-filter');
     const favoritesFilter = document.querySelector('#favorites-filter');
@@ -3245,7 +3244,6 @@
     });
     for (const breakpoint of [mobileHeatmap, narrowHeatmap]) {
       breakpoint.addEventListener('change', () => {
-        if (breakpoint === mobileHeatmap) heatmapOptions.open = !mobileHeatmap.matches;
         if (todayData) renderToday(todayData);
         archivePage = 0;
         if (archiveData) renderArchive(archiveData);
