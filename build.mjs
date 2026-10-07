@@ -24,7 +24,7 @@ for (const [route, name] of Object.entries(files)) {
 // Binary files must be base64 encoded instead of being read as UTF-8 text.
 const binaryFiles = {
   '/og.png': 'og.png',
-  '/og-share.jpg': 'og-share.jpg',
+  '/og-photo.jpg': 'og-photo.jpg',
   '/park-map.jpg': 'park-map.jpg',
   '/favicon.ico': 'favicon.ico',
   '/apple-touch-icon.png': 'apple-touch-icon.png',
