@@ -61,7 +61,7 @@
     .history-panel[hidden] { display: none !important; }
     html[data-page="now"] [data-only="plan"], html[data-page="plan"] [data-only="now"] { display: none !important; }
     html[data-page="now"] #show-dates { display: none; }
-    .page-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 0 10px; padding: 4px; border-radius: 10px; background: #e8eef5; }
+    .page-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; margin: 0 0 10px; padding: 4px; border-radius: 10px; background: #e8eef5; }
     .page-tabs a { display: flex; min-height: 44px; align-items: center; justify-content: center; border-radius: 8px; font-weight: 700; text-decoration: none; color: #1058a7; }
     .page-tabs a[aria-current="page"] { background: #1058a7; color: #fff; }
     .sticky-nav { position: sticky; top: 0; z-index: 20; margin: 0 0 14px; padding: 6px 0 8px; background: #f4f7fa; box-shadow: 0 1px 0 rgba(15, 23, 42, .06); }
@@ -609,7 +609,7 @@
     <button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button>
   </header>
   <div class="sticky-nav">
-    <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/plan" data-tab="plan">行く前に</a></nav>
+    <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/map">地図で探す</a><a href="/plan" data-tab="plan">行く前に</a></nav>
     <nav class="jump-nav" data-only="now" aria-label="ページ内の項目"><a href="#heatmap-title">待ち時間</a><a href="#shows-title">ショー</a><a href="#closures-title">休止</a><a href="#weather-title">天気</a></nav>
     <nav class="jump-nav" data-only="plan" aria-label="ページ内の項目"><a href="#archive-title">カレンダー</a><a href="#shows-title">ショー</a><a href="#events-title">イベント</a></nav>
   </div>

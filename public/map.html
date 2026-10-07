@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142233">
+  <title>USJアトラクション地図と待ち時間｜USJ待ち時間ナビ</title>
+  <meta name="description" content="USJのアトラクションを地図から探せます。地図を拡大すると施設ごとの待ち時間を表示します。個人運営の非公式サイトです。">
+  <link rel="canonical" href="https://usj-wait-nav.kotaro-7436.workers.dev/map">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    :root { color-scheme: light; font-family: system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; color:#172536; background:#f3f6fa; }
+    * { box-sizing:border-box; }
+    body { margin:0; }
+    a { color:#145aa5; }
+    button { font:inherit; }
+    header { display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; padding:12px max(14px,calc((100vw - 1120px)/2)); background:#fff; border-bottom:1px solid #d8e1eb; }
+    header .brand { font-size:1.15rem; font-weight:800; text-decoration:none; color:#172536; }
+    header .brand b { display:inline-block; padding:2px 5px; border-radius:4px; background:#145aa5; color:#fff; margin-right:5px; }
+    header nav { margin-left:auto; display:flex; flex-wrap:wrap; gap:4px; }
+    header nav a { display:inline-block; min-height:44px; padding:10px 12px; border-radius:8px; text-decoration:none; font-weight:700; }
+    header nav a[aria-current] { background:#145aa5; color:#fff; }
+    main { max-width:1120px; margin:auto; padding:16px 12px 44px; }
+    h1 { margin:3px 0 8px; font-size:clamp(1.45rem,4vw,2rem); }
+    .intro { margin:0 0 12px; color:#415268; line-height:1.6; }
+    .map-shell { background:#fff; padding:12px; border:1px solid #d8e1eb; border-radius:14px; box-shadow:0 2px 12px #1725360a; }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+    .toolbar button, .area-button { min-height:44px; padding:8px 14px; border:1px solid #a8bdd3; border-radius:9px; background:#f5f9fd; color:#164b86; cursor:pointer; font-weight:700; }
+    .toolbar button:hover,.area-button:hover,.toolbar button:focus-visible,.area-button:focus-visible { background:#dceeff; outline:2px solid #145aa5; outline-offset:1px; }
+    #zoom-level { min-width:3.5em; font-variant-numeric:tabular-nums; font-weight:700; }
+    #map-status { margin-left:auto; color:#415268; font-size:.88rem; }
+    .map-viewport { position:relative; width:100%; aspect-ratio:1280/1137; overflow:hidden; border-radius:9px; background:#d9e6d4; touch-action:none; cursor:grab; user-select:none; }
+    .map-viewport.is-dragging { cursor:grabbing; }
+    .map-stage { position:absolute; inset:0; transform-origin:0 0; will-change:transform; }
+    .map-stage img { width:100%; height:100%; object-fit:fill; display:block; pointer-events:none; }
+    .pin-layer { position:absolute; inset:0; pointer-events:none; }
+    .map-pin { position:absolute; transform:translate(-50%,-100%) scale(var(--inverse-scale,1)); transform-origin:center bottom; pointer-events:auto; min-width:38px; min-height:38px; border:2px solid #fff; border-radius:20px 20px 20px 4px; background:#12599e; color:#fff; box-shadow:0 2px 8px #0009; cursor:pointer; font-size:.8rem; font-weight:800; white-space:nowrap; padding:6px 8px; }
+    .map-pin:hover,.map-pin:focus-visible,.map-pin[aria-pressed="true"] { outline:3px solid #ffd34f; outline-offset:2px; z-index:2; }
+    .map-pin[data-tone="short"] { background:#087d60; }
+    .map-pin[data-tone="mid"] { background:#af6617; }
+    .map-pin[data-tone="long"] { background:#9c2638; }
+    .map-pin[data-tone="closed"] { background:#64748b; }
+    .map-pin[data-tone="unknown"] { background:#4a5b70; }
+    .map-pin .pin-label { display:none; }
+    .map-pin:hover .pin-label,.map-pin:focus-visible .pin-label,.map-pin[aria-pressed="true"] .pin-label { display:inline; margin-left:4px; }
+    .map-pin.is-hidden { display:none; }
+    .area-pins { position:absolute; inset:0; pointer-events:none; }
+    .area-pin { position:absolute; transform:translate(-50%,-50%) scale(var(--inverse-scale,1)); pointer-events:auto; min-width:58px; min-height:44px; padding:6px 10px; border:0; border-radius:22px; background:transparent; color:transparent; cursor:pointer; font-size:.8rem; font-weight:800; white-space:nowrap; }
+    .area-pin:hover { outline:2px solid #fff; outline-offset:2px; }
+    .map-viewport[data-zoom="pins"] .area-pin,.map-viewport[data-zoom="detail"] .area-pin { display:none; }
+    .map-viewport[data-zoom="overview"] .map-pin { display:none; }
+    .map-viewport[data-zoom="overview"] .area-pin:focus-visible { outline:3px solid #ffd34f; }
+    .map-foot { margin:10px 2px 0; display:flex; gap:6px 14px; flex-wrap:wrap; color:#415268; font-size:.84rem; }
+    .map-foot span { white-space:nowrap; }
+    .map-foot i { display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:-1px; margin-right:3px; }
+    .map-foot .short { background:#087d60; }.map-foot .mid { background:#af6617; }.map-foot .long { background:#9c2638; }.map-foot .closed { background:#64748b; }
+    #selection { margin:14px 0 0; padding:14px; min-height:90px; background:#f5f9fd; border:1px solid #cbd9e8; border-radius:10px; }
+    #selection[hidden] { display:none; }
+    #selection { position:fixed; z-index:100; left:50%; right:auto; bottom:12px; transform:translateX(-50%); width:min(600px,calc(100vw - 24px)); max-height:min(45vh,400px); overflow:auto; margin:0; box-shadow:0 4px 20px #0007; background:#fff; }
+    #selection-close { float:right; min-width:40px; min-height:40px; margin:-5px -5px 4px 8px; border:1px solid #a8bdd3; border-radius:8px; background:#f5f9fd; color:#164b86; cursor:pointer; }
+    #selection h2 { margin:0 0 8px; font-size:1.1rem; }
+    #selection p { margin:6px 0; }
+    .ride-result { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; padding:8px 0; border-top:1px solid #dbe5ef; }
+    .ride-result strong { flex:1 1 230px; }
+    .ride-result .wait { font-weight:800; color:#12599e; }
+    .area-jumps { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
+    .area-jumps .area-button { font-size:.83rem; }
+    .notes { font-size:.85rem; line-height:1.6; color:#415268; }
+    footer { max-width:1120px; margin:auto; padding:12px; border-top:1px solid #d8e1eb; color:#415268; font-size:.82rem; }
+    @media(max-width:600px) { header nav { width:100%; margin-left:0; justify-content:space-between; } header nav a { flex:1; text-align:center; padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } .area-pin { font-size:.66rem; padding:5px 7px; } }
+  </style>
+</head>
+<body>
+  <header><a class="brand" href="/"><b>USJ</b>待ち時間ナビ</a><nav aria-label="ページ切り替え"><a href="/">今日のパーク</a><a href="/map" aria-current="page">地図で探す</a><a href="/plan">行く前に</a></nav></header>
+  <main>
+    <h1>USJアトラクション地図</h1>
+    <p class="intro">エリアを押すか地図を拡大すると、施設ごとの待ち時間を確認できます。地図は運営者制作です。ピンは施設付近の目安です。</p>
+    <section class="map-shell" aria-label="アトラクションの地図">
+      <div class="toolbar" role="group" aria-label="地図の操作">
+        <button type="button" id="zoom-in" aria-label="地図を拡大">＋ 拡大</button><button type="button" id="zoom-out" aria-label="地図を縮小">－ 縮小</button><button type="button" id="zoom-reset">全体を見る</button><span id="zoom-level">100%</span><span id="map-status" role="status">待ち時間を読み込み中…</span>
+      </div>
+      <div id="map-viewport" class="map-viewport" data-zoom="overview" aria-label="USJの地図。ドラッグで移動、ピンチまたはボタンで拡大できます">
+        <div id="map-stage" class="map-stage"><img src="/park-map.jpg" alt="運営者制作のUSJエリア地図" draggable="false"><div id="pin-layer" class="pin-layer"></div><div id="area-pins" class="area-pins"></div></div>
+        <section id="selection" aria-live="polite" hidden><button type="button" id="selection-close" aria-label="詳細を閉じる">✕</button><div id="selection-content"></div></section>
+      </div>
+      <div class="map-foot" aria-label="ピンの色"><span><i class="short"></i>0～39分</span><span><i class="mid"></i>40～89分</span><span><i class="long"></i>90分以上</span><span><i class="closed"></i>休止・未取得</span></div>
+    </section>
+    <nav id="area-jumps" class="area-jumps" aria-label="エリアへ移動"></nav>
+    <p class="notes">待ち時間は5分ごとに画面更新されます。位置は概略のため、入口や経路は現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。地図の画像は運営者制作です。本サイトは個人運営の非公式サイトです。</p>
+  </main>
+  <footer><a href="/privacy">このサイトについて・プライバシーポリシー</a> · 待ち時間データ：<a href="https://queue-times.com/">Queue-Times</a>、<a href="https://www.themeparks.wiki/">ThemeParks.wiki</a></footer>
+  <script>
+    // 画像サイズ 1280×1137 の百分率座標。重なる通常版・夜間版は同じピンにまとめる。
+    // 新しい施設や移設時は、この座標を実際の入口に合わせて見直す。
+    const areas = [
+      {name:'ハリウッド・エリア',x:23,y:46}, {name:'ニューヨーク・エリア',x:23,y:21},
+      {name:'ミニオン・パーク',x:45,y:10}, {name:'ジュラシック・パーク',x:84,y:20},
+      {name:'アミティ・ビレッジ',x:72,y:40}, {name:'ワンダーランド',x:53,y:62},
+      {name:'ハリー・ポッター',x:63,y:90}, {name:'ニンテンドー・ワールド',x:88,y:67}
+    ];
+    const spots = [
+      {x:35.15,y:53.65,ids:[7077,12070],name:'ハリウッド・ドリーム・ザ・ライド'},
+      {x:21.13,y:34.93,ids:[12082,12324],name:'スペース・ファンタジー・ザ・ライド'},
+      {x:19.64,y:49.06,ids:[12083,12084,13925],name:'シネマ 4-D シアター'},
+      {x:34.75,y:36.11,ids:[7214],name:'シング・オン・ツアー'},
+      {x:28.4,y:42.66,ids:[12091],name:'プレイング・ウィズおさるのジョージ'},
+      {x:21.36,y:40.84,ids:[17893],name:'ファクトリー・オブ・フィアー'},
+      {x:20.48,y:30.04,ids:[13005],name:'名探偵コナン 4-D'},
+      {x:48.98,y:10.69,ids:[12066],name:'ミニオン・ハチャメチャ・ライド'},
+      {x:45.56,y:16.09,ids:[12072],name:'ミニオン・ハチャメチャ・アイス'},
+      {x:52.61,y:17.74,ids:[14918],name:'ミニオン・ハチャメチャ・ミッション'},
+      {x:70.26,y:17.52,ids:[7092],name:'ザ・フライング・ダイナソー'},
+      {x:78.21,y:28.41,ids:[12067,15322],name:'ジュラシック・パーク・ザ・ライド'},
+      {x:61.27,y:46.2,ids:[12068,17894],name:'ジョーズ'},
+      {x:47.55,y:64.64,ids:[7065],name:'ハローキティのカップケーキ・ドリーム'},
+      {x:51.3,y:67.4,ids:[7063],name:'ハローキティのリボン・コレクション'},
+      {x:56.36,y:56.6,ids:[14919],name:'スヌーピーのフライング・エース'},
+      {x:49.77,y:56.03,ids:[12075],name:'フライング・スヌーピー'},
+      {x:67.09,y:77.85,ids:[12065],name:'ハリー・ポッター・アンド・ザ・フォービドゥン・ジャーニー'},
+      {x:61.01,y:77.37,ids:[12073],name:'フライト・オブ・ザ・ヒッポグリフ'},
+      {x:68.24,y:72.49,ids:[12197],name:'オリバンダーの店'},
+      {x:81.84,y:74.54,ids:[12061],name:'マリオカート'},
+      {x:86.83,y:79.09,ids:[12071],name:'ヨッシー・アドベンチャー'},
+      {x:83.75,y:84.30,ids:[14402],name:'ドンキーコングのクレイジー・トロッコ'}
+    ];
+    const names = new Map([
+      [7077,'ハリウッド・ドリーム・ザ・ライド'],[12070,'ハリウッド・ドリーム・ザ・ライド ～バックドロップ～'],
+      [12082,'スペース・ファンタジー・ザ・ライド'],[12324,'貞子の呪い ～ダーク・ホラー・ライド～'],
+      [12083,'セサミストリート 4-D ムービーマジック™'],[12084,'シュレック 4-D アドベンチャー'],[13925,'チェンソーマン・ザ・カオス 4-D'],
+      [7214,'シング・オン・ツアー'],[12091,'プレイング・ウィズおさるのジョージ™'],[17893,'ファクトリー・オブ・フィアー ～絶望のゾンビ・ツアー～'],
+      [13005,'名探偵コナン 4-D ライブ・ショー ～星空の宝石（ジュエル）～'],[12066,'ミニオン・ハチャメチャ・ライド'],
+      [12072,'ミニオン・ハチャメチャ・アイス'],[14918,'ミニオン・ハチャメチャ・ミッション ～大悪党への道～'],
+      [7092,'ザ・フライング・ダイナソー'],[12067,'ジュラシック・パーク・ザ・ライド'],[15322,'ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～'],
+      [12068,'ジョーズ'],[17894,'ジョーズ ～レッド・アラート～'],[7065,'ハローキティのカップケーキ・ドリーム'],
+      [7063,'ハローキティのリボン・コレクション'],[14919,'スヌーピーのフライング・エース・アドベンチャー'],
+      [12075,'フライング・スヌーピー'],[12065,'ハリー・ポッター・アンド・ザ・フォービドゥン・ジャーニー™'],
+      [12073,'フライト・オブ・ザ・ヒッポグリフ™'],[12197,'オリバンダーの店™'],[12061,'マリオカート ～クッパの挑戦状～™'],
+      [12071,'ヨッシー・アドベンチャー™'],[14402,'ドンキーコングのクレイジー・トロッコ™']
+    ]);
+    const viewport=document.querySelector('#map-viewport');
+    const stage=document.querySelector('#map-stage');
+    const pinLayer=document.querySelector('#pin-layer');
+    const areaLayer=document.querySelector('#area-pins');
+    const selection=document.querySelector('#selection');
+    const selectionContent=document.querySelector('#selection-content');
+    const status=document.querySelector('#map-status');
+    let scale=1, tx=0, ty=0, current=null, rides=new Map(), fetchedAt=null, activeSpot=null;
+    const pointers=new Map();
+    let drag=null, pinch=null;
+    const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+    const bounds=()=>({w:viewport.clientWidth,h:viewport.clientHeight});
+    function applyTransform(){
+      const {w,h}=bounds();
+      tx=clamp(tx,w*(1-scale),0); ty=clamp(ty,h*(1-scale),0);
+      stage.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
+      stage.style.setProperty('--inverse-scale',1/scale);
+      viewport.dataset.zoom=scale<1.45?'overview':scale<2.15?'pins':'detail';
+      document.querySelector('#zoom-level').textContent=`${Math.round(scale*100)}%`;
+    }
+    function zoomTo(next,clientX,clientY){
+      const rect=viewport.getBoundingClientRect();
+      const x=clientX-rect.left,y=clientY-rect.top;
+      const prior=scale; scale=clamp(next,1,4);
+      tx=x-(x-tx)*scale/prior; ty=y-(y-ty)*scale/prior;
+      applyTransform();
+    }
+    function focusAt(x,y,target=2.25){
+      const {w,h}=bounds(); scale=target;
+      tx=w/2-w*x/100*scale; ty=h/2-h*y/100*scale;
+      applyTransform(); viewport.scrollIntoView({block:'nearest',behavior:'smooth'});
+    }
+    function waitLabel(ride){
+      if(!ride) return '未取得';
+      if(ride.data_unavailable) return '未取得/不明';
+      if(!isFresh(ride)) return '未取得/不明';
+      if(!ride.is_open) return '休止中';
+      return Number.isInteger(ride.wait_time)?`${ride.wait_time}分`:'未取得/不明';
+    }
+    function isFresh(ride){
+      const updated=Date.parse(ride.verified_at||ride.last_updated);
+      const age=Date.now()-updated;
+      return Number.isFinite(updated)&&age<=15*60*1000&&age>=-2*60*1000;
+    }
+    function tone(ride){
+      if(!ride||ride.data_unavailable||!isFresh(ride)) return 'unknown';
+      if(!ride.is_open) return 'closed';
+      if(!Number.isInteger(ride.wait_time)) return 'unknown';
+      return ride.wait_time>=90?'long':ride.wait_time>=40?'mid':'short';
+    }
+    function representative(spot){
+      const values=spot.ids.map(id=>rides.get(id)).filter(Boolean);
+      return values.find(ride=>ride.is_open&&!ride.data_unavailable&&isFresh(ride)&&Number.isInteger(ride.wait_time))||values[0];
+    }
+    function showSpot(spot){
+      activeSpot=spot;
+      selection.hidden=false;selectionContent.replaceChildren();
+      const title=document.createElement('h2'); title.textContent=spot.name; selectionContent.append(title);
+      let found=false;
+      for(const id of spot.ids){
+        const ride=rides.get(id); if(!ride) continue;
+        found=true;
+        const row=document.createElement('div');row.className='ride-result';
+        const name=document.createElement('strong');name.textContent=names.get(id)||ride.name||spot.name;
+        const value=document.createElement('span');value.className='wait';value.textContent=waitLabel(ride);
+        row.append(name,value);selectionContent.append(row);
+      }
+      if(!found){const text=document.createElement('p');text.textContent='この施設の現在値を確認できません。';selectionContent.append(text);}
+      const link=document.createElement('p');
+      const anchor=document.createElement('a');anchor.href='/#heatmap-title';anchor.textContent='待ち時間一覧で確認する ›';
+      link.append(anchor);selectionContent.append(link);
+    }
+    function renderPins(){
+      pinLayer.replaceChildren();
+      for(const spot of spots){
+        const ride=representative(spot);
+        const button=document.createElement('button');button.type='button';button.className='map-pin';
+        button.style.left=`${spot.x}%`;button.style.top=`${spot.y}%`;
+        button.dataset.tone=tone(ride);
+        const value=waitLabel(ride);
+        const short=document.createElement('span');short.textContent=value==='未取得/不明'?'？':value==='休止中'?'休':value==='未取得'?'？':value.replace('分','');
+        const label=document.createElement('span');label.className='pin-label';label.textContent=spot.name;
+        button.append(short,label);
+        button.setAttribute('aria-label',`${spot.name}、${value}。詳細を表示`);
+        button.setAttribute('aria-pressed',String(activeSpot===spot));
+        button.addEventListener('click',()=>{showSpot(spot);renderPins();});
+        pinLayer.append(button);
+      }
+    }
+    function renderAreas(){
+      for(const area of areas){
+        const button=document.createElement('button');button.type='button';button.className='area-pin';
+        button.style.left=`${area.x}%`;button.style.top=`${area.y}%`;button.textContent=area.name;
+        button.setAttribute('aria-label',`${area.name}を拡大`);
+        button.addEventListener('click',()=>focusAt(area.x,area.y,2.25));areaLayer.append(button);
+        const jump=document.createElement('button');jump.type='button';jump.className='area-button';jump.textContent=area.name;
+        jump.addEventListener('click',()=>focusAt(area.x,area.y,2.25));
+        document.querySelector('#area-jumps').append(jump);
+      }
+    }
+    async function loadWaits(){
+      try{
+        const response=await fetch('/api/waits',{cache:'no-store'});
+        const data=await response.json();if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`);
+        rides=new Map((data.rides||[]).map(ride=>[Number(ride.id),ride]));
+        fetchedAt=data.fetched_at;
+        const time=fetchedAt?new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'}).format(new Date(fetchedAt)):'時刻不明';
+        status.textContent=`待ち時間 ${time}時点 · 5分ごとに画面更新`;
+        renderPins();if(activeSpot)showSpot(activeSpot);
+      }catch(error){console.warn('待ち時間を取得できません',error);status.textContent='待ち時間を取得できません。時間をおいて再確認してください。';}
+    }
+    document.querySelector('#zoom-in').addEventListener('click',()=>{const r=viewport.getBoundingClientRect();zoomTo(scale*1.5,r.left+r.width/2,r.top+r.height/2);});
+    document.querySelector('#zoom-out').addEventListener('click',()=>{const r=viewport.getBoundingClientRect();zoomTo(scale/1.5,r.left+r.width/2,r.top+r.height/2);});
+    document.querySelector('#zoom-reset').addEventListener('click',()=>{scale=1;tx=0;ty=0;applyTransform();});
+    document.querySelector('#selection-close').addEventListener('click',()=>{selection.hidden=true;activeSpot=null;renderPins();});
+    viewport.addEventListener('wheel',event=>{event.preventDefault();zoomTo(scale*(event.deltaY<0?1.2:1/1.2),event.clientX,event.clientY);},{passive:false});
+    viewport.addEventListener('pointerdown',event=>{
+      if(event.target.closest('button'))return;
+      viewport.setPointerCapture(event.pointerId);pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(pointers.size===1){drag={x:event.clientX,y:event.clientY,tx,ty};pinch=null;}
+      if(pointers.size===2){const [a,b]=[...pointers.values()];pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),scale,tx,ty,center:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}};drag=null;}
+      viewport.classList.add('is-dragging');
+    });
+    viewport.addEventListener('pointermove',event=>{
+      if(!pointers.has(event.pointerId))return;
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(pointers.size===1&&drag){tx=drag.tx+event.clientX-drag.x;ty=drag.ty+event.clientY-drag.y;applyTransform();}
+      else if(pointers.size===2&&pinch){
+        const [a,b]=[...pointers.values()];const next=clamp(pinch.scale*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance,1,4);
+        const rect=viewport.getBoundingClientRect();const x=(a.x+b.x)/2-rect.left,y=(a.y+b.y)/2-rect.top;
+        const px=pinch.center.x-rect.left,py=pinch.center.y-rect.top;
+        scale=next;tx=x-(px-pinch.tx)*scale/pinch.scale;ty=y-(py-pinch.ty)*scale/pinch.scale;applyTransform();
+      }
+    });
+    function endPointer(event){pointers.delete(event.pointerId);pinch=null;drag=null;if(pointers.size===1){const p=[...pointers.values()][0];drag={x:p.x,y:p.y,tx,ty};}else viewport.classList.remove('is-dragging');}
+    viewport.addEventListener('pointerup',endPointer);viewport.addEventListener('pointercancel',endPointer);
+    viewport.addEventListener('dblclick',event=>{if(!event.target.closest('button'))zoomTo(scale*1.5,event.clientX,event.clientY);});
+    addEventListener('resize',applyTransform);
+    renderAreas();renderPins();applyTransform();loadWaits();setInterval(loadWaits,5*60*1000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadWaits();});
+  </script>
+</body>
+</html>
