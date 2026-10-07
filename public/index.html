@@ -94,6 +94,14 @@
     .ride-filters label { display: grid; gap: 4px; font-size: .85rem; font-weight: 700; }
     .ride-filters .check-filter { display: flex; align-items: center; gap: 4px; min-height: 40px; }
     .ride-filters select { padding: 7px; }
+    .tag-filters { display: flex; flex-basis: 100%; flex-wrap: wrap; gap: 4px 14px; min-width: 0; margin: 4px 0 0; padding: 0; border: 0; }
+    .tag-filters legend { width: 100%; margin-bottom: 2px; padding: 0; font-size: .85rem; font-weight: 700; }
+    .ride-meta { display: block; margin-top: 2px; color: #526477; font-size: .72rem; font-weight: 400; line-height: 1.4; white-space: normal; }
+    .ride-area { margin-right: 6px; }
+    .ride-tag { display: inline-block; margin-right: 2px; font-size: .85rem; line-height: 1; vertical-align: -1px; }
+    .ride-tag-notes { margin: 8px 0 12px; }
+    .ride-tag-notes > summary { display: list-item; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd8e6; border-radius: 8px; background: #f8fafc; color: #1058a7; cursor: pointer; font-weight: 700; }
+    .ride-tag-notes p { margin: 8px 0; font-size: .8rem; line-height: 1.7; }
     .favorite-button { margin-right: 5px; padding: 1px 4px; background: transparent; color: #637184; border-radius: 4px; font-size: 1.06rem; line-height: 1; }
     .favorite-button[aria-pressed="true"] { color: #b36100; }
     .favorite-button:focus-visible { outline: 2px solid #1058a7; }
@@ -461,6 +469,8 @@
     :root[data-theme="dark"] .calendar-grid button.has-closure:not(.has-hours) { background: #33291a; border-color: #6b5530; }
     :root[data-theme="dark"] .calendar-grid button.selected { background: #2f6fc0; color: #fff; }
     :root[data-theme="dark"] .heatmap-options > summary, :root[data-theme="dark"] .weather-details summary::before { color: #9cc4ff; }
+    :root[data-theme="dark"] .ride-meta { color: #a9b6c4; }
+    :root[data-theme="dark"] .ride-tag-notes > summary { background: #182638; border-color: #3a4b5d; color: #9cc4ff; }
     :root[data-theme="dark"] .theme-toggle { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     :root[data-theme="dark"] .skeleton { background: linear-gradient(90deg, #1d2a37 25%, #253444 50%, #1d2a37 75%); background-size: 200% 100%; }
     .share-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -630,6 +640,13 @@
       <label>身長の目安 <select id="height-filter"><option value="all">指定なし</option><option value="0">身長制限なし</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
       <label class="check-filter"><input id="child-switch-filter" type="checkbox">チャイルドスイッチ対応のみ</label>
       <label class="check-filter"><input id="favorites-filter" type="checkbox">お気に入りのみ</label>
+      <fieldset class="tag-filters">
+        <legend>特徴で絞り込む（選んだものすべてに当てはまるもの）</legend>
+        <label class="check-filter"><input type="checkbox" data-tag-filter="kids">🧒 キッズにおすすめ</label>
+        <label class="check-filter"><input type="checkbox" data-tag-filter="small">👶 小さなお子さまと一緒に楽しめる</label>
+        <label class="check-filter"><input type="checkbox" data-tag-filter="thrill">🎢 絶叫・スリルいっぱい</label>
+        <label class="check-filter"><input type="checkbox" data-tag-filter="wet">💧 水に濡れる可能性あり</label>
+      </fieldset>
       <label>並び順 <select id="ride-sort"><option value="wait-desc">現在の待ち時間が長い順</option><option value="wait-asc">現在の待ち時間が短い順</option><option value="name">名前順</option></select></label>
     </div>
     <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
@@ -642,6 +659,7 @@
       <span class="list-state-text">並び順：★お気に入り優先・現在の待ち時間が長い順　絞り込み：なし</span>
       <button type="button" class="list-state-edit">変更</button>
     </div>
+    <details class="ride-tag-notes"><summary>🧒👶🎢💧 記号の意味を見る</summary><p class="muted">🧒 キッズにおすすめ　👶 小さなお子さまと一緒に楽しめる　🎢 絶叫・スリルいっぱい　💧 水に濡れる可能性あり。当サイトの目安です。身長制限・利用条件はUSJ公式でご確認ください。</p></details>
     <div class="today-view-switch" role="group" aria-label="今日の待ち時間の表示方法">
       <button type="button" data-today-view="cards" aria-pressed="false">カード</button>
       <button type="button" data-today-view="table" aria-pressed="false">ヒートマップ</button>
@@ -702,6 +720,7 @@
     <h3 class="archive-sub-title">時間帯ごとの平均待ち時間（全アトラクション）</h3>
     <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
     <p class="muted">アトラクションは★お気に入りを先頭に表示し、それぞれ選択日の記録平均が長い順で並べます。</p>
+    <details class="ride-tag-notes"><summary>🧒👶🎢💧 記号の意味を見る</summary><p class="muted">🧒 キッズにおすすめ　👶 小さなお子さまと一緒に楽しめる　🎢 絶叫・スリルいっぱい　💧 水に濡れる可能性あり。当サイトの目安です。身長制限・利用条件はUSJ公式でご確認ください。</p></details>
     <h3 class="archive-sub-title archive-ride-title">アトラクション別の1日の推移</h3>
     <div class="archive-view-switch" role="group" aria-label="アトラクション別の表示方法">
       <button type="button" data-archive-view="chart" aria-pressed="true">グラフ</button>
@@ -863,6 +882,7 @@
     const heightFilter = document.querySelector('#height-filter');
     const childSwitchFilter = document.querySelector('#child-switch-filter');
     const favoritesFilter = document.querySelector('#favorites-filter');
+    const tagFilterInputs = [...document.querySelectorAll('[data-tag-filter]')];
     const weatherStatus = document.querySelector('#weather-status');
     const weatherAdvice = document.querySelector('#weather-advice');
     const timeFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
@@ -898,6 +918,56 @@
     const CHILD_SWITCH = new Set([14402, 12061, 12071, 12065, 12073, 14918, 12066,
       12072, 14919, 12075, 7065, 7077, 12070, 12082, 12084, 12083, 13005,
       7092, 12067, 12068, 17894]);
+    // 運営者がまとめた分類表に基づく固定値。IDはQueue-TimesのアトラクションID。
+    const RIDE_TAGS = [
+      {key: 'kids', icon: '🧒', label: 'キッズにおすすめ',
+        ids: new Set([12197, 12084, 7214, 14919, 12083, 7065, 7063, 12075, 12091, 12072, 14918, 12066, 12071])},
+      {key: 'small', icon: '👶', label: '小さなお子さまと一緒に楽しめる',
+        ids: new Set([12197, 12068, 7214, 14919, 7065, 7063, 12075, 12091, 14918, 12071, 13005])},
+      {key: 'thrill', icon: '🎢', label: '絶叫・スリルいっぱい',
+        ids: new Set([7092, 12067, 15322, 12068, 17894, 14919, 12082, 14402, 12065, 7077, 12070, 12073, 12061, 12066,
+          12324, 13925, 17893, 17912])},
+      {key: 'wet', icon: '💧', label: '水に濡れる可能性あり',
+        ids: new Set([12067, 15322, 12084, 12068, 17894, 12083, 14402, 12072, 13005])},
+    ];
+    const RIDE_AREAS = new Map([
+      [12197, 'ウィザーディング・ワールド・オブ・ハリー・ポッター™'], [12065, 'ウィザーディング・ワールド・オブ・ハリー・ポッター™'],
+      [12073, 'ウィザーディング・ワールド・オブ・ハリー・ポッター™'],
+      [12061, 'スーパー・ニンテンドー・ワールド™'], [12071, 'スーパー・ニンテンドー・ワールド™'], [14402, 'スーパー・ニンテンドー・ワールド™'],
+      [12066, 'ミニオン・パーク'], [12072, 'ミニオン・パーク'], [14918, 'ミニオン・パーク'],
+      [7092, 'ジュラシック・パーク'], [12067, 'ジュラシック・パーク'], [15322, 'ジュラシック・パーク'],
+      [12068, 'アミティ・ビレッジ'], [17894, 'アミティ・ビレッジ'],
+      [7065, 'ユニバーサル・ワンダーランド'], [7063, 'ユニバーサル・ワンダーランド'], [12075, 'ユニバーサル・ワンダーランド'],
+      [14919, 'ユニバーサル・ワンダーランド'],
+      [7077, 'ハリウッド・エリア'], [12070, 'ハリウッド・エリア'], [12082, 'ハリウッド・エリア'], [12083, 'ハリウッド・エリア'],
+      [12084, 'ハリウッド・エリア'], [7214, 'ハリウッド・エリア'], [12091, 'ハリウッド・エリア'],
+      [12324, 'ハリウッド・エリア'], [13925, 'ハリウッド・エリア'], [17893, 'ハリウッド・エリア'], [17912, 'ハリウッド・エリア'],
+      [13005, 'ニューヨーク・エリア'],
+    ]);
+    function rideMeta(id) {
+      const numericId = Number(id);
+      const tags = RIDE_TAGS.filter(tag => tag.ids.has(numericId));
+      const area = RIDE_AREAS.get(numericId);
+      if (!tags.length && !area) return null;
+      const meta = document.createElement('span');
+      meta.className = 'ride-meta';
+      if (area) {
+        const areaLabel = document.createElement('span');
+        areaLabel.className = 'ride-area';
+        areaLabel.textContent = area;
+        meta.append(areaLabel);
+      }
+      for (const tag of tags) {
+        const mark = document.createElement('span');
+        mark.className = 'ride-tag';
+        mark.textContent = tag.icon;
+        mark.title = tag.label;
+        mark.setAttribute('role', 'img');
+        mark.setAttribute('aria-label', tag.label);
+        meta.append(mark);
+      }
+      return meta;
+    }
     const FAVORITES_KEY = 'usj-wait-nav-favorites-v1';
     let favorites = new Set();
     try {
@@ -913,7 +983,9 @@
         if (minimum === undefined || (height === '0' ? minimum !== 0 : minimum > Number(height))) return false;
       }
       return (!childSwitchFilter.checked || CHILD_SWITCH.has(numericId)) &&
-        (!favoritesFilter.checked || favorites.has(numericId));
+        (!favoritesFilter.checked || favorites.has(numericId)) &&
+        tagFilterInputs.every(input => !input.checked ||
+          RIDE_TAGS.find(tag => tag.key === input.dataset.tagFilter)?.ids.has(numericId));
     }
 
     function favoriteFirst(a, b) {
@@ -1093,8 +1165,10 @@
       cell.title = label;
       const favorite = favoriteButton(id, label);
       const url = officialAttractionUrls.get(Number(id));
+      const meta = rideMeta(id);
       if (!url) {
         cell.replaceChildren(favorite, document.createTextNode(label));
+        if (meta) cell.append(meta);
         return;
       }
       const link = document.createElement('a');
@@ -1104,6 +1178,7 @@
       link.textContent = label;
       link.setAttribute('aria-label', `${label}（USJ公式サイト、新しいタブで開きます）`);
       cell.replaceChildren(favorite, link);
+      if (meta) cell.append(meta);
     }
 
     const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
@@ -2413,6 +2488,8 @@
         const name = document.createElement('span');
         name.className = 'archive-ride-name';
         name.textContent = nameOf(id);
+        const rideMetaLine = rideMeta(id);
+        if (rideMetaLine) name.append(rideMetaLine);
         const peak = document.createElement('strong');
         peak.className = 'archive-ride-peak';
         let peakIndex = -1;
@@ -2689,6 +2766,9 @@
       if (heightFilter.value !== 'all') filters.push(heightFilter.options[heightFilter.selectedIndex].textContent);
       if (childSwitchFilter.checked) filters.push('チャイルドスイッチ対応');
       if (favoritesFilter.checked) filters.push('お気に入りのみ');
+      for (const input of tagFilterInputs) {
+        if (input.checked) filters.push(RIDE_TAGS.find(tag => tag.key === input.dataset.tagFilter)?.label || '');
+      }
       box.querySelector('.list-state-text').textContent =
         `並び順：★お気に入り優先・${sortLabel}　絞り込み：${filters.length ? filters.join('、') : 'なし'}`;
       box.classList.toggle('is-filtered', filters.length > 0);
@@ -2935,6 +3015,8 @@
         const name = document.createElement('span');
         name.className = 'ride-card-name';
         name.textContent = label;
+        const cardMeta = rideMeta(ride.id);
+        if (cardMeta) name.append(cardMeta);
         const current = currentCells.get(ride.id);
         const wait = document.createElement('strong');
         wait.className = `ride-card-wait ${current.className}`;
@@ -3214,7 +3296,7 @@
     }
 
     button.addEventListener('click', refresh);
-    for (const control of [heightFilter, childSwitchFilter, favoritesFilter]) control.addEventListener('change', () => {
+    for (const control of [heightFilter, childSwitchFilter, favoritesFilter, ...tagFilterInputs]) control.addEventListener('change', () => {
       renderListState();
       if (todayData) renderToday(todayData);
       if (archiveData) renderArchive(archiveData);
