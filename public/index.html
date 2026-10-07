@@ -12,10 +12,10 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="USJの待ち時間・混雑状況｜USJ待ち時間ナビ">
   <meta property="og:description" content="USJのアトラクション別の現在の待ち時間と20分ごとの履歴を比較。個人運営の非公式サイトです。">
-  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og-share.jpg">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="夜の遊園地を背景にしたUSJ待ち時間ナビの共有画像。個人運営の非公式サイト">
+  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og-photo.jpg">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="720">
+  <meta property="og:image:alt" content="運営者が撮影したユニバーサル・スタジオ・ジャパンのグローブ。USJ待ち時間ナビは非公式サイト">
   <meta property="og:locale" content="ja_JP">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#f4f7fa">
@@ -2811,7 +2811,7 @@
     function xShareUrl(payload) {
       const text = [...(payload.xText || payload.text)].slice(0, 110).join('');
       const shareUrl = new URL(payload.url);
-      shareUrl.searchParams.set('v', '2');
+      shareUrl.searchParams.set('v', '3');
       return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.href)}`;
     }
     function showShareToast(message) {
