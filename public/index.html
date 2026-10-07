@@ -100,8 +100,6 @@
     .sort-note { margin-top: 0 !important; }
     .mobile-card-list { display: none; }
     @media (min-width: 621px) {
-      label.mobile-heatmap-controls[for="mobile-view"] { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 10px; font-size: .9rem; font-weight: 700; }
-      label.mobile-heatmap-controls[for="mobile-view"] select { min-height: 36px; padding: 4px 8px; }
       .mobile-card-list:not([hidden]) { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; column-gap: 20px; padding: 4px 12px; border: 1px solid #dce4ed; border-radius: 9px; }
     }
     .ride-card { display: flex; align-items: start; gap: 5px; padding: 9px 6px; border-bottom: 1px solid #dce4ed; }
@@ -170,8 +168,12 @@
     .card-chart-value { font-size: 13px; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
     .card-chart-empty { font-size: 13px; color: #526477; }
     .trend-legend { display: none; }
-    .mobile-heatmap-controls, .mobile-heatmap-hint { display: none; }
-    .mobile-heatmap-controls[hidden], .trend-legend[hidden] { display: none !important; }
+    .mobile-heatmap-hint { display: none; }
+    .trend-legend[hidden] { display: none !important; }
+    .today-view-switch { display: inline-flex; gap: 4px; margin: 10px 0 12px; padding: 4px; border: 1px solid #c5d3e3; border-radius: 10px; background: #f8fafc; }
+    .today-view-switch button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent; color: #1058a7; font: inherit; font-weight: 700; cursor: pointer; }
+    .today-view-switch button[aria-pressed="true"] { background: #1058a7; color: #fff; }
+    .today-view-switch button:focus-visible { outline: 2px solid #1058a7; outline-offset: 2px; }
     .archive-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 12px 0; }
     .archive-controls label { display: grid; gap: 5px; font-weight: 700; }
     .archive-hour-picker { display: none !important; }
@@ -287,7 +289,7 @@
       .top-waits { display: block; }
       .ride-filters .check-filter { min-height: 44px; padding: 4px 0; }
       .ride-filters .check-filter input { width: 20px; height: 20px; }
-      select, .ride-filters select, .mobile-heatmap-controls select { min-height: 44px; box-sizing: border-box; }
+      select, .ride-filters select { min-height: 44px; box-sizing: border-box; }
       .favorite-button { min-width: 44px; min-height: 44px; margin-right: 2px; padding: 0; font-size: 1.3rem; }
       .heatmap-table tbody th .favorite-button { float: left; }
       .weather-details summary { min-height: 44px; align-items: center; }
@@ -301,8 +303,6 @@
       .calendar-grid small { font-size: .58rem; }
       .desktop-heatmap-hint { display: none; }
       .mobile-heatmap-hint { display: block; }
-      .mobile-heatmap-controls { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: .82rem; font-weight: 700; }
-      .mobile-heatmap-controls select { flex: 1; min-width: 0; padding: 6px; font-size: .82rem; }
       .archive-controls label { width: 100%; min-width: 0; }
       .archive-controls select { box-sizing: border-box; width: 100%; min-width: 0; }
       .archive-hour-picker { display: grid !important; }
@@ -528,11 +528,14 @@
     :root[data-theme="dark"] .show-list li.is-started .show-list-next strong { color: #a9b6c4; }
     .archive-cal-longterm { margin: 8px 0 4px; padding: 8px 10px; border-radius: 8px; background: #fbf1f1; color: #7b1f1f; font-size: .85rem; line-height: 1.5; }
     .archive-cal-longterm[hidden] { display: none; }
-    .archive-cal-help { margin-top: 8px; }
-    .archive-cal-help > summary { cursor: pointer; color: #1058a7; font-size: .85rem; font-weight: 700; min-height: 32px; }
-    .archive-cal-help > p { margin: 6px 0 0; }
     :root[data-theme="dark"] .archive-cal-longterm { background: #33241f; color: #ffb8ad; }
-    :root[data-theme="dark"] .archive-cal-help > summary { color: #9cc4ff; }
+    .archive-notes { margin: 8px 0 14px; }
+    .archive-notes > summary { display: list-item; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd8e6; border-radius: 8px; background: #f8fafc; color: #1058a7; cursor: pointer; font-weight: 700; }
+    .archive-notes[open] > summary { margin-bottom: 10px; }
+    :root[data-theme="dark"] .archive-notes > summary { background: #182638; border-color: #3a4b5d; color: #9cc4ff; }
+    :root[data-theme="dark"] .today-view-switch { background: #17212c; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .today-view-switch button { color: #9cc4ff; }
+    :root[data-theme="dark"] .today-view-switch button[aria-pressed="true"] { background: #2f6fc0; color: #fff; }
     .archive-view-switch { display: none; }
     @media (min-width: 621px) {
       .archive-view-switch { display: inline-flex; margin: 0 0 10px; border: 1px solid #c5d3e3; border-radius: 999px; overflow: hidden; }
@@ -595,9 +598,9 @@
   <a id="park-alert" class="park-alert" href="#weather-title" data-only="now" hidden></a>
   <main>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
-    <h2 id="heatmap-title">今日の待ち時間ヒートマップ</h2>
-    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と、今日の20分ごとの記録です。表は左右にスクロールできます。数値の単位は分です。「表示方法」でカード表示（今日の推移の棒グラフ）に切り替えられます。</p>
-    <p class="muted mobile-heatmap-hint">一覧表は現在値・約1時間前との差・今日の推移です。カードを開くと20分ごとの記録も確認できます。</p>
+    <h2 id="heatmap-title">今日の待ち時間</h2>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・約1時間前との差・今日の推移を一覧できます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
       <li class="skeleton-row"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:3em"></span><span class="visually-hidden">現在値を確認中…</span></li>
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:60%"></span><span class="skeleton" style="width:3em"></span></li>
@@ -624,8 +627,10 @@
       <span class="list-state-text">並び順：★お気に入り優先・現在の待ち時間が長い順　絞り込み：なし</span>
       <button type="button" class="list-state-edit">変更</button>
     </div>
-    <label class="mobile-heatmap-controls" for="heatmap-range">時刻 <select id="heatmap-range" aria-label="表示する時刻"></select></label>
-    <label class="mobile-heatmap-controls" for="mobile-view">表示方法 <select id="mobile-view" aria-label="表示方法"><option value="table">一覧表</option><option value="cards">カード（タップで履歴）</option></select></label>
+    <div class="today-view-switch" role="group" aria-label="今日の待ち時間の表示方法">
+      <button type="button" data-today-view="cards" aria-pressed="false">カード</button>
+      <button type="button" data-today-view="table" aria-pressed="false">ヒートマップ</button>
+    </div>
     <div id="today-table" class="heatmap-scroll" tabindex="0" aria-label="今日の待ち時間表">
       <table class="heatmap-table"><thead><tr id="heatmap-head"></tr></thead><tbody id="heatmap-body" aria-busy="true">
         <tr class="skeleton-row" aria-hidden="true"><td colspan="99"><span class="skeleton"></span></td></tr>
@@ -656,10 +661,14 @@
     <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
     <p class="muted">過去の日付をタップするとその日の混雑実績、今日以降の日付をタップすると営業時間と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
     <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑実績と今後の営業時間のカレンダー"></div>
+    <details id="archive-notes" class="archive-notes">
+      <summary>凡例・注記を見る</summary>
+      <div id="archive-notes-calendar"></div>
     <p id="ticket-price-note" class="muted">1デイ・スタジオ・パスの価格は、<a href="https://www.usj.co.jp/web/ja/jp/tickets/buy/price-calendar" target="_blank" rel="noopener noreferrer">USJ公式の価格カレンダー</a>をご確認ください。</p>
     <p id="pass-exclusion-note" class="muted">年間パス（スタンダード）の入場除外日は、<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/exclusion-dates/universal-prime-annual-pass-standard-exclusison-date" target="_blank" rel="noopener noreferrer">USJ公式の除外日一覧</a>をご確認ください。</p>
-    <div id="selected-day" class="selected-day" role="status" hidden>カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
     <p class="muted">営業時間・休止予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
+    </details>
+    <div id="selected-day" class="selected-day" role="status" hidden>カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
     <div class="archive-controls">
       <label hidden>記録日 <select id="archive-date" aria-label="過去の記録日"></select></label>
       <label class="archive-hour-picker">表示する時間帯 <select id="archive-hours" aria-label="過去の表示時間帯"></select></label>
@@ -815,10 +824,9 @@
     const heatmapBody = document.querySelector('#heatmap-body');
     const topWaitsList = document.querySelector('#top-waits-list');
     const heatmapOptions = document.querySelector('#heatmap-options');
-    const heatmapRange = document.querySelector('#heatmap-range');
     const todayTable = document.querySelector('#today-table');
     const mobileCards = document.querySelector('#mobile-cards');
-    const mobileView = document.querySelector('#mobile-view');
+    const todayViewButtons = [...document.querySelectorAll('.today-view-switch button')];
     const rideSort = document.querySelector('#ride-sort');
     const sortNote = document.querySelector('#sort-note');
     const archiveDate = document.querySelector('#archive-date');
@@ -844,7 +852,7 @@
     let historyRequest = 0;
     let todayRequest = 0;
     let todayData = null;
-    let heatmapPage = 0;
+    let todayView = mobileHeatmap.matches ? 'cards' : 'table';
     let archiveData = null;
     let archivePage = 0;
     let archiveRequest = 0;
@@ -2163,6 +2171,7 @@
     }
     function renderArchiveCalendar() {
       const box = document.querySelector('#archive-calendar');
+      const notes = document.querySelector('#archive-notes-calendar');
       box.replaceChildren();
       const recorded = new Map(archiveCalendarDays.map(item => [item.day, item]));
       const days = [...recorded.keys()].sort();
@@ -2327,12 +2336,8 @@
       longNote.hidden = !longTerm.length;
       longNote.textContent = `長期休止中（${longTerm.length}件・当面の間）：` +
         longTerm.map(item => item.title + (item.start > today ? `（${formatEventDate(item.start)}から）` : '')).join('、');
-      const help = document.createElement('details');
-      help.className = 'archive-cal-help';
-      const helpSummary = document.createElement('summary');
-      helpSummary.textContent = 'カレンダーの見方';
-      help.append(helpSummary, note);
-      box.append(head, grid, longNote, legend, help);
+      box.append(head, grid);
+      notes.replaceChildren(longNote, legend, note);
       loadArchiveMonthStats();
     }
     async function loadArchiveMonthStats() {
@@ -2824,29 +2829,6 @@
       if (!currentData) return;
       todayData = data;
       const snapshots = data.snapshots || [];
-      let visibleSnapshots = snapshots;
-      if (mobileHeatmap.matches) {
-        const pageSize = 5;
-        const pages = Math.max(1, Math.ceil(snapshots.length / pageSize));
-        if (heatmapPage >= pages) heatmapPage = 0;
-        heatmapRange.replaceChildren();
-        for (let page = 0; page < pages; page++) {
-          const group = snapshots.slice(page * pageSize, (page + 1) * pageSize);
-          const option = document.createElement('option');
-          option.value = String(page);
-          if (group.length) {
-            const newest = snapshotSlotTime(group[0]);
-            const oldest = snapshotSlotTime(group.at(-1));
-            option.textContent = `${page === 0 ? '直近' : 'それ以前'} ${newest}${newest === oldest ? '' : `〜${oldest}`}（新しい順）`;
-          } else {
-            option.textContent = '記録なし';
-          }
-          heatmapRange.append(option);
-        }
-        heatmapRange.value = String(heatmapPage);
-        heatmapRange.disabled = pages < 2;
-        visibleSnapshots = snapshots.slice(heatmapPage * pageSize, (heatmapPage + 1) * pageSize);
-      }
       const currentCells = new Map(currentData.rides.map(ride => [ride.id, heatCell(ride, '現在', true)]));
       const isWaitCell = cell => /^heat-[0-4]$/.test(cell.className);
       const currentRank = ride => {
@@ -2877,7 +2859,7 @@
       heatmapBody.closest('table').classList.toggle('trend-mode', trendMode);
       const headLabels = trendMode
         ? ['アトラクション', '現在', '1時間', '今日']
-        : ['アトラクション', '現在', ...visibleSnapshots.map(item => snapshotSlotTime(item))];
+        : ['アトラクション', '現在', ...snapshots.map(item => snapshotSlotTime(item))];
       for (const label of headLabels) {
         const heading = document.createElement('th');
         heading.scope = 'col';
@@ -2896,7 +2878,7 @@
           const currentWait = isWaitCell(currentCell) ? Number.parseFloat(currentCell.textContent) : null;
           row.append(trendCell(ride.id, currentWait, snapshots), sparkCell(ride.id, currentWait, snapshots));
         } else {
-          for (const snapshot of visibleSnapshots) {
+          for (const snapshot of snapshots) {
             const label = `${snapshotDescription(snapshot)}の記録`;
             row.append(heatCell(snapshot.rides[String(ride.id)], label));
           }
@@ -2934,7 +2916,7 @@
           history.append(link);
         }
         history.append(cardChart(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null, snapshots));
-        const cardSnapshots = mobileHeatmap.matches ? visibleSnapshots : snapshots.slice(0, 6);
+        const cardSnapshots = snapshots.slice(0, 6);
         if (cardSnapshots.length) for (const snapshot of cardSnapshots) {
           const time = snapshotSlotTime(snapshot);
           const sample = heatCell(snapshot.rides[String(ride.id)], `${snapshotDescription(snapshot)}の記録`);
@@ -2969,19 +2951,20 @@
         : `${day} · ${rides.length}/${currentData.rides.length}件表示 · 現在値は約5分ごとに更新、記録は20分ごと（毎時0・20・40分）`;
       renderRecentRecords();
       renderListState();
-      syncMobileView();
+      syncTodayView();
       updateRidesPreview();
       const publicSummary = document.querySelector('#public-summary');
       if (publicSummary) publicSummary.hidden = rides.length > 0;
       focusLinkedRide();
     }
 
-    function syncMobileView() {
-      const showCards = mobileView.value === 'cards';
+    function syncTodayView() {
+      const showCards = todayView === 'cards';
       todayTable.hidden = showCards;
       mobileCards.hidden = !showCards;
-      heatmapRange.closest('label').hidden = !(showCards && mobileHeatmap.matches);
       document.querySelector('#trend-legend').hidden = !mobileHeatmap.matches || showCards;
+      for (const control of todayViewButtons)
+        control.setAttribute('aria-pressed', String(control.dataset.todayView === todayView));
     }
 
     async function loadToday() {
@@ -3197,24 +3180,22 @@
       if (archiveData) renderArchive(archiveData);
     });
     rideSort.addEventListener('change', () => { renderListState(); if (todayData) renderToday(todayData); });
-    const MOBILE_VIEW_KEY = 'usj-wait-nav:mobile-view';
+    const TODAY_VIEW_KEY = 'usj-wait-nav:mobile-view';
     try {
-      const savedView = localStorage.getItem(MOBILE_VIEW_KEY);
-      if (savedView && [...mobileView.options].some(option => option.value === savedView)) mobileView.value = savedView;
-    } catch (_) { /* 保存できない環境では既定の一覧表 */ }
-    mobileView.addEventListener('change', () => {
-      try { localStorage.setItem(MOBILE_VIEW_KEY, mobileView.value); } catch (_) { /* 何もしない */ }
+      const savedView = localStorage.getItem(TODAY_VIEW_KEY);
+      if (savedView === 'cards' || savedView === 'table') todayView = savedView;
+    } catch (_) { /* 保存できない環境では画面幅に応じた既定値を使う */ }
+    for (const control of todayViewButtons) control.addEventListener('click', () => {
+      todayView = control.dataset.todayView;
+      try { localStorage.setItem(TODAY_VIEW_KEY, todayView); } catch (_) { /* 保存できなくても表示は切り替わる */ }
+      syncTodayView();
+      linkedRideHandled = false;
+      focusLinkedRide();
     });
-    mobileView.addEventListener('change', syncMobileView);
-    mobileView.addEventListener('change', () => { linkedRideHandled = false; focusLinkedRide(); });
-    syncMobileView();
+    syncTodayView();
     document.querySelector('.list-state-edit')?.addEventListener('click', () => {
       heatmapOptions.open = true;
       heatmapOptions.scrollIntoView({block: 'start'});
-    });
-    heatmapRange.addEventListener('change', () => {
-      heatmapPage = Number(heatmapRange.value) || 0;
-      if (todayData) renderToday(todayData);
     });
     archiveDate.addEventListener('change', () => { archivePage = 0; loadArchiveDay(); });
     archiveHours.addEventListener('change', () => {
@@ -3224,7 +3205,6 @@
     for (const breakpoint of [mobileHeatmap, narrowHeatmap]) {
       breakpoint.addEventListener('change', () => {
         if (breakpoint === mobileHeatmap) heatmapOptions.open = !mobileHeatmap.matches;
-        heatmapPage = 0;
         if (todayData) renderToday(todayData);
         archivePage = 0;
         if (archiveData) renderArchive(archiveData);
