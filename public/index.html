@@ -12,10 +12,10 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="USJの待ち時間・混雑状況｜USJ待ち時間ナビ">
   <meta property="og:description" content="USJのアトラクション別の現在の待ち時間と20分ごとの履歴を比較。個人運営の非公式サイトです。">
-  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og-photo.jpg">
-  <meta property="og:image:width" content="1280">
-  <meta property="og:image:height" content="720">
-  <meta property="og:image:alt" content="運営者が撮影したユニバーサル・スタジオ・ジャパンのグローブ。USJ待ち時間ナビは非公式サイト">
+  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og-photo-labeled.jpg">
+  <meta property="og:image:width" content="1672">
+  <meta property="og:image:height" content="941">
+  <meta property="og:image:alt" content="運営者が撮影したユニバーサル・スタジオ・ジャパンのグローブに「非公式サイト」と表示">
   <meta property="og:locale" content="ja_JP">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#f4f7fa">
@@ -2801,6 +2801,7 @@
 
     // 共有するのは画面に表示する公開情報だけ。URLは選択した施設・記録日を指す。
     const shareParams = new URLSearchParams(location.search);
+    const shortRideId = location.pathname.match(/^\/r\/([1-9]\d{0,7})$/)?.[1] || null;
     function shareTimeLabel() {
       const fetched = new Date(currentData?.fetched_at || Date.now());
       return hourMinuteFormat.format(Number.isNaN(fetched.getTime()) ? new Date() : fetched);
@@ -2811,7 +2812,9 @@
     function xShareUrl(payload) {
       const text = [...(payload.xText || payload.text)].slice(0, 110).join('');
       const shareUrl = new URL(payload.url);
-      shareUrl.searchParams.set('v', '3');
+      if (!/^\/r\/[1-9]\d{0,7}$/.test(shareUrl.pathname)) {
+        shareUrl.searchParams.set('v', '4');
+      }
       return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.href)}`;
     }
     function showShareToast(message) {
@@ -2899,7 +2902,7 @@
         title: label,
         text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）`,
         xText: `USJ待ち時間ナビ｜待ち時間・非公式\n${label}：${waitText}（${time}時点）`,
-        url: `${location.origin}/?ride=${encodeURIComponent(id)}`,
+        url: `${location.origin}/r/${encodeURIComponent(id)}`,
       };
     }
     function archiveDayPayload() {
@@ -2925,7 +2928,7 @@
     archiveShareBar.hidden = true;
     document.querySelector('.archive-summary')?.after(archiveShareBar);
 
-    const linkedRide = shareParams.get('ride');
+    const linkedRide = shortRideId || shareParams.get('ride');
     let linkedRideHandled = false;
     const RIDES_PREVIEW = 12;
     let ridesExpanded = false;
