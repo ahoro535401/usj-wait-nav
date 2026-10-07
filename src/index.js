@@ -728,7 +728,8 @@ async function archiveDay(db, day) {
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
-  if (url.pathname === '/' || url.pathname === '/plan') {
+  const shortRidePath = /^\/r\/([1-9]\d{0,7})$/.exec(url.pathname);
+  if (url.pathname === '/' || url.pathname === '/plan' || shortRidePath) {
     const indexUrl = new URL(request.url);
     indexUrl.pathname = '/index.html';
     const asset = await assetFetch(new Request(indexUrl, request), env);
@@ -781,6 +782,10 @@ async function route(request, env) {
     html = html.replace('<!--PUBLIC_SUMMARY-->', summary);
     const page = url.pathname === '/plan' ? 'plan' : 'now';
     html = html.replace('<html lang="ja">', `<html lang="ja" data-page="${page}">`);
+    if (shortRidePath) {
+      html = html.replace(/<meta property="og:url" content="[^"]*">/,
+        `<meta property="og:url" content="${url.origin}${url.pathname}">`);
+    }
     html = html.replace(
       page === 'plan' ? /<h1 data-only="now">[\s\S]*?<\/h1>\s*/ : /<h1 data-only="plan">[\s\S]*?<\/h1>\s*/,
       '');
@@ -954,7 +959,8 @@ const API_CACHE_SECONDS = new Map([
 export default {
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
-    const ttl = request.method === 'GET' ? API_CACHE_SECONDS.get(pathname) : null;
+    const ttl = request.method === 'GET'
+      ? (/^\/r\/[1-9]\d{0,7}$/.test(pathname) ? 60 : API_CACHE_SECONDS.get(pathname)) : null;
     const cache = ttl && typeof caches !== 'undefined' ? caches.default : null;
     if (cache) {
       const cached = await cache.match(request);
