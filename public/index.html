@@ -118,7 +118,9 @@
     .ride-card summary:hover, .ride-card summary:focus-visible { background: #eef5ff; }
     .ride-card summary:focus-visible { outline: 2px solid #1058a7; outline-offset: 2px; }
     .ride-card-name { min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+    .ride-card-current { display: flex; flex-direction: column; align-items: center; justify-self: end; gap: 3px; }
     .ride-card-wait { flex: 0 0 auto; min-width: 72px; padding: 5px; border-radius: 5px; text-align: center; font-weight: 700; }
+    .ride-card-trend { font-size: .76rem; font-weight: 700; line-height: 1.2; white-space: nowrap; }
     .ride-card-action { grid-column: 1 / -1; justify-self: end; padding: 4px 9px; border: 1px solid #7cabdf; border-radius: 20px; background: #e6f1ff; color: #1058a7; font-size: .86rem; font-weight: 700; white-space: nowrap; }
     .ride-card-action-open, .ride-card details[open] .ride-card-action-closed { display: none; }
     .ride-card details[open] .ride-card-action-open { display: inline; }
@@ -1952,29 +1954,31 @@
       return smallestGap <= HOUR_MATCH_TOLERANCE ? nearest : null;
     }
 
-    function trendCell(rideId, currentWait, snapshots) {
-      const cell = document.createElement('td');
-      cell.className = 'trend-cell';
+    function hourTrend(rideId, currentWait, snapshots) {
       const past = findSnapshotNear(snapshots, Date.now() / 1000 - 3600);
       const pastWait = past ? sampleWait(past.rides[String(rideId)]) : null;
       if (currentWait == null || pastWait == null) {
-        cell.classList.add('trend-none');
-        cell.textContent = '—';
-        cell.title = '約1時間前と現在の待ち時間を比較できません';
-      } else {
-        const difference = currentWait - pastWait;
-        const comparison = `${snapshotDescription(past)} ${pastWait}分 → 現在 ${currentWait}分`;
-        if (Math.abs(difference) < 5) {
-          cell.classList.add('trend-flat');
-          cell.textContent = '→';
-          cell.title = `${comparison}（ほぼ横ばい）`;
-        } else {
-          cell.classList.add(difference > 0 ? 'trend-up' : 'trend-down');
-          cell.textContent = `${difference > 0 ? '↑' : '↓'}${Math.abs(difference)}`;
-          cell.title = `${comparison}（${difference > 0 ? '+' : ''}${difference}分）`;
-        }
+        return {className: 'trend-none', text: '—', title: '約1時間前と現在の待ち時間を比較できません'};
       }
-      cell.setAttribute('aria-label', cell.title);
+      const difference = currentWait - pastWait;
+      const comparison = `${snapshotDescription(past)} ${pastWait}分 → 現在 ${currentWait}分`;
+      if (Math.abs(difference) < 5) {
+        return {className: 'trend-flat', text: '→', title: `${comparison}（ほぼ横ばい）`};
+      }
+      return {
+        className: difference > 0 ? 'trend-up' : 'trend-down',
+        text: `${difference > 0 ? '↑' : '↓'}${Math.abs(difference)}`,
+        title: `${comparison}（${difference > 0 ? '+' : ''}${difference}分）`,
+      };
+    }
+
+    function trendCell(rideId, currentWait, snapshots) {
+      const cell = document.createElement('td');
+      const change = hourTrend(rideId, currentWait, snapshots);
+      cell.className = `trend-cell ${change.className}`;
+      cell.textContent = change.text;
+      cell.title = change.title;
+      cell.setAttribute('aria-label', change.title);
       return cell;
     }
 
@@ -3022,10 +3026,20 @@
         wait.className = `ride-card-wait ${current.className}`;
         wait.textContent = isWaitCell(current) ? `${current.textContent}分` : current.textContent;
         wait.title = current.title;
+        const currentBlock = document.createElement('span');
+        currentBlock.className = 'ride-card-current';
+        const change = hourTrend(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null, snapshots);
+        const changeLabel = document.createElement('span');
+        changeLabel.className = `ride-card-trend ${change.className}`;
+        changeLabel.textContent = `1時間 ${change.text}${change.text !== '—' && change.text !== '→' ? '分' : ''}`;
+        changeLabel.title = change.title;
+        changeLabel.setAttribute('role', 'img');
+        changeLabel.setAttribute('aria-label', change.title);
+        currentBlock.append(wait, changeLabel);
         const action = document.createElement('span');
         action.className = 'ride-card-action';
         action.innerHTML = '<span class="ride-card-action-closed">グラフ・履歴を見る ▼</span><span class="ride-card-action-open">詳細を閉じる ▲</span>';
-        summary.append(name, wait, action);
+        summary.append(name, currentBlock, action);
         const history = document.createElement('div');
         history.className = 'ride-card-history';
         const url = officialAttractionUrls.get(Number(ride.id));
