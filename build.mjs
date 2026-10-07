@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const base = fileURLToPath(new URL('.', import.meta.url));
 const files = {
   '/index.html': 'index.html',
+  '/map.html': 'map.html',
   '/privacy.html': 'privacy.html',
   '/events.json': 'events.json',
   '/closures.json': 'closures.json',
@@ -23,6 +24,7 @@ for (const [route, name] of Object.entries(files)) {
 // Binary files must be base64 encoded instead of being read as UTF-8 text.
 const binaryFiles = {
   '/og.png': 'og.png',
+  '/park-map.jpg': 'park-map.jpg',
   '/favicon.ico': 'favicon.ico',
   '/apple-touch-icon.png': 'apple-touch-icon.png',
   '/icon-192.png': 'icon-192.png',
@@ -41,7 +43,7 @@ const preamble = `const EMBEDDED_ASSETS = ${JSON.stringify(assets)};\n` +
   const binary = EMBEDDED_BINARY_ASSETS[route];
   if (binary !== undefined) {
     const body = Uint8Array.from(atob(binary), character => character.charCodeAt(0));
-    const type = route.endsWith('.ico') ? 'image/x-icon' : 'image/png';
+    const type = route.endsWith('.ico') ? 'image/x-icon' : route.endsWith('.jpg') ? 'image/jpeg' : 'image/png';
     return Promise.resolve(new Response(body, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' } }));
   }
   const body = EMBEDDED_ASSETS[route];
