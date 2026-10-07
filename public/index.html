@@ -600,22 +600,54 @@
     .selected-pass-excluded { color: #5b3a8c; font-weight: 700; }
     :root[data-theme="dark"] .archive-cal-pass { background: #8e6cc4; color: #fff; }
     :root[data-theme="dark"] .selected-pass-excluded { color: #c9b3f0; }
+    /* 運営者撮影の写真を、見出しと一体化したコンパクトなヘッダーにする。 */
+    .site-header { position: relative; display: block; min-height: 208px; overflow: hidden; isolation: isolate; border-radius: 18px; background: #102238; box-shadow: 0 10px 28px rgba(16, 34, 56, .16); }
+    .hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 45%; }
+    .site-header::after { content: ''; position: absolute; inset: 0; z-index: 0; background: linear-gradient(90deg, rgba(8, 25, 43, .96) 0%, rgba(8, 25, 43, .86) 36%, rgba(8, 25, 43, .14) 78%), linear-gradient(0deg, rgba(8, 25, 43, .48), transparent 60%); pointer-events: none; }
+    .hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; box-sizing: border-box; min-height: 208px; padding: 16px 22px 18px; }
+    .hero-brand { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+    .site-header .text-logo, :root[data-theme="dark"] .site-header .text-logo { color: #fff; text-shadow: 0 1px 3px #0009; }
+    .site-header .logo-usj { background: #fff; color: #1058a7; text-shadow: none; }
+    .site-header .unofficial, :root[data-theme="dark"] .site-header .unofficial { background: rgba(9, 23, 40, .66); border: 1px solid rgba(255, 255, 255, .6); color: #fff; }
+    .site-header .theme-toggle, :root[data-theme="dark"] .site-header .theme-toggle { min-height: 34px; border-color: rgba(255, 255, 255, .7); background: rgba(9, 23, 40, .7); color: #fff; }
+    .site-header .theme-toggle:hover, .site-header .theme-toggle:focus-visible, .site-header .text-logo:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .hero-copy { max-width: 620px; margin-top: auto; }
+    .site-header h1 { margin: 0 0 6px; color: #fff; font-size: clamp(1.6rem, 3.3vw, 2.15rem); line-height: 1.25; text-shadow: 0 2px 5px #0009; }
+    .site-header .sub, :root[data-theme="dark"] .site-header .sub { max-width: 460px; margin: 0; color: #f0f6ff; font-size: .85rem; line-height: 1.5; text-shadow: 0 1px 3px #000c; }
+    @media (max-width: 620px) {
+      .site-header { min-height: 190px; margin: -12px -10px 9px; border-radius: 0 0 16px 16px; }
+      .hero-photo { object-position: 55% 43%; }
+      .site-header::after { background: linear-gradient(0deg, rgba(7, 21, 38, .96) 0%, rgba(7, 21, 38, .72) 40%, rgba(7, 21, 38, .2) 100%), linear-gradient(90deg, rgba(7, 21, 38, .4), transparent 65%); }
+      .hero-content { min-height: 190px; padding: 11px 14px 13px; }
+      .site-header .text-logo { font-size: 1rem; }
+      .site-header .unofficial { font-size: .69rem; }
+      .site-header .theme-toggle { min-height: 32px; padding: 0 8px; font-size: .72rem; }
+      .site-header h1 { font-size: 1.4rem; margin-bottom: 3px; }
+      .site-header .sub { font-size: .72rem; line-height: 1.4; }
+    }
   </style>
 </head>
 <body>
   <header class="site-header">
-    <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
-    <span class="unofficial">非公式</span>
-    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button>
+    <img class="hero-photo" src="/og-photo.jpg" alt="運営者が撮影したユニバーサル・スタジオ・ジャパンのグローブ" width="1280" height="720" fetchpriority="high">
+    <div class="hero-content">
+      <div class="hero-brand">
+        <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
+        <span class="unofficial">非公式</span>
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button>
+      </div>
+      <div class="hero-copy">
+        <h1 data-only="now">USJの待ち時間・混雑状況</h1>
+        <h1 data-only="plan">USJ混雑カレンダー</h1>
+        <p class="sub">提供元の公開データに基づく掲載値です（現地の実測ではありません）。個人運営の非公式サイトです。</p>
+      </div>
+    </div>
   </header>
   <div class="sticky-nav">
     <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/map">地図で探す</a><a href="/plan" data-tab="plan">行く前に</a></nav>
     <nav class="jump-nav" data-only="now" aria-label="ページ内の項目"><a href="#heatmap-title">待ち時間</a><a href="#shows-title">ショー</a><a href="#closures-title">休止</a><a href="#weather-title">天気</a></nav>
     <nav class="jump-nav" data-only="plan" aria-label="ページ内の項目"><a href="#archive-title">カレンダー</a><a href="#shows-title">ショー</a><a href="#events-title">イベント</a></nav>
   </div>
-  <h1 data-only="now">USJの待ち時間・混雑状況</h1>
-  <h1 data-only="plan">USJ混雑カレンダー</h1>
-  <p class="sub">提供元の公開データに基づく掲載値です（現地の実測ではありません）。個人運営の非公式サイトです。</p>
   <div class="today-hours" data-only="now" role="status" aria-label="本日の公表営業時間">
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
     <a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">公式で確認</a>
