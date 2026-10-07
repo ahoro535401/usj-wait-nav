@@ -374,7 +374,19 @@ async function refreshLive(env, capturedAt = epoch(), save = false) {
     const queueRaw = await fetchJson(QUEUE_URL);
     const fetchedAt = new Date().toISOString();
     const rides = parseRides(queueRaw, wikiRaw, fetchedAt);
+    const [priorPayload, priorFetchedAt] = await Promise.all([
+      readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
+    ]);
+    let previous = null;
+    const priorGap = Date.parse(fetchedAt) - Date.parse(priorFetchedAt);
+    if (priorPayload && Number.isFinite(priorGap) && priorGap >= 3 * 60 * 1000 && priorGap <= 8 * 60 * 1000) {
+      try {
+        const priorRides = JSON.parse(priorPayload);
+        if (Array.isArray(priorRides)) previous = { fetched_at: priorFetchedAt, rides: priorRides };
+      } catch (_) { /* 前回値が壊れている場合は比較しない */ }
+    }
     await env.DB.batch([
+      env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('rides_previous_payload', JSON.stringify(previous)),
       env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('rides_payload', JSON.stringify(rides)),
       env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('rides_fetched_at', fetchedAt),
       env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE value <> excluded.value').bind('rides_error', ''),
@@ -860,10 +872,13 @@ async function route(request, env) {
     const payload = await readMeta(env.DB, 'rides_payload');
     if (!payload) return json({ error: '最初の定時取得を待っています' }, 503);
     const rides = JSON.parse(payload);
-    const [fetchedAt, refreshError] = await Promise.all([
+    const [fetchedAt, refreshError, previousPayload] = await Promise.all([
       readMeta(env.DB, 'rides_fetched_at'), readMeta(env.DB, 'rides_error'),
+      readMeta(env.DB, 'rides_previous_payload').catch(() => null),
     ]);
-    return json({ rides, fetched_at: fetchedAt, refresh_error: refreshError || null,
+    let previous = null;
+    try { previous = JSON.parse(previousPayload); } catch (_) { /* 前回値がなければ比較しない */ }
+    return json({ rides, fetched_at: fetchedAt, previous, refresh_error: refreshError || null,
       archive_error: null, history: null, comparisons: {} });
   }
   if (url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
