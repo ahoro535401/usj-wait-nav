@@ -806,6 +806,10 @@ async function route(request, env) {
     url.pathname = '/privacy.html';
     return assetFetch(new Request(url, request), env);
   }
+  if (url.pathname === '/map') {
+    url.pathname = '/map.html';
+    return assetFetch(new Request(url, request), env);
+  }
   if (url.pathname === '/sitemap.xml') return embeddedFetch(request);
   if (url.pathname === '/api/events' || url.pathname === '/api/closures' || url.pathname === '/api/pass-exclusions' || url.pathname === '/api/ticket-prices') {
     url.pathname = url.pathname === '/api/events' ? '/events.json'
@@ -938,7 +942,7 @@ async function fallbackRoute(request, env) {
 }
 
 const API_CACHE_SECONDS = new Map([
-  ['/', 60], ['/plan', 60],
+  ['/', 60], ['/plan', 60], ['/map', 3600],
   ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400], ['/api/history', 300],
