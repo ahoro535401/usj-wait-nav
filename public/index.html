@@ -4,18 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>USJの待ち時間・混雑状況｜USJ待ち時間ナビ</title>
-  <meta name="description" content="USJのアトラクション別待ち時間を、現在の掲載値と20分ごとの履歴で比較。営業時間、ショー開始時刻、イベント情報も確認できる個人運営の非公式サイトです。">
+  <meta name="description" content="USJのアトラクション別の現在の待ち時間と20分ごとの履歴を比較。営業時間、ショー開始時刻、イベント情報も確認できる個人運営の非公式サイトです。">
   <link rel="canonical" href="https://usj-wait-nav.kotaro-7436.workers.dev/">
   <meta property="og:url" content="https://usj-wait-nav.kotaro-7436.workers.dev/">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"USJ待ち時間ナビ","url":"https://usj-wait-nav.kotaro-7436.workers.dev/","description":"USJの待ち時間・履歴・営業時間・ショー開始時刻を確認できる個人運営の非公式サイト"}</script>
   <meta property="og:site_name" content="USJ待ち時間ナビ">
   <meta property="og:type" content="website">
   <meta property="og:title" content="USJの待ち時間・混雑状況｜USJ待ち時間ナビ">
-  <meta property="og:description" content="USJのアトラクション別待ち時間を、現在の掲載値と20分ごとの履歴で比較。営業時間、ショー開始時刻、イベント情報も確認できる個人運営の非公式サイトです。">
-  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og.png">
+  <meta property="og:description" content="USJのアトラクション別の現在の待ち時間と20分ごとの履歴を比較。個人運営の非公式サイトです。">
+  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og-share.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="USJ待ち時間ナビ（非公式）：今の待ち時間と過去の混雑実績">
+  <meta property="og:image:alt" content="夜の遊園地を背景にしたUSJ待ち時間ナビの共有画像。個人運営の非公式サイト">
   <meta property="og:locale" content="ja_JP">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#f4f7fa">
@@ -2886,8 +2886,8 @@
         : '現在表示できる待ち時間はありません';
       return {
         title: 'USJ待ち時間ナビ',
-        text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}\n※提供元の掲載値・非公式サイト`,
-        xText: `USJ待ち時間（${time}時点／掲載値・非公式）${short}`,
+        text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}\n※個人運営の非公式サイト`,
+        xText: `USJ待ち時間ナビ｜待ち時間・非公式\n${time}時点の上位：${short}`,
         url: `${location.origin}/`,
       };
     }
@@ -2895,8 +2895,8 @@
       const time = shareTimeLabel();
       return {
         title: label,
-        text: `【USJ待ち時間ナビ】${label}：${waitText}（${time}時点・提供元の掲載値・非公式サイト）`,
-        xText: `掲載値・非公式｜${label}：${waitText}（${time}時点）`,
+        text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）`,
+        xText: `USJ待ち時間ナビ｜待ち時間・非公式\n${label}：${waitText}（${time}時点）`,
         url: `${location.origin}/?ride=${encodeURIComponent(id)}`,
       };
     }
@@ -2911,8 +2911,8 @@
       if (weather) lines.push(weather.replace(/^天気（[^）]*）：/, '天気：'));
       return {
         title: 'USJ混雑カレンダー',
-        text: `【USJ混雑カレンダー】${day.replaceAll('-', '/')}の実績\n${lines.join('\n')}\n※提供元の掲載値を基に集計・非公式サイト`,
-        xText: `掲載値・非公式｜USJ ${day.replaceAll('-', '/')}の混雑実績：平均${archiveAverage.textContent}、ピーク${archivePeak.textContent}`,
+        text: `【USJ待ち時間ナビ】${day.replaceAll('-', '/')}の待ち時間実績\n${lines.join('\n')}\n※個人運営の非公式サイト`,
+        xText: `USJ待ち時間ナビ｜過去の待ち時間・非公式\n${day.replaceAll('-', '/')}：平均${archiveAverage.textContent}、ピーク${archivePeak.textContent}`,
         url: `${location.origin}/plan?date=${encodeURIComponent(day)}`,
       };
     }
