@@ -626,8 +626,8 @@
   <main>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間</h2>
-    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。前回比は直近の20分記録との差です。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
-    <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・前回の20分記録との差・今日の推移を一覧できます。</p>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。前回比は約5分前の取得値との差です。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・約5分前の取得値との差・今日の推移を一覧できます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
       <li class="skeleton-row"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:3em"></span><span class="visually-hidden">現在値を確認中…</span></li>
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:60%"></span><span class="skeleton" style="width:3em"></span></li>
@@ -678,7 +678,7 @@
     </div>
     <div id="trend-legend" class="muted trend-legend">
       <ul class="trend-legend-list">
-        <li><strong>前回比</strong>：20分ごとの直近保存値と現在値の差（↑増加・↓減少・→差が5分未満、—は比較不可）</li>
+        <li><strong>前回比</strong>：約5分前の取得値と現在値の差（↑増加・↓減少・→差が5分未満、—は比較不可）</li>
         <li><strong>今日</strong>：直近約6時間の20分ごとの記録。右端の濃い棒が現在値</li>
         <li>薄い線は記録なし・休止中。棒の高さは行ごとに目盛りが異なります</li>
       </ul>
@@ -1934,31 +1934,30 @@
       return cell;
     }
 
-    const RECENT_TREND_MAX_AGE = 30 * 60;
-
     function sampleWait(sample) {
       return sample && !sample.data_unavailable && sample.is_open && Number.isFinite(sample.wait_minutes)
         ? sample.wait_minutes : null;
     }
 
-    function latestSnapshotForTrend(snapshots) {
-      const now = Date.now() / 1000;
-      let latest = null;
-      for (const snapshot of snapshots) {
-        if (!Number.isFinite(snapshot.captured_at) || snapshot.captured_at > now + 120) continue;
-        if (!latest || snapshot.captured_at > latest.captured_at) latest = snapshot;
-      }
-      return latest && now - latest.captured_at <= RECENT_TREND_MAX_AGE ? latest : null;
-    }
-
-    function recentTrend(rideId, currentWait, snapshots) {
-      const past = latestSnapshotForTrend(snapshots);
-      const pastWait = past ? sampleWait(past.rides[String(rideId)]) : null;
-      if (currentWait == null || pastWait == null) {
-        return {className: 'trend-none', text: '—', title: '前回の20分記録と現在の待ち時間を比較できません'};
+    function recentTrend(rideId, currentWait) {
+      const previous = currentData?.previous;
+      const currentAt = Date.parse(currentData?.fetched_at);
+      const previousAt = Date.parse(previous?.fetched_at);
+      const gap = currentAt - previousAt;
+      const currentRide = currentData?.rides?.find(item => String(item.id) === String(rideId));
+      const previousRide = previous?.rides?.find(item => String(item.id) === String(rideId));
+      const previousSourceAt = Date.parse(previousRide?.verified_at || previousRide?.last_updated);
+      const previousSourceAge = previousAt - previousSourceAt;
+      const pastWait = previousRide && !previousRide.data_unavailable && previousRide.is_open &&
+        Number.isFinite(previousRide.wait_time) && Number.isFinite(previousSourceAge) &&
+        previousSourceAge >= -2 * 60 * 1000 && previousSourceAge <= 15 * 60 * 1000
+        ? previousRide.wait_time : null;
+      if (!Number.isFinite(gap) || gap < 3 * 60 * 1000 || gap > 8 * 60 * 1000 ||
+          !Number.isFinite(currentWait) || pastWait == null || currentRide?.source !== previousRide?.source) {
+        return {className: 'trend-none', text: '—', title: '約5分前の取得値と現在の待ち時間を比較できません'};
       }
       const difference = currentWait - pastWait;
-      const comparison = `前回の20分記録 ${snapshotDescription(past)} ${pastWait}分 → 現在 ${currentWait}分`;
+      const comparison = `前回取得 ${timeFormat.format(new Date(previousAt))} ${pastWait}分 → 今回取得 ${timeFormat.format(new Date(currentAt))} ${currentWait}分`;
       if (Math.abs(difference) < 5) {
         return {className: 'trend-flat', text: '→', title: `${comparison}（ほぼ横ばい）`};
       }
@@ -1969,9 +1968,9 @@
       };
     }
 
-    function trendCell(rideId, currentWait, snapshots) {
+    function trendCell(rideId, currentWait) {
       const cell = document.createElement('td');
-      const change = recentTrend(rideId, currentWait, snapshots);
+      const change = recentTrend(rideId, currentWait);
       cell.className = `trend-cell ${change.className}`;
       cell.textContent = change.text;
       cell.title = change.title;
@@ -2994,7 +2993,7 @@
         row.append(name, currentCell);
         if (trendMode) {
           const currentWait = isWaitCell(currentCell) ? Number.parseFloat(currentCell.textContent) : null;
-          row.append(trendCell(ride.id, currentWait, snapshots), sparkCell(ride.id, currentWait, snapshots));
+          row.append(trendCell(ride.id, currentWait), sparkCell(ride.id, currentWait, snapshots));
         } else {
           for (const snapshot of snapshots) {
             const label = `${snapshotDescription(snapshot)}の記録`;
@@ -3025,7 +3024,7 @@
         wait.title = current.title;
         const currentBlock = document.createElement('span');
         currentBlock.className = 'ride-card-current';
-        const change = recentTrend(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null, snapshots);
+        const change = recentTrend(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null);
         const changeLabel = document.createElement('span');
         changeLabel.className = `ride-card-trend ${change.className}`;
         changeLabel.textContent = `前回比 ${change.text}${change.text !== '—' && change.text !== '→' ? '分' : ''}`;
