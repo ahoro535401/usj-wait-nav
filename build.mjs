@@ -25,6 +25,7 @@ for (const [route, name] of Object.entries(files)) {
 const binaryFiles = {
   '/og.png': 'og.png',
   '/og-photo.jpg': 'og-photo.jpg',
+  '/og-photo-labeled.jpg': 'og-photo-labeled.jpg',
   '/park-map.jpg': 'park-map.jpg',
   '/favicon.ico': 'favicon.ico',
   '/apple-touch-icon.png': 'apple-touch-icon.png',
