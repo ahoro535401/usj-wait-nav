@@ -29,11 +29,11 @@
     .toolbar button:hover,.area-button:hover,.toolbar button:focus-visible,.area-button:focus-visible { background:#dceeff; outline:2px solid #145aa5; outline-offset:1px; }
     #zoom-level { min-width:3.5em; font-variant-numeric:tabular-nums; font-weight:700; }
     #map-status { margin-left:auto; color:#415268; font-size:.88rem; }
-    .map-viewport { position:relative; width:100%; aspect-ratio:1280/1137; overflow:hidden; border-radius:9px; background:#d9e6d4; touch-action:none; cursor:grab; user-select:none; }
+    .map-viewport { position:relative; width:100%; aspect-ratio:1280/1169; overflow:hidden; border-radius:9px; background:#d9e6d4; touch-action:none; cursor:grab; user-select:none; }
     .map-viewport.is-dragging { cursor:grabbing; }
-    .map-stage { position:absolute; inset:0; transform-origin:0 0; will-change:transform; }
+    .map-stage { position:absolute; inset:0; transform-origin:0 0; }
     .map-stage img { width:100%; height:100%; object-fit:fill; display:block; pointer-events:none; }
-    .pin-layer { position:absolute; inset:0; pointer-events:none; }
+    .pin-layer { position:absolute; inset:0; z-index:2; pointer-events:none; }
     .map-pin { position:absolute; transform:translate(-50%,-100%) scale(var(--inverse-scale,1)); transform-origin:center bottom; pointer-events:auto; min-width:38px; min-height:38px; border:2px solid #fff; border-radius:20px 20px 20px 4px; background:#12599e; color:#fff; box-shadow:0 2px 8px #0009; cursor:pointer; font-size:.8rem; font-weight:800; white-space:nowrap; padding:6px 8px; }
     .map-pin:hover,.map-pin:focus-visible,.map-pin[aria-pressed="true"] { outline:3px solid #ffd34f; outline-offset:2px; z-index:2; }
     .map-pin[data-tone="short"] { background:#087d60; }
@@ -44,10 +44,13 @@
     .map-pin .pin-label { display:none; }
     .map-pin:hover .pin-label,.map-pin:focus-visible .pin-label,.map-pin[aria-pressed="true"] .pin-label { display:inline; margin-left:4px; }
     .map-pin.is-hidden { display:none; }
-    .area-pins { position:absolute; inset:0; pointer-events:none; }
-    .area-pin { position:absolute; transform:translate(-50%,-50%) scale(var(--inverse-scale,1)); pointer-events:auto; min-width:58px; min-height:44px; padding:6px 10px; border:0; border-radius:22px; background:transparent; color:transparent; cursor:pointer; font-size:.8rem; font-weight:800; white-space:nowrap; }
+    .area-pins { position:absolute; inset:0; z-index:1; pointer-events:none; }
+    .area-pin { position:absolute; transform:translate(-50%,-50%); pointer-events:auto; width:var(--label-width); min-height:5.5%; display:flex; align-items:center; gap:7px; padding:4px 10px 4px 4px; border:2px solid #fff; border-radius:999px; background:var(--area-color); color:#fff; box-shadow:0 2px 7px #1725368c; cursor:pointer; font-size:clamp(16px,1.4vw,18px); font-weight:800; line-height:1.2; text-align:left; text-shadow:0 1px 1px #0005; }
+    .area-pin .area-number { flex:none; display:grid; place-items:center; width:clamp(30px,3.7vw,45px); aspect-ratio:1; border-radius:50%; background:#fff; color:#172536; font-size:1.25em; text-shadow:none; }
+    .area-pin .area-name { flex:1; }
+    .area-pin.entrance { justify-content:center; padding-left:10px; }
     .area-pin:hover { outline:2px solid #fff; outline-offset:2px; }
-    .map-viewport[data-zoom="pins"] .area-pin,.map-viewport[data-zoom="detail"] .area-pin { display:none; }
+    .map-viewport[data-zoom="pins"] .area-pin,.map-viewport[data-zoom="detail"] .area-pin { pointer-events:none; }
     .map-viewport[data-zoom="overview"] .map-pin { display:none; }
     .map-viewport[data-zoom="overview"] .area-pin:focus-visible { outline:3px solid #ffd34f; }
     .map-foot { margin:10px 2px 0; display:flex; gap:6px 14px; flex-wrap:wrap; color:#415268; font-size:.84rem; }
@@ -67,7 +70,8 @@
     .area-jumps .area-button { font-size:.83rem; }
     .notes { font-size:.85rem; line-height:1.6; color:#415268; }
     footer { max-width:1120px; margin:auto; padding:12px; border-top:1px solid #d8e1eb; color:#415268; font-size:.82rem; }
-    @media(max-width:600px) { header nav { width:100%; margin-left:0; justify-content:space-between; } header nav a { flex:1; text-align:center; padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } .area-pin { font-size:.66rem; padding:5px 7px; } }
+    @media(max-width:700px) { .area-pin { border:0; background:transparent; color:transparent; box-shadow:none; text-shadow:none; } .area-pin .area-number,.area-pin .area-name { visibility:hidden; } }
+    @media(max-width:600px) { header nav { width:100%; margin-left:0; justify-content:space-between; } header nav a { flex:1; text-align:center; padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } }
   </style>
 </head>
 <body>
@@ -90,13 +94,17 @@
   </main>
   <footer><a href="/privacy">このサイトについて・プライバシーポリシー</a> · 待ち時間データ：<a href="https://queue-times.com/">Queue-Times</a>、<a href="https://www.themeparks.wiki/">ThemeParks.wiki</a></footer>
   <script>
-    // 画像サイズ 1280×1137 の百分率座標。重なる通常版・夜間版は同じピンにまとめる。
+    // 画像サイズ 1280×1169 の百分率座標。重なる通常版・夜間版は同じピンにまとめる。
     // 新しい施設や移設時は、この座標を実際の入口に合わせて見直す。
     const areas = [
-      {name:'ハリウッド・エリア',x:23,y:46}, {name:'ニューヨーク・エリア',x:23,y:21},
-      {name:'ミニオン・パーク',x:45,y:10}, {name:'ジュラシック・パーク',x:84,y:20},
-      {name:'アミティ・ビレッジ',x:72,y:40}, {name:'ワンダーランド',x:53,y:62},
-      {name:'ハリー・ポッター',x:63,y:90}, {name:'ニンテンドー・ワールド',x:88,y:67}
+      {name:'ハリウッド・エリア',x:23,y:46,labelX:18.1,labelY:43.3,width:23,number:'11',color:'#7541bd'},
+      {name:'ニューヨーク・エリア',x:23,y:21,labelX:23.4,labelY:20.8,width:23,number:'2',color:'#16794e'},
+      {name:'ミニオン・パーク',x:45,y:10,labelX:36,labelY:3.8,width:23,number:'5',color:'#edaa17'},
+      {name:'ジュラシック・パーク',x:84,y:20,labelX:87.8,labelY:20.8,width:24,number:'6',color:'#2f8a2d'},
+      {name:'アミティ・ビレッジ',x:72,y:40,labelX:74.2,labelY:38.5,width:23,number:'4',color:'#405b7b'},
+      {name:'ワンダーランド',label:'ユニバーサル・ワンダーランド',x:53,y:62,labelX:52.2,labelY:61.4,width:30,number:'5',color:'#229bc7'},
+      {name:'ハリー・ポッター',label:'ウィザーディング・ワールド・オブ・ハリー・ポッター',x:63,y:90,labelX:63.3,labelY:89.8,width:29,number:'7',color:'#292868'},
+      {name:'ニンテンドー・ワールド',label:'スーパー・ニンテンドー・ワールド',x:88,y:67,labelX:87.4,labelY:66.7,width:27,number:'8',color:'#c92e31'}
     ];
     const spots = [
       {x:35.15,y:53.65,ids:[7077,12070],name:'ハリウッド・ドリーム・ザ・ライド'},
@@ -229,13 +237,22 @@
     function renderAreas(){
       for(const area of areas){
         const button=document.createElement('button');button.type='button';button.className='area-pin';
-        button.style.left=`${area.x}%`;button.style.top=`${area.y}%`;button.textContent=area.name;
+        button.style.left=`${area.labelX}%`;button.style.top=`${area.labelY}%`;
+        button.style.setProperty('--label-width',`${area.width}%`);
+        button.style.setProperty('--area-color',area.color);
+        const number=document.createElement('span');number.className='area-number';number.textContent=area.number;
+        const name=document.createElement('span');name.className='area-name';name.textContent=area.label||area.name;
+        button.append(number,name);
         button.setAttribute('aria-label',`${area.name}を拡大`);
         button.addEventListener('click',()=>focusAt(area.x,area.y,2.25));areaLayer.append(button);
         const jump=document.createElement('button');jump.type='button';jump.className='area-button';jump.textContent=area.name;
         jump.addEventListener('click',()=>focusAt(area.x,area.y,2.25));
         document.querySelector('#area-jumps').append(jump);
       }
+      const entrance=document.createElement('div');entrance.className='area-pin entrance';
+      entrance.style.left='22.7%';entrance.style.top='86%';entrance.style.setProperty('--label-width','17%');
+      entrance.style.setProperty('--area-color','#105493');entrance.textContent='エントランス';
+      entrance.setAttribute('aria-hidden','true');areaLayer.append(entrance);
     }
     async function loadWaits(){
       try{
