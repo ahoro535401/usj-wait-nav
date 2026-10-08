@@ -62,6 +62,9 @@
     .view-switch button { min-height:44px; padding:8px 15px; border:1px solid #a8bdd3; border-radius:9px; background:#f5f9fd; color:#164b86; cursor:pointer; font-weight:700; }
     .view-switch button[aria-pressed="true"] { background:#12599e; color:#fff; }
     #geo-map { height:min(68vh,650px); min-height:440px; border-radius:9px; background:#dce8ee; }
+    .geo-map-wrap { position:relative; }
+    #my-location { position:absolute; z-index:5; top:12px; left:12px; min-height:48px; padding:9px 14px; border:2px solid #fff; border-radius:999px; background:#12599e; color:#fff; box-shadow:0 2px 10px #0008; font-weight:800; }
+    #my-location:hover,#my-location:focus-visible { background:#0b477f; color:#fff; outline:3px solid #ffd34f; outline-offset:2px; }
     .geo-marker { z-index:2; display:flex; align-items:center; gap:3px; min-height:34px; padding:4px 7px; border:2px solid #fff; border-radius:9px; color:#fff; background:#4a5b70; box-shadow:0 2px 7px #0008; font-size:.76rem; font-weight:800; white-space:nowrap; cursor:pointer; }
     .geo-marker[data-tone="short"] { background:#087d60; }.geo-marker[data-tone="mid"] { background:#af6617; }.geo-marker[data-tone="long"] { background:#9c2638; }.geo-marker[data-tone="closed"] { background:#64748b; }
     .geo-marker.restaurant { z-index:1; background:#583b88; }
@@ -116,6 +119,8 @@
     #selection-close { float:right; min-width:40px; min-height:40px; margin:-5px -5px 4px 8px; border:1px solid #a8bdd3; border-radius:8px; background:#f5f9fd; color:#164b86; cursor:pointer; }
     #selection h2 { margin:0 0 8px; font-size:1.1rem; }
     #selection p { margin:6px 0; }
+    .route-link { display:inline-flex; min-height:44px; align-items:center; padding:8px 12px; border-radius:8px; background:#12599e; color:#fff; font-weight:700; text-decoration:none; }
+    .route-link:hover,.route-link:focus-visible { background:#0b477f; color:#fff; outline:2px solid #ffd34f; outline-offset:2px; }
     .ride-result { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; padding:8px 0; border-top:1px solid #dbe5ef; }
     .ride-result strong { flex:1 1 230px; }
     .ride-result .wait { font-weight:800; color:#12599e; }
@@ -143,6 +148,7 @@
     :root[data-theme="dark"] .map-pin[data-tone="unknown"] { background:#576f87; }
     :root[data-theme="dark"] .ride-result { border-color:#344b61; }
     :root[data-theme="dark"] .ride-result .wait { color:#9fc5ff; }
+    :root[data-theme="dark"] #my-location,:root[data-theme="dark"] .route-link { background:#2f6fc0; color:#fff; }
     :root[data-theme="dark"] footer { border-color:#344b61; }
     @media(max-width:700px) { .area-pin { border:0; background:transparent; color:transparent; box-shadow:none; text-shadow:none; } .area-pin .area-number,.area-pin .area-name { visibility:hidden; } }
     @media(max-width:620px) { .site-header { min-height:190px; margin:-12px -10px 9px; border-radius:0 0 16px 16px; } .hero-photo { object-position:55% 43%; } .site-header::after { background:linear-gradient(0deg,#071526f5 0%,#071526b8 40%,#07152633 100%),linear-gradient(90deg,#07152666,transparent 65%); } .hero-content { min-height:190px; padding:11px 14px 13px; } .text-logo { font-size:1rem; } .unofficial { font-size:.69rem; } .theme-toggle { min-height:32px; padding:0 8px; font-size:.72rem; } .site-header h1 { font-size:1.4rem; margin-bottom:3px; } .hero-copy .sub { font-size:.72rem; line-height:1.4; } }
@@ -170,10 +176,10 @@
     <section class="map-shell" aria-label="アトラクションの地図">
       <div class="view-switch" role="group" aria-label="地図の種類"><button type="button" id="geo-view-button" aria-pressed="true">地図と現在地</button><button type="button" id="illustration-view-button" aria-pressed="false">イラスト地図</button></div>
       <div id="geo-view">
-        <div class="geo-options"><label><input id="restaurant-toggle" type="checkbox">飲食店も表示</label><button type="button" id="my-location" class="area-button">◎ 現在地を表示</button><span id="location-status" role="status"></span></div>
+        <div class="geo-options"><label><input id="restaurant-toggle" type="checkbox">飲食店も表示</label><span id="location-status" role="status">GPSボタンを押すと現在地を表示します</span></div>
         <p id="geo-status" class="notes" role="status">待ち時間を読み込み中…</p>
         <p class="map-attribution">全体表示では主な施設を表示します。拡大すると全23施設と飲食店の位置を確認できます。</p>
-        <div id="geo-map" aria-label="USJ付近の地図。アトラクションの待ち時間をピンで表示"></div>
+        <div class="geo-map-wrap"><div id="geo-map" aria-label="USJ付近の地図。アトラクションの待ち時間をピンで表示"></div><button type="button" id="my-location" aria-describedby="location-status">📍 GPSで現在地を表示</button></div>
         <p id="map-error" role="alert" hidden></p>
         <p class="map-attribution">地図：<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> / <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>。施設位置：<a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a>。施設の位置は目安で、入口や通行可能な経路を示すものではありません。</p>
       </div>
@@ -188,7 +194,7 @@
       <div class="map-foot" aria-label="ピンの色と矢印"><span><i class="short"></i>0～39分</span><span><i class="mid"></i>40～89分</span><span><i class="long"></i>90分以上</span><span><i class="closed"></i>休止・未取得</span><span>20分前比：↑増加・→ほぼ横ばい・↓減少（比較できない場合は非表示）</span></div>
     </section>
     <nav id="area-jumps" class="area-jumps" aria-label="イラスト地図のエリアへ移動" hidden></nav>
-    <p class="notes">待ち時間は5分ごとに画面更新されます。飲食店の営業時間・混雑状況は掲載していません。入口や経路は現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。イラスト地図は運営者制作です。本サイトは個人運営の非公式サイトです。</p>
+    <p class="notes">待ち時間は5分ごとに画面更新されます。飲食店の営業時間・混雑状況は掲載していません。施設詳細の「徒歩ルート」はGoogle マップで開きます。園内の通行可能な道や施設入口は正確に反映されない場合があるため、現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。イラスト地図は運営者制作です。本サイトは個人運営の非公式サイトです。</p>
   </main>
   <footer><a href="/privacy">このサイトについて・プライバシーポリシー</a> · 待ち時間データ：<a href="https://queue-times.com/">Queue-Times</a>、<a href="https://www.themeparks.wiki/">ThemeParks.wiki</a></footer>
   <script id="map-locations" type="application/json"><!--MAP_LOCATIONS--></script>
@@ -357,6 +363,16 @@
       const values=spot.ids.map(id=>rides.get(id)).filter(Boolean);
       return values.find(ride=>ride.is_open&&!ride.data_unavailable&&isFresh(ride)&&Number.isInteger(ride.wait_time))||values[0];
     }
+    function appendWalkingRoute(place){
+      if(!place||!Number.isFinite(place.lat)||!Number.isFinite(place.lng))return;
+      const paragraph=document.createElement('p');
+      const anchor=document.createElement('a');
+      anchor.className='route-link';
+      anchor.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${place.lat},${place.lng}`)}&travelmode=walking`;
+      anchor.target='_blank';anchor.rel='noopener noreferrer';
+      anchor.textContent='徒歩ルートをGoogle マップで開く ↗';
+      paragraph.append(anchor);selectionContent.append(paragraph);
+    }
     function showSpot(spot){
       activeSpot=spot;
       selection.hidden=false;selectionContent.replaceChildren();
@@ -374,6 +390,7 @@
       const link=document.createElement('p');
       const anchor=document.createElement('a');anchor.href=`/r/${representative(spot)?.id||spot.ids[0]}`;anchor.textContent='待ち時間一覧で確認する ›';
       link.append(anchor);selectionContent.append(link);
+      appendWalkingRoute(geoBySuffix.get(spotGeoKeys[spots.indexOf(spot)]));
     }
     function renderPins(){
       pinLayer.replaceChildren();
@@ -430,6 +447,7 @@
           const title=document.createElement('h2');title.textContent=place.name;
           const note=document.createElement('p');note.textContent='飲食店の位置は目安です。営業時間・待ち時間は確認できません。';
           selectionContent.append(title,note);
+          appendWalkingRoute(place);
         }
       });
       return new maplibregl.Marker({element:button,anchor:'bottom'}).setLngLat([place.lng,place.lat]).addTo(geoMap);
