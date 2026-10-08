@@ -660,8 +660,8 @@
   <main>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間</h2>
-    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。5分前比と1時間前比で短期・長期の動きを見られます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
-    <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・5分前比・1時間前比・今日の推移を一覧できます。</p>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。5分前比と20分前比で直近の動きを見られます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・5分前比・20分前比・今日の推移を一覧できます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
       <li class="skeleton-row"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:3em"></span><span class="visually-hidden">現在値を確認中…</span></li>
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:60%"></span><span class="skeleton" style="width:3em"></span></li>
@@ -712,7 +712,7 @@
     </div>
     <div id="trend-legend" class="muted trend-legend">
       <ul class="trend-legend-list">
-        <li><strong>5分前比</strong>：約5分前の取得値との差。<strong>1時間前比</strong>：約1時間前に最も近い20分記録との差（最大約11分のずれ）。↑増加・↓減少・→差が5分未満、—は比較不可</li>
+        <li><strong>5分前比</strong>：約5分前の取得値との差。<strong>20分前比</strong>：約20分前に最も近い保存記録との差（最大約11分のずれ）。↑増加・↓減少・→差が5分未満、—は比較不可</li>
         <li><strong>今日</strong>：直近約6時間の20分ごとの記録。右端の濃い棒が現在値</li>
         <li>薄い線は記録なし・休止中。棒の高さは行ごとに目盛りが異なります</li>
       </ul>
@@ -2002,9 +2002,9 @@
       };
     }
 
-    function hourTrend(rideId, currentWait, snapshots) {
+    function twentyMinuteTrend(rideId, currentWait, snapshots) {
       const currentAt = Date.parse(currentData?.fetched_at);
-      const target = currentAt / 1000 - 3600;
+      const target = currentAt / 1000 - 20 * 60;
       const previous = snapshots.filter(snapshot => Number.isFinite(snapshot.captured_at) &&
         Math.abs(snapshot.captured_at - target) <= 11 * 60)
         .sort((a, b) => Math.abs(a.captured_at - target) - Math.abs(b.captured_at - target) ||
@@ -2012,7 +2012,7 @@
       const sample = previous?.rides?.[String(rideId)];
       const pastWait = sampleWait(sample);
       if (!Number.isFinite(currentAt) || !Number.isFinite(currentWait) || pastWait == null || sample.estimated) {
-        return {className: 'trend-none', text: '—', title: '約1時間前の記録と現在の待ち時間を比較できません'};
+        return {className: 'trend-none', text: '—', title: '約20分前の記録と現在の待ち時間を比較できません'};
       }
       const difference = currentWait - pastWait;
       const comparison = `過去の記録 ${timeFormat.format(new Date(previous.captured_at * 1000))} ${pastWait}分 → 現在取得 ${timeFormat.format(new Date(currentAt))} ${currentWait}分`;
@@ -3037,8 +3037,8 @@
       const trendMode = mobileHeatmap.matches;
       heatmapBody.closest('table').classList.toggle('trend-mode', trendMode);
       const headLabels = trendMode
-        ? ['アトラクション', '現在', '5分前比', '1時間前比', '今日']
-        : ['アトラクション', '現在', '5分前比', '1時間前比', ...snapshots.map(item => snapshotSlotTime(item))];
+        ? ['アトラクション', '現在', '5分前比', '20分前比', '今日']
+        : ['アトラクション', '現在', '5分前比', '20分前比', ...snapshots.map(item => snapshotSlotTime(item))];
       for (const label of headLabels) {
         const heading = document.createElement('th');
         heading.scope = 'col';
@@ -3060,8 +3060,8 @@
         row.append(name, currentCell);
         const currentWait = isWaitCell(currentCell) ? Number.parseFloat(currentCell.textContent) : null;
         const fiveMinute = recentTrend(ride.id, currentWait);
-        const oneHour = hourTrend(ride.id, currentWait, snapshots);
-        row.append(trendCell(fiveMinute), trendCell(oneHour));
+        const twentyMinutes = twentyMinuteTrend(ride.id, currentWait, snapshots);
+        row.append(trendCell(fiveMinute), trendCell(twentyMinutes));
         if (trendMode) {
           row.append(sparkCell(ride.id, currentWait, snapshots));
         } else {
@@ -3100,7 +3100,7 @@
         const currentWait = isWaitCell(current) ? Number.parseFloat(current.textContent) : null;
         for (const [period, change] of [
           ['5分前比', recentTrend(ride.id, currentWait)],
-          ['1時間前比', hourTrend(ride.id, currentWait, snapshots)],
+          ['20分前比', twentyMinuteTrend(ride.id, currentWait, snapshots)],
         ]) {
           const changeLabel = document.createElement('span');
           changeLabel.className = `ride-card-trend ${change.className}`;
