@@ -321,7 +321,7 @@
       }
       if(!found){const text=document.createElement('p');text.textContent='この施設の現在値を確認できません。';selectionContent.append(text);}
       const link=document.createElement('p');
-      const anchor=document.createElement('a');anchor.href='/#heatmap-title';anchor.textContent='待ち時間一覧で確認する ›';
+      const anchor=document.createElement('a');anchor.href=`/r/${representative(spot)?.id||spot.ids[0]}`;anchor.textContent='待ち時間一覧で確認する ›';
       link.append(anchor);selectionContent.append(link);
     }
     function renderPins(){
