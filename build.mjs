@@ -3,10 +3,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const base = fileURLToPath(new URL('.', import.meta.url));
+// 位置データの生JSONを公開リポジトリへ再配布しない。未生成時だけAPIから作成する。
+try { await readFile(join(base, 'public', 'map-locations.json')); }
+catch { await import('./scripts/sync-map-locations.mjs'); }
 const files = {
   '/index.html': 'index.html',
   '/en/index.html': 'en/index.html',
   '/map.html': 'map.html',
+  '/map-locations.json': 'map-locations.json',
   '/privacy.html': 'privacy.html',
   '/events.json': 'events.json',
   '/closures.json': 'closures.json',

@@ -11,5 +11,6 @@ data/
 backups/
 *.log
 dist/
+public/map-locations.json
 seed.sql
 seed_export.py

@@ -1,6 +1,7 @@
 const QUEUE_URL = 'https://queue-times.com/parks/284/queue_times.json';
 const WIKI_LIVE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/live';
 const WIKI_SCHEDULE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/schedule';
+const WIKI_MAP_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/children';
 const OFFICIAL_SHOW_API = 'https://mobile-service.usj.co.jp/api/Web/ShowsAndAttractions';
 const OFFICIAL_SCHEDULE_URL = 'https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2';
 const WEATHER_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.6654&lon=135.4334';
@@ -71,6 +72,20 @@ const writeMeta = (db, key, value) => db.prepare(
   'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE value <> excluded.value'
 ).bind(key, value).run();
 const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : embeddedFetch(request);
+function parseMapLocations(raw) {
+  const children = Array.isArray(raw.children) ? raw.children : [];
+  const locations = children.filter(item => {
+    const lat = Number(item.location?.latitude), lng = Number(item.location?.longitude);
+    return ['ATTRACTION', 'RESTAURANT'].includes(item.entityType) &&
+      typeof item.externalId === 'string' && typeof item.name === 'string' &&
+      lat > 34.65 && lat < 34.68 && lng > 135.42 && lng < 135.45;
+  }).map(item => ({ key: item.externalId, name: item.name, type: item.entityType,
+    lat: Number(item.location.latitude), lng: Number(item.location.longitude) }));
+  if (locations.filter(item => item.type === 'ATTRACTION').length < 35 ||
+      locations.filter(item => item.type === 'RESTAURANT').length < 35)
+    throw new Error('Map locations look incomplete');
+  return { source: 'ThemeParks.wiki', fetched_at: new Date().toISOString(), locations };
+}
 async function fallbackData(request, env) {
   if (typeof FALLBACK_DATA !== 'undefined') return FALLBACK_DATA;
   const url = new URL('/fallback.json', request.url);
@@ -540,6 +555,13 @@ async function scheduled(event, env) {
   const seconds = epoch();
   const minute = jstMinute(seconds);
   const retry = minute === 2 || minute === 22 || minute === 42;
+  // 施設位置は変化が少ない。毎日03:00 JSTに更新し、失敗時だけ15:00に再試行する。
+  if (minute === 0 && (jstHour(seconds) === 3 || jstHour(seconds) === 15)) {
+    try {
+      const locations = parseMapLocations(await fetchJson(WIKI_MAP_URL));
+      await writeMeta(env.DB, 'map_locations_payload', JSON.stringify(locations));
+    } catch (error) { console.error('Map location refresh failed', error); }
+  }
   const scheduleFetchedAt = Date.parse(await readMeta(env.DB, 'schedule_fetched_at'));
   if (!Number.isFinite(scheduleFetchedAt) || Date.now() - scheduleFetchedAt > 6 * 3600 * 1000) {
     try {
@@ -824,12 +846,29 @@ async function route(request, env) {
     url.pathname = '/privacy.html';
     return assetFetch(new Request(url, request), env);
   }
+  // 位置データの一括配信は行わず、地図ページの表示にのみ使用する。
+  if (url.pathname === '/map-locations.json') return new Response('Not found', { status: 404 });
   if (url.pathname === '/map') {
     url.pathname = '/map.html';
     const response = await assetFetch(new Request(url, request), env);
-    const headers = new Headers(response.headers);
-    headers.set('Cache-Control', 'no-store');
-    return new Response(response.body, { status: response.status, headers });
+    if (!response.ok) return response;
+    let locations = null;
+    try { locations = await readMeta(env.DB, 'map_locations_payload'); }
+    catch (error) { console.warn('Saved map locations unavailable; using bundled snapshot', error); }
+    if (!locations) {
+      if (typeof EMBEDDED_ASSETS !== 'undefined') locations = EMBEDDED_ASSETS['/map-locations.json'];
+      else {
+        const fallback = await assetFetch(new Request(new URL('/map-locations.json', request.url)), env);
+        if (fallback.ok) locations = await fallback.text();
+      }
+    }
+    const safe = (locations || '{"locations":[]}').replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026');
+    const html = (await response.text()).replace('<!--MAP_LOCATIONS-->', safe);
+    return new Response(html, { status: 200, headers: {
+      'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+    } });
   }
   if (url.pathname === '/sitemap.xml') return embeddedFetch(request);
   if (url.pathname === '/api/events' || url.pathname === '/api/closures' || url.pathname === '/api/pass-exclusions' || url.pathname === '/api/ticket-prices') {
@@ -963,7 +1002,7 @@ async function fallbackRoute(request, env) {
 }
 
 const API_CACHE_SECONDS = new Map([
-  ['/', 60], ['/en', 60], ['/en/', 60], ['/plan', 60],
+  ['/', 60], ['/en', 60], ['/en/', 60], ['/plan', 60], ['/map', 300],
   ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400], ['/api/history', 300],

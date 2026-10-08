@@ -30,6 +30,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
+  <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.15.0/dist/maplibre-gl.css" rel="stylesheet">
   <style>
     :root { color-scheme: light; font-family: system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; color:#172536; background:#f3f6fa; }
     * { box-sizing:border-box; }
@@ -57,6 +58,20 @@
     main { padding:0 0 44px; }
     .intro { margin:0 0 12px; color:#415268; line-height:1.6; }
     .map-shell { background:#fff; padding:12px; border:1px solid #d8e1eb; border-radius:14px; box-shadow:0 2px 12px #1725360a; }
+    .view-switch { display:flex; gap:6px; margin-bottom:10px; }
+    .view-switch button { min-height:44px; padding:8px 15px; border:1px solid #a8bdd3; border-radius:9px; background:#f5f9fd; color:#164b86; cursor:pointer; font-weight:700; }
+    .view-switch button[aria-pressed="true"] { background:#12599e; color:#fff; }
+    #geo-map { height:min(68vh,650px); min-height:440px; border-radius:9px; background:#dce8ee; }
+    .geo-marker { z-index:2; display:flex; align-items:center; gap:3px; min-height:34px; padding:4px 7px; border:2px solid #fff; border-radius:9px; color:#fff; background:#4a5b70; box-shadow:0 2px 7px #0008; font-size:.76rem; font-weight:800; white-space:nowrap; cursor:pointer; }
+    .geo-marker[data-tone="short"] { background:#087d60; }.geo-marker[data-tone="mid"] { background:#af6617; }.geo-marker[data-tone="long"] { background:#9c2638; }.geo-marker[data-tone="closed"] { background:#64748b; }
+    .geo-marker.restaurant { z-index:1; background:#583b88; }
+    .geo-marker:focus-visible { outline:3px solid #ffd34f; outline-offset:2px; }
+    .geo-options { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:0 0 10px; }
+    .geo-options label { display:inline-flex; align-items:center; gap:5px; min-height:44px; font-weight:700; }
+    .geo-options input { width:20px; height:20px; }
+    .map-attribution { margin:8px 2px; font-size:.78rem; color:#415268; }
+    #map-error { margin:8px 0; color:#9c2638; font-weight:700; }
+    [hidden] { display:none!important; }
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
     .toolbar button, .area-button { min-height:44px; padding:8px 14px; border:1px solid #a8bdd3; border-radius:9px; background:#f5f9fd; color:#164b86; cursor:pointer; font-weight:700; }
     .toolbar button:hover,.area-button:hover,.toolbar button:focus-visible,.area-button:focus-visible { background:#dceeff; outline:2px solid #145aa5; outline-offset:1px; }
@@ -117,6 +132,9 @@
     :root[data-theme="dark"] .page-tabs a:hover,:root[data-theme="dark"] .page-tabs a:focus-visible { outline-color:#9cc4ff; }
     :root[data-theme="dark"] .intro,:root[data-theme="dark"] .map-foot,:root[data-theme="dark"] .notes,:root[data-theme="dark"] #map-status,:root[data-theme="dark"] footer { color:#bccbdc; }
     :root[data-theme="dark"] .map-shell,:root[data-theme="dark"] #selection { background:#172533; border-color:#344b61; box-shadow:0 4px 18px #0004; }
+    :root[data-theme="dark"] .view-switch button { background:#253b50; border-color:#5b7792; color:#e8f2ff; }
+    :root[data-theme="dark"] .view-switch button[aria-pressed="true"] { background:#2f6fc0; color:#fff; }
+    :root[data-theme="dark"] .map-attribution { color:#bccbdc; }
     :root[data-theme="dark"] .toolbar button,:root[data-theme="dark"] .area-button,:root[data-theme="dark"] #selection-close { background:#253b50; border-color:#5b7792; color:#e8f2ff; }
     :root[data-theme="dark"] .toolbar button:hover,:root[data-theme="dark"] .area-button:hover,:root[data-theme="dark"] #selection-close:hover,:root[data-theme="dark"] .toolbar button:focus-visible,:root[data-theme="dark"] .area-button:focus-visible,:root[data-theme="dark"] #selection-close:focus-visible { background:#315371; outline-color:#9fc5ff; }
     :root[data-theme="dark"] .map-viewport { background:#142b35; }
@@ -148,21 +166,33 @@
   </header>
   <div class="sticky-nav"><nav class="page-tabs" aria-label="ページ切り替え"><a href="/">今日のパーク</a><a href="/map" aria-current="page">地図で探す</a><a href="/plan">行く前に</a></nav></div>
   <main>
-    <p class="intro">エリアを押すか地図を拡大すると、施設ごとの待ち時間を確認できます。地図は運営者制作です。ピンは施設付近の目安です。</p>
+    <p class="intro">地図上のピンを押すと、アトラクションの待ち時間を確認できます。現在地は許可した場合だけ端末内で表示します。</p>
     <section class="map-shell" aria-label="アトラクションの地図">
-      <div class="toolbar" role="group" aria-label="地図の操作">
+      <div class="view-switch" role="group" aria-label="地図の種類"><button type="button" id="geo-view-button" aria-pressed="true">地図と現在地</button><button type="button" id="illustration-view-button" aria-pressed="false">イラスト地図</button></div>
+      <div id="geo-view">
+        <div class="geo-options"><label><input id="restaurant-toggle" type="checkbox">飲食店も表示</label><button type="button" id="my-location" class="area-button">◎ 現在地を表示</button><span id="location-status" role="status"></span></div>
+        <p id="geo-status" class="notes" role="status">待ち時間を読み込み中…</p>
+        <p class="map-attribution">全体表示では主な施設を表示します。拡大すると全23施設と飲食店の位置を確認できます。</p>
+        <div id="geo-map" aria-label="USJ付近の地図。アトラクションの待ち時間をピンで表示"></div>
+        <p id="map-error" role="alert" hidden></p>
+        <p class="map-attribution">地図：<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> / <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>。施設位置：<a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a>。施設の位置は目安で、入口や通行可能な経路を示すものではありません。</p>
+      </div>
+      <div id="illustration-view" hidden><div class="toolbar" role="group" aria-label="イラスト地図の操作">
         <button type="button" id="zoom-in" aria-label="地図を拡大">＋ 拡大</button><button type="button" id="zoom-out" aria-label="地図を縮小">－ 縮小</button><button type="button" id="zoom-reset">全体を見る</button><span id="zoom-level">100%</span><span id="map-status" role="status">待ち時間を読み込み中…</span>
       </div>
       <div id="map-viewport" class="map-viewport" data-zoom="overview" aria-label="USJの地図。ドラッグで移動、ピンチまたはボタンで拡大できます">
         <div id="map-stage" class="map-stage"><img src="/park-map.jpg" alt="運営者制作のUSJエリア地図" draggable="false"><div id="pin-layer" class="pin-layer"></div><div id="area-pins" class="area-pins"></div></div>
-        <section id="selection" aria-live="polite" hidden><button type="button" id="selection-close" aria-label="詳細を閉じる">✕</button><div id="selection-content"></div></section>
       </div>
+      </div>
+      <section id="selection" aria-live="polite" hidden><button type="button" id="selection-close" aria-label="詳細を閉じる">✕</button><div id="selection-content"></div></section>
       <div class="map-foot" aria-label="ピンの色と矢印"><span><i class="short"></i>0～39分</span><span><i class="mid"></i>40～89分</span><span><i class="long"></i>90分以上</span><span><i class="closed"></i>休止・未取得</span><span>20分前比：↑増加・→ほぼ横ばい・↓減少（比較できない場合は非表示）</span></div>
     </section>
-    <nav id="area-jumps" class="area-jumps" aria-label="エリアへ移動"></nav>
-    <p class="notes">待ち時間は5分ごとに画面更新されます。位置は概略のため、入口や経路は現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。地図の画像は運営者制作です。本サイトは個人運営の非公式サイトです。</p>
+    <nav id="area-jumps" class="area-jumps" aria-label="イラスト地図のエリアへ移動" hidden></nav>
+    <p class="notes">待ち時間は5分ごとに画面更新されます。飲食店の営業時間・混雑状況は掲載していません。入口や経路は現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。イラスト地図は運営者制作です。本サイトは個人運営の非公式サイトです。</p>
   </main>
   <footer><a href="/privacy">このサイトについて・プライバシーポリシー</a> · 待ち時間データ：<a href="https://queue-times.com/">Queue-Times</a>、<a href="https://www.themeparks.wiki/">ThemeParks.wiki</a></footer>
+  <script id="map-locations" type="application/json"><!--MAP_LOCATIONS--></script>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.15.0/dist/maplibre-gl.js" defer></script>
   <script>
     const THEME_KEY = 'usj-wait-nav:theme';
     const themeToggle = document.querySelector('#theme-toggle');
@@ -196,7 +226,7 @@
       {name:'ニンテンドー・ワールド',label:'スーパー・ニンテンドー・ワールド',x:88,y:67,labelX:87.4,labelY:66.7,width:27,number:'8',color:'#c92e31'}
     ];
     const spots = [
-      {x:35.15,y:53.65,ids:[7077,12070],name:'ハリウッド・ドリーム・ザ・ライド'},
+      {x:35.15,y:53.65,ids:[7077,12070,17912],name:'ハリウッド・ドリーム・ザ・ライド'},
       {x:21.13,y:34.93,ids:[12082,12324],name:'スペース・ファンタジー・ザ・ライド'},
       {x:19.64,y:49.06,ids:[12083,12084,13925],name:'シネマ 4-D シアター'},
       {x:34.75,y:36.11,ids:[7214],name:'シング・オン・ツアー'},
@@ -221,7 +251,7 @@
       {x:83.75,y:84.30,ids:[14402],name:'ドンキーコングのクレイジー・トロッコ'}
     ];
     const names = new Map([
-      [7077,'ハリウッド・ドリーム・ザ・ライド'],[12070,'ハリウッド・ドリーム・ザ・ライド ～バックドロップ～'],
+      [7077,'ハリウッド・ドリーム・ザ・ライド'],[12070,'ハリウッド・ドリーム・ザ・ライド ～バックドロップ～'],[17912,'葬送のフリーレン × ストーリー・ライド'],
       [12082,'スペース・ファンタジー・ザ・ライド'],[12324,'貞子の呪い ～ダーク・ホラー・ライド～'],
       [12083,'セサミストリート 4-D ムービーマジック™'],[12084,'シュレック 4-D アドベンチャー'],[13925,'チェンソーマン・ザ・カオス 4-D'],
       [7214,'シング・オン・ツアー'],[12091,'プレイング・ウィズおさるのジョージ™'],[17893,'ファクトリー・オブ・フィアー ～絶望のゾンビ・ツアー～'],
@@ -241,6 +271,27 @@
     const selection=document.querySelector('#selection');
     const selectionContent=document.querySelector('#selection-content');
     const status=document.querySelector('#map-status');
+    const geoStatus=document.querySelector('#geo-status');
+    const locationStatus=document.querySelector('#location-status');
+    const spotGeoKeys=[
+      'hollywood_dream_the_ride','space_fantasy_the_ride','chainsawman_the_chaos_4D_2026',
+      'sing_on_tour','playing_with_curious_george','factory_of_fear_zombie_tour_2026',
+      'conan_4d_live_show','despicable_me_minion_mayhem','freeze_ray_sliders',
+      'illuminations_villain_con_minion_blast','the_flying_dinosaur','jurassic_park_the_ride',
+      'jaws','hello_kittys_cupcake_dream','hello_kittys_ribbon_collection',
+      'snoopys_adventure','the_flying_snoopy','harry_potter_forbidden_journey',
+      'flight_of_the_hippogriff','ollivanders','mario_kart_koopas_challenge',
+      'yoshis_adventure','donkey_kong_country_ride'
+    ];
+    const geoPayload=(()=>{try{return JSON.parse(document.querySelector('#map-locations').textContent);}catch(_){return {locations:[]};}})();
+    const geoLocations=Array.isArray(geoPayload.locations)?geoPayload.locations:[];
+    const geoBySuffix=new Map(geoLocations.filter(place=>place.type==='ATTRACTION').map(place=>[place.key.split('.').at(-1),place]));
+    let geoMap=null, geoMarkers=[], restaurantMarkers=[], userMarker=null, geoEnabled=true;
+    function syncMapStyle(){
+      if(geoMap) geoMap.setStyle(`https://tiles.openfreemap.org/styles/${document.documentElement.dataset.theme==='dark'?'dark':'liberty'}`);
+    }
+    themeToggle.addEventListener('click',syncMapStyle);
+    darkQuery.addEventListener?.('change',()=>{if(themePref==='auto')syncMapStyle();});
     let scale=1, tx=0, ty=0, current=null, rides=new Map(), fetchedAt=null, todaySnapshots=[], activeSpot=null;
     const pointers=new Map();
     let drag=null, pinch=null;
@@ -350,6 +401,83 @@
         pinLayer.append(button);
       }
     }
+    function switchView(mode){
+      const geographic=mode==='geo';
+      document.querySelector('#geo-view').hidden=!geographic;
+      document.querySelector('#illustration-view').hidden=geographic;
+      document.querySelector('#area-jumps').hidden=geographic;
+      document.querySelector('#geo-view-button').setAttribute('aria-pressed',String(geographic));
+      document.querySelector('#illustration-view-button').setAttribute('aria-pressed',String(!geographic));
+      selection.hidden=true;
+      if(geographic) requestAnimationFrame(()=>geoMap?.resize());
+      else requestAnimationFrame(applyTransform);
+    }
+    function makeGeoMarker(place,spot){
+      const ride=spot?representative(spot):null;
+      const label=spot?waitLabel(ride):'飲食店';
+      const trend=spot?twentyMinuteTrend(ride):null;
+      const button=document.createElement('button');
+      button.type='button';button.className=spot?'geo-marker':'geo-marker restaurant';
+      button.dataset.tone=spot?tone(ride):'restaurant';
+      const display=spot?(/^\d+分$/.test(label)?`${label}待ち${trend?` ${trend.arrow}`:''}`:label):'🍽';
+      button.textContent=display;
+      button.title=spot?`${spot.name}：${display}${trend?`。${trend.detail}`:''}`:`飲食店：${place.name}`;
+      button.setAttribute('aria-label',`${button.title}。詳細を表示`);
+      button.addEventListener('click',()=>{
+        if(spot) showSpot(spot);
+        else{
+          activeSpot=null;selection.hidden=false;selectionContent.replaceChildren();
+          const title=document.createElement('h2');title.textContent=place.name;
+          const note=document.createElement('p');note.textContent='飲食店の位置は目安です。営業時間・待ち時間は確認できません。';
+          selectionContent.append(title,note);
+        }
+      });
+      return new maplibregl.Marker({element:button,anchor:'bottom'}).setLngLat([place.lng,place.lat]).addTo(geoMap);
+    }
+    function renderGeoRides(){
+      if(!geoMap) return;
+      geoMarkers.forEach(marker=>marker.remove());geoMarkers=[];
+      const overview=geoMap.getZoom()<16.7;
+      const overviewIndices=new Set([0,7,10,12,17,20]);
+      for(let i=0;i<spots.length;i++){
+        if(overview&&!overviewIndices.has(i))continue;
+        const place=geoBySuffix.get(spotGeoKeys[i]);
+        if(place) geoMarkers.push(makeGeoMarker(place,spots[i]));
+      }
+    }
+    function renderRestaurants(){
+      restaurantMarkers.forEach(marker=>marker.remove());restaurantMarkers=[];
+      if(!geoMap||!document.querySelector('#restaurant-toggle').checked||geoMap.getZoom()<16.7) return;
+      const places=geoLocations.filter(place=>place.type==='RESTAURANT');
+      for(const place of places) restaurantMarkers.push(makeGeoMarker(place,null));
+    }
+    function initGeoMap(){
+      if(!window.maplibregl||!geoLocations.length){
+        const message='地図を読み込めません。イラスト地図に切り替えました。';
+        document.querySelector('#map-error').textContent=message;
+        status.textContent=message;
+        switchView('illustration');return;
+      }
+      try{
+        const style=document.documentElement.dataset.theme==='dark'?'dark':'liberty';
+        geoMap=new maplibregl.Map({container:'geo-map',style:`https://tiles.openfreemap.org/styles/${style}`,
+          center:[135.4328,34.666],zoom:15.2,minZoom:13,maxZoom:19,attributionControl:true});
+        geoMap.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+        geoMap.fitBounds([[135.4293,34.6628],[135.4368,34.6694]],{padding:30,maxZoom:16.6,duration:0});
+        renderGeoRides();
+        geoMap.on('zoomend',()=>{renderGeoRides();renderRestaurants();});
+        geoMap.on('load',()=>{geoEnabled=true;document.querySelector('#map-error').hidden=true;});
+        setTimeout(()=>{
+          if(!geoMap?.isStyleLoaded()){
+            document.querySelector('#map-error').textContent='地図の読み込みに時間がかかっています。イラスト地図も利用できます。';
+            document.querySelector('#map-error').hidden=false;
+          }
+        },15000);
+      }catch(error){
+        console.warn('地図を初期化できません',error);
+        switchView('illustration');
+      }
+    }
     function renderAreas(){
       for(const area of areas){
         const button=document.createElement('button');button.type='button';button.className='area-pin';
@@ -386,9 +514,31 @@
         fetchedAt=data.fetched_at;
         const time=fetchedAt?new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'}).format(new Date(fetchedAt)):'時刻不明';
         status.textContent=`待ち時間 ${time}時点 · 5分ごとに画面更新`;
-        renderPins();if(activeSpot)showSpot(activeSpot);
-      }catch(error){console.warn('待ち時間を取得できません',error);status.textContent='待ち時間を取得できません。時間をおいて再確認してください。';}
+        geoStatus.textContent=status.textContent;
+        renderPins();renderGeoRides();if(activeSpot)showSpot(activeSpot);
+      }catch(error){console.warn('待ち時間を取得できません',error);status.textContent='待ち時間を取得できません。時間をおいて再確認してください。';geoStatus.textContent=status.textContent;}
     }
+    document.querySelector('#geo-view-button').addEventListener('click',()=>switchView('geo'));
+    document.querySelector('#illustration-view-button').addEventListener('click',()=>switchView('illustration'));
+    document.querySelector('#restaurant-toggle').addEventListener('change',()=>{
+      if(document.querySelector('#restaurant-toggle').checked&&geoMap?.getZoom()<16.7)
+        geoMap.easeTo({zoom:17,duration:300});
+      else renderRestaurants();
+    });
+    document.querySelector('#my-location').addEventListener('click',()=>{
+      if(!navigator.geolocation){locationStatus.textContent='この端末では現在地を取得できません。';return;}
+      locationStatus.textContent='現在地を取得中…';
+      navigator.geolocation.getCurrentPosition(position=>{
+        if(!geoMap)return;
+        const coordinate=[position.coords.longitude,position.coords.latitude];
+        if(userMarker)userMarker.remove();
+        const dot=document.createElement('span');dot.textContent='●';dot.style.cssText='color:#1769c6;font-size:28px;text-shadow:0 0 0 3px white,0 1px 6px #0008';
+        dot.setAttribute('aria-label','現在地');
+        userMarker=new maplibregl.Marker({element:dot}).setLngLat(coordinate).addTo(geoMap);
+        geoMap.flyTo({center:coordinate,zoom:Math.max(geoMap.getZoom(),16.5)});
+        locationStatus.textContent=`現在地を表示中（精度約${Math.round(position.coords.accuracy)}m）`;
+      },error=>{locationStatus.textContent=error.code===1?'位置情報の利用が許可されていません。':'現在地を取得できません。';},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+    });
     document.querySelector('#zoom-in').addEventListener('click',()=>{const r=viewport.getBoundingClientRect();zoomTo(scale*1.5,r.left+r.width/2,r.top+r.height/2);});
     document.querySelector('#zoom-out').addEventListener('click',()=>{const r=viewport.getBoundingClientRect();zoomTo(scale/1.5,r.left+r.width/2,r.top+r.height/2);});
     document.querySelector('#zoom-reset').addEventListener('click',()=>{scale=1;tx=0;ty=0;applyTransform();});
@@ -416,7 +566,9 @@
     viewport.addEventListener('pointerup',endPointer);viewport.addEventListener('pointercancel',endPointer);
     viewport.addEventListener('dblclick',event=>{if(!event.target.closest('button'))zoomTo(scale*1.5,event.clientX,event.clientY);});
     addEventListener('resize',applyTransform);
-    renderAreas();renderPins();applyTransform();loadWaits();setInterval(loadWaits,5*60*1000);
+    document.addEventListener('DOMContentLoaded',()=>{
+      renderAreas();renderPins();applyTransform();initGeoMap();loadWaits();setInterval(loadWaits,5*60*1000);
+    });
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadWaits();});
   </script>
 </body>
