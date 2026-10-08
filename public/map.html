@@ -20,22 +20,28 @@
   <style>
     :root { color-scheme: light; font-family: system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; color:#172536; background:#f3f6fa; }
     * { box-sizing:border-box; }
-    body { margin:0; }
+    body { max-width:1000px; margin:0 auto; padding:24px 16px 48px; }
     a { color:#145aa5; }
     button { font:inherit; }
-    header { position:relative; isolation:isolate; display:flex; flex-wrap:wrap; align-items:end; gap:8px 18px; min-height:116px; padding:16px max(14px,calc((100vw - 1120px)/2)); background:#102238 url('/og-photo.jpg') center 42%/cover no-repeat; box-shadow:0 8px 24px #10223826; }
-    header::before { content:''; position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg,#08192be8 0%,#08192bba 45%,#08192b3d 100%); }
-    header .brand { font-size:1.15rem; font-weight:800; text-decoration:none; color:#fff; text-shadow:0 1px 3px #0009; }
-    header .brand b { display:inline-block; padding:2px 5px; border-radius:4px; background:#fff; color:#145aa5; margin-right:5px; text-shadow:none; }
-    header .unofficial { padding:2px 7px; border:1px solid #fffa; border-radius:4px; background:#08192baa; color:#fff; font-size:.72rem; font-weight:700; }
-    header .theme-toggle { min-height:44px; padding:7px 11px; border:1px solid #fffa; border-radius:999px; background:#08192bc7; color:#fff; cursor:pointer; font-size:.78rem; font-weight:700; white-space:nowrap; }
-    header .theme-toggle:hover,header .theme-toggle:focus-visible { outline:2px solid #fff; outline-offset:2px; }
-    header nav { margin-left:auto; display:flex; flex-wrap:wrap; gap:4px; }
-    header nav a { display:inline-block; min-height:44px; padding:10px 12px; border-radius:8px; text-decoration:none; font-weight:700; color:#fff; text-shadow:0 1px 3px #000a; }
-    header nav a[aria-current] { background:#fff; color:#145aa5; text-shadow:none; }
-    header nav a:hover,header nav a:focus-visible,header .brand:focus-visible { outline:2px solid #fff; outline-offset:2px; }
-    main { max-width:1120px; margin:auto; padding:16px 12px 44px; }
-    h1 { margin:3px 0 8px; font-size:clamp(1.45rem,4vw,2rem); }
+    .site-header { position:relative; display:block; min-height:208px; margin-bottom:12px; overflow:hidden; isolation:isolate; border-radius:18px; background:#102238; box-shadow:0 10px 28px #10223829; }
+    .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 45%; }
+    .site-header::after { content:''; position:absolute; inset:0; z-index:0; background:linear-gradient(90deg,#08192bf5 0%,#08192bdc 36%,#08192b24 78%),linear-gradient(0deg,#08192b7a,transparent 60%); pointer-events:none; }
+    .hero-content { position:relative; z-index:1; display:flex; flex-direction:column; min-height:208px; padding:16px 22px 18px; }
+    .hero-brand { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+    .text-logo { display:inline-flex; align-items:center; color:#fff; font-size:clamp(1.1rem,3vw,1.35rem); font-weight:800; letter-spacing:.02em; text-decoration:none; text-shadow:0 1px 3px #0009; }
+    .logo-usj { display:inline-block; margin-right:5px; padding:2px 7px; border-radius:5px; background:#fff; color:#1058a7; letter-spacing:.05em; text-shadow:none; }
+    .unofficial { display:inline-block; padding:2px 7px; border:1px solid #fffa; border-radius:4px; background:#08192baa; color:#fff; font-size:.76rem; font-weight:700; }
+    .theme-toggle { margin-left:auto; min-height:34px; padding:0 12px; border:1px solid #fffa; border-radius:999px; background:#08192bc7; color:#fff; cursor:pointer; font-size:.8rem; font-weight:700; white-space:nowrap; }
+    .theme-toggle:hover,.theme-toggle:focus-visible,.text-logo:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+    .hero-copy { max-width:620px; margin-top:auto; }
+    .site-header h1 { margin:0 0 6px; color:#fff; font-size:clamp(1.6rem,3.3vw,2.15rem); line-height:1.25; text-shadow:0 2px 5px #0009; }
+    .hero-copy .sub { max-width:460px; margin:0; color:#f0f6ff; font-size:.85rem; line-height:1.5; text-shadow:0 1px 3px #000c; }
+    .sticky-nav { position:sticky; top:0; z-index:20; margin:0 0 14px; padding:6px 0 8px; background:#f3f6fa; box-shadow:0 1px 0 #0f172a0f; }
+    .page-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:0; padding:4px; border-radius:10px; background:#e8eef5; }
+    .page-tabs a { display:flex; min-height:40px; align-items:center; justify-content:center; border-radius:8px; color:#1058a7; font-weight:700; text-align:center; text-decoration:none; }
+    .page-tabs a[aria-current="page"] { background:#1058a7; color:#fff; }
+    .page-tabs a:hover,.page-tabs a:focus-visible { outline:2px solid #1058a7; outline-offset:1px; }
+    main { padding:0 0 44px; }
     .intro { margin:0 0 12px; color:#415268; line-height:1.6; }
     .map-shell { background:#fff; padding:12px; border:1px solid #d8e1eb; border-radius:14px; box-shadow:0 2px 12px #1725360a; }
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
@@ -91,8 +97,11 @@
     footer { max-width:1120px; margin:auto; padding:12px; border-top:1px solid #d8e1eb; color:#415268; font-size:.82rem; }
     :root[data-theme="dark"] { color-scheme:dark; color:#e7eff8; background:#0e1721; }
     :root[data-theme="dark"] a { color:#9fc5ff; }
-    :root[data-theme="dark"] header .brand,:root[data-theme="dark"] header nav a { color:#fff; }
-    :root[data-theme="dark"] header nav a[aria-current] { color:#145aa5; }
+    :root[data-theme="dark"] .sticky-nav { background:#0e1721; box-shadow:0 1px 0 #ffffff0f; }
+    :root[data-theme="dark"] .page-tabs { background:#1d2a37; }
+    :root[data-theme="dark"] .page-tabs a { color:#9cc4ff; }
+    :root[data-theme="dark"] .page-tabs a[aria-current="page"] { background:#2f6fc0; color:#fff; }
+    :root[data-theme="dark"] .page-tabs a:hover,:root[data-theme="dark"] .page-tabs a:focus-visible { outline-color:#9cc4ff; }
     :root[data-theme="dark"] .intro,:root[data-theme="dark"] .map-foot,:root[data-theme="dark"] .notes,:root[data-theme="dark"] #map-status,:root[data-theme="dark"] footer { color:#bccbdc; }
     :root[data-theme="dark"] .map-shell,:root[data-theme="dark"] #selection { background:#172533; border-color:#344b61; box-shadow:0 4px 18px #0004; }
     :root[data-theme="dark"] .toolbar button,:root[data-theme="dark"] .area-button,:root[data-theme="dark"] #selection-close { background:#253b50; border-color:#5b7792; color:#e8f2ff; }
@@ -105,13 +114,27 @@
     :root[data-theme="dark"] .ride-result .wait { color:#9fc5ff; }
     :root[data-theme="dark"] footer { border-color:#344b61; }
     @media(max-width:700px) { .area-pin { border:0; background:transparent; color:transparent; box-shadow:none; text-shadow:none; } .area-pin .area-number,.area-pin .area-name { visibility:hidden; } }
-    @media(max-width:600px) { header { min-height:142px; align-content:space-between; align-items:center; padding:12px 14px 10px; background-position:55% 43%; } header::before { background:linear-gradient(0deg,#08192bee 0%,#08192b99 60%,#08192b44 100%); } header nav { width:100%; margin-left:0; justify-content:space-between; } header nav a { flex:1; text-align:center; padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } }
+    @media(max-width:620px) { .site-header { min-height:190px; margin:-12px -10px 9px; border-radius:0 0 16px 16px; } .hero-photo { object-position:55% 43%; } .site-header::after { background:linear-gradient(0deg,#071526f5 0%,#071526b8 40%,#07152633 100%),linear-gradient(90deg,#07152666,transparent 65%); } .hero-content { min-height:190px; padding:11px 14px 13px; } .text-logo { font-size:1rem; } .unofficial { font-size:.69rem; } .theme-toggle { min-height:32px; padding:0 8px; font-size:.72rem; } .site-header h1 { font-size:1.4rem; margin-bottom:3px; } .hero-copy .sub { font-size:.72rem; line-height:1.4; } }
+    @media(max-width:600px) { .page-tabs a { padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } }
   </style>
 </head>
 <body>
-  <header><a class="brand" href="/"><b>USJ</b>待ち時間ナビ</a><span class="unofficial">非公式</span><button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button><nav aria-label="ページ切り替え"><a href="/">今日のパーク</a><a href="/map" aria-current="page">地図で探す</a><a href="/plan">行く前に</a></nav></header>
+  <header class="site-header">
+    <img class="hero-photo" src="/og-photo.jpg" alt="運営者が撮影したユニバーサル・スタジオ・ジャパンのグローブ" width="1280" height="720" fetchpriority="high">
+    <div class="hero-content">
+      <div class="hero-brand">
+        <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
+        <span class="unofficial">非公式</span>
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button>
+      </div>
+      <div class="hero-copy">
+        <h1>USJアトラクション地図</h1>
+        <p class="sub">地図からアトラクションを探して、今の待ち時間を確認できます。</p>
+      </div>
+    </div>
+  </header>
+  <div class="sticky-nav"><nav class="page-tabs" aria-label="ページ切り替え"><a href="/">今日のパーク</a><a href="/map" aria-current="page">地図で探す</a><a href="/plan">行く前に</a></nav></div>
   <main>
-    <h1>USJアトラクション地図</h1>
     <p class="intro">エリアを押すか地図を拡大すると、施設ごとの待ち時間を確認できます。地図は運営者制作です。ピンは施設付近の目安です。</p>
     <section class="map-shell" aria-label="アトラクションの地図">
       <div class="toolbar" role="group" aria-label="地図の操作">
