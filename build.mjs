@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const base = fileURLToPath(new URL('.', import.meta.url));
 const files = {
   '/index.html': 'index.html',
+  '/en/index.html': 'en/index.html',
   '/map.html': 'map.html',
   '/privacy.html': 'privacy.html',
   '/events.json': 'events.json',
@@ -16,6 +17,8 @@ const files = {
   '/manifest.webmanifest': 'manifest.webmanifest',
   '/fallback.json': 'fallback.json',
 };
+// The English page is an unpublished prototype. Include it only for local review.
+if (process.env.INCLUDE_EN !== '1') delete files['/en/index.html'];
 const assets = {};
 for (const [route, name] of Object.entries(files)) {
   assets[route] = await readFile(join(base, 'public', name), 'utf8');
