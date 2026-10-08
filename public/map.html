@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#142233">
+  <script>
+    (function () {
+      var pref = 'auto';
+      try { pref = localStorage.getItem('usj-wait-nav:theme') || 'auto'; } catch (_) {}
+      var dark = pref === 'dark' || (pref === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.dataset.themePref = pref;
+    })();
+  </script>
   <title>USJアトラクション地図と待ち時間｜USJ待ち時間ナビ</title>
   <meta name="description" content="USJのアトラクションを地図から探せます。地図を拡大すると施設ごとの待ち時間を表示します。個人運営の非公式サイトです。">
   <link rel="canonical" href="https://usj-wait-nav.kotaro-7436.workers.dev/map">
@@ -19,6 +28,8 @@
     header .brand { font-size:1.15rem; font-weight:800; text-decoration:none; color:#fff; text-shadow:0 1px 3px #0009; }
     header .brand b { display:inline-block; padding:2px 5px; border-radius:4px; background:#fff; color:#145aa5; margin-right:5px; text-shadow:none; }
     header .unofficial { padding:2px 7px; border:1px solid #fffa; border-radius:4px; background:#08192baa; color:#fff; font-size:.72rem; font-weight:700; }
+    header .theme-toggle { min-height:44px; padding:7px 11px; border:1px solid #fffa; border-radius:999px; background:#08192bc7; color:#fff; cursor:pointer; font-size:.78rem; font-weight:700; white-space:nowrap; }
+    header .theme-toggle:hover,header .theme-toggle:focus-visible { outline:2px solid #fff; outline-offset:2px; }
     header nav { margin-left:auto; display:flex; flex-wrap:wrap; gap:4px; }
     header nav a { display:inline-block; min-height:44px; padding:10px 12px; border-radius:8px; text-decoration:none; font-weight:700; color:#fff; text-shadow:0 1px 3px #000a; }
     header nav a[aria-current] { background:#fff; color:#145aa5; text-shadow:none; }
@@ -73,12 +84,27 @@
     .area-jumps .area-button { font-size:.83rem; }
     .notes { font-size:.85rem; line-height:1.6; color:#415268; }
     footer { max-width:1120px; margin:auto; padding:12px; border-top:1px solid #d8e1eb; color:#415268; font-size:.82rem; }
+    :root[data-theme="dark"] { color-scheme:dark; color:#e7eff8; background:#0e1721; }
+    :root[data-theme="dark"] a { color:#9fc5ff; }
+    :root[data-theme="dark"] header .brand,:root[data-theme="dark"] header nav a { color:#fff; }
+    :root[data-theme="dark"] header nav a[aria-current] { color:#145aa5; }
+    :root[data-theme="dark"] .intro,:root[data-theme="dark"] .map-foot,:root[data-theme="dark"] .notes,:root[data-theme="dark"] #map-status,:root[data-theme="dark"] footer { color:#bccbdc; }
+    :root[data-theme="dark"] .map-shell,:root[data-theme="dark"] #selection { background:#172533; border-color:#344b61; box-shadow:0 4px 18px #0004; }
+    :root[data-theme="dark"] .toolbar button,:root[data-theme="dark"] .area-button,:root[data-theme="dark"] #selection-close { background:#253b50; border-color:#5b7792; color:#e8f2ff; }
+    :root[data-theme="dark"] .toolbar button:hover,:root[data-theme="dark"] .area-button:hover,:root[data-theme="dark"] #selection-close:hover,:root[data-theme="dark"] .toolbar button:focus-visible,:root[data-theme="dark"] .area-button:focus-visible,:root[data-theme="dark"] #selection-close:focus-visible { background:#315371; outline-color:#9fc5ff; }
+    :root[data-theme="dark"] .map-viewport { background:#142b35; }
+    :root[data-theme="dark"] .map-stage img { filter:brightness(.8) saturate(.86); }
+    :root[data-theme="dark"] .map-pin[data-tone="closed"] { background:#70849a; }
+    :root[data-theme="dark"] .map-pin[data-tone="unknown"] { background:#576f87; }
+    :root[data-theme="dark"] .ride-result { border-color:#344b61; }
+    :root[data-theme="dark"] .ride-result .wait { color:#9fc5ff; }
+    :root[data-theme="dark"] footer { border-color:#344b61; }
     @media(max-width:700px) { .area-pin { border:0; background:transparent; color:transparent; box-shadow:none; text-shadow:none; } .area-pin .area-number,.area-pin .area-name { visibility:hidden; } }
     @media(max-width:600px) { header { min-height:142px; align-content:space-between; align-items:center; padding:12px 14px 10px; background-position:55% 43%; } header::before { background:linear-gradient(0deg,#08192bee 0%,#08192b99 60%,#08192b44 100%); } header nav { width:100%; margin-left:0; justify-content:space-between; } header nav a { flex:1; text-align:center; padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } }
   </style>
 </head>
 <body>
-  <header><a class="brand" href="/"><b>USJ</b>待ち時間ナビ</a><span class="unofficial">非公式</span><nav aria-label="ページ切り替え"><a href="/">今日のパーク</a><a href="/map" aria-current="page">地図で探す</a><a href="/plan">行く前に</a></nav></header>
+  <header><a class="brand" href="/"><b>USJ</b>待ち時間ナビ</a><span class="unofficial">非公式</span><button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button><nav aria-label="ページ切り替え"><a href="/">今日のパーク</a><a href="/map" aria-current="page">地図で探す</a><a href="/plan">行く前に</a></nav></header>
   <main>
     <h1>USJアトラクション地図</h1>
     <p class="intro">エリアを押すか地図を拡大すると、施設ごとの待ち時間を確認できます。地図は運営者制作です。ピンは施設付近の目安です。</p>
@@ -97,6 +123,25 @@
   </main>
   <footer><a href="/privacy">このサイトについて・プライバシーポリシー</a> · 待ち時間データ：<a href="https://queue-times.com/">Queue-Times</a>、<a href="https://www.themeparks.wiki/">ThemeParks.wiki</a></footer>
   <script>
+    const THEME_KEY = 'usj-wait-nav:theme';
+    const themeToggle = document.querySelector('#theme-toggle');
+    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const themeLabels = {auto:'画面：自動', dark:'画面：ダーク', light:'画面：ライト'};
+    let themePref = document.documentElement.dataset.themePref || 'auto';
+    function applyTheme(pref) {
+      const dark = pref === 'dark' || (pref === 'auto' && darkQuery.matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.dataset.themePref = pref;
+      themeToggle.textContent = themeLabels[pref] || themeLabels.auto;
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0e1721' : '#142233');
+    }
+    applyTheme(themePref);
+    themeToggle.addEventListener('click', () => {
+      themePref = {auto:'dark', dark:'light', light:'auto'}[themePref] || 'auto';
+      try { localStorage.setItem(THEME_KEY, themePref); } catch (_) {}
+      applyTheme(themePref);
+    });
+    darkQuery.addEventListener?.('change', () => { if (themePref === 'auto') applyTheme('auto'); });
     // 画像サイズ 1280×1169 の百分率座標。重なる通常版・夜間版は同じピンにまとめる。
     // 新しい施設や移設時は、この座標を実際の入口に合わせて見直す。
     const areas = [
