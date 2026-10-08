@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>USJの待ち時間・混雑状況｜USJ待ち時間ナビ</title>
   <meta name="description" content="USJのアトラクション別の現在の待ち時間と20分ごとの履歴を比較。営業時間、ショー開始時刻、イベント情報も確認できる個人運営の非公式サイトです。">
-  <link rel="canonical" href="https://usj-wait-nav.kotaro-7436.workers.dev/">
-  <meta property="og:url" content="https://usj-wait-nav.kotaro-7436.workers.dev/">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"USJ待ち時間ナビ","url":"https://usj-wait-nav.kotaro-7436.workers.dev/","description":"USJの待ち時間・履歴・営業時間・ショー開始時刻を確認できる個人運営の非公式サイト"}</script>
+  <link rel="canonical" href="https://uniba-waittimes.com/">
+  <meta property="og:url" content="https://uniba-waittimes.com/">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"USJ待ち時間ナビ","url":"https://uniba-waittimes.com/","description":"USJの待ち時間・履歴・営業時間・ショー開始時刻を確認できる個人運営の非公式サイト"}</script>
   <meta property="og:site_name" content="USJ待ち時間ナビ">
   <meta property="og:type" content="website">
   <meta property="og:title" content="USJの待ち時間・混雑状況｜USJ待ち時間ナビ">
   <meta property="og:description" content="USJのアトラクション別の現在の待ち時間と20分ごとの履歴を比較。個人運営の非公式サイトです。">
-  <meta property="og:image" content="https://usj-wait-nav.kotaro-7436.workers.dev/og-photo-labeled.jpg">
+  <meta property="og:image" content="https://uniba-waittimes.com/og-photo-labeled.jpg">
   <meta property="og:image:width" content="1672">
   <meta property="og:image:height" content="941">
   <meta property="og:image:alt" content="運営者が撮影したユニバーサル・スタジオ・ジャパンのグローブに「非公式サイト」と表示">
@@ -2204,7 +2204,9 @@
       topShareBar.hidden = !ranked.length;
       if (!ranked.length) {
         const item = document.createElement('li');
-        item.textContent = '現在表示できる待ち時間はありません（営業時間外は表示されません）。';
+        item.textContent = rides.length
+          ? '現在表示できる待ち時間はありません（営業時間外は表示されません）。'
+          : '現在の待ち時間を取得できません。';
         topWaitsList.append(item);
         topShareBar.updateLinks();
         return;
@@ -3179,19 +3181,24 @@
         card.append(favoriteButton(ride.id, label), details);
         mobileCards.append(card);
       }
-      if (!rides.length) mobileCards.textContent = '絞り込みに一致するアトラクションはありません。';
+      const emptyMessage = currentData.rides.length
+        ? '絞り込みに一致するアトラクションはありません。'
+        : '現在の待ち時間を取得できません。しばらくしてから再度ご確認ください。';
+      if (!rides.length) mobileCards.textContent = emptyMessage;
       if (!rides.length) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
         cell.colSpan = headLabels.length;
-        cell.textContent = '絞り込みに一致するアトラクションはありません。';
+        cell.textContent = emptyMessage;
         row.append(cell);
         heatmapBody.append(row);
       }
       const day = data.day ? data.day.replaceAll('-', '/') : '今日';
-      heatmapStatus.textContent = mobileHeatmap.matches
-        ? `${day} · ${rides.length}件表示 · 20分ごとに記録`
-        : `${day} · ${rides.length}/${currentData.rides.length}件表示 · 現在値は約5分ごとに更新、記録は20分ごと（毎時0・20・40分）`;
+      heatmapStatus.textContent = !currentData.rides.length
+        ? `${day} · 現在の待ち時間は未取得`
+        : mobileHeatmap.matches
+          ? `${day} · ${rides.length}件表示 · 20分ごとに記録`
+          : `${day} · ${rides.length}/${currentData.rides.length}件表示 · 現在値は約5分ごとに更新、記録は20分ごと（毎時0・20・40分）`;
       renderRecentRecords();
       renderListState();
       syncTodayView();
@@ -3379,7 +3386,9 @@
         if (PAGE === 'now') updateMetrics();
         const fetched = new Date(data.fetched_at);
         const fetchedText = Number.isNaN(fetched.getTime()) ? '不明' : timeFormat.format(fetched);
-        status.textContent = `${fetchedText}時点の情報 · 5分ごとに自動更新`;
+        status.textContent = rides.length
+          ? `${fetchedText}時点の情報 · 5分ごとに自動更新`
+          : '現在の待ち時間を取得できません。次の更新で再試行します。';
         if (data.history) {
           const since = data.history.first_at ? `${timeFormat.format(new Date(data.history.first_at * 1000))} JST` : '未記録';
           const latest = data.history.last_at ? `${timeFormat.format(new Date(data.history.last_at * 1000))} JST` : '未記録';
@@ -3387,7 +3396,9 @@
         } else {
           historyStatus.textContent = '履歴の状態を確認できません';
         }
-        if (data.refresh_error) {
+        if (!rides.length) {
+          error.textContent = '提供元の待ち時間を確認できません。';
+        } else if (data.refresh_error) {
           error.textContent = '最新データの取得に失敗したため、前回のデータを表示しています。';
         }
         if (data.archive_error) {

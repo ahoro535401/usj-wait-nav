@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Sitemap: https://usj-wait-nav.kotaro-7436.workers.dev/sitemap.xml
+Sitemap: https://uniba-waittimes.com/sitemap.xml
