@@ -74,7 +74,7 @@
     .weather-details summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; cursor: pointer; }
     .weather-details summary::before { content: '▸'; color: #1058a7; font-size: 1.1rem; }
     .weather-details[open] summary::before { content: '▾'; }
-    .weather-details summary h2 { margin: 0; }
+    .weather-details summary strong { font-size: .95rem; }
     .weather-details summary small { color: #526477; font-size: .82rem; }
     .weather-details-body { padding-top: 8px; }
     .weather-values { display: flex; flex-wrap: wrap; gap: 9px; margin: 12px 0; }
@@ -125,6 +125,7 @@
     .ride-card-action { grid-column: 1 / -1; justify-self: end; padding: 4px 9px; border: 1px solid #7cabdf; border-radius: 20px; background: #e6f1ff; color: #1058a7; font-size: .86rem; font-weight: 700; white-space: nowrap; }
     .ride-card-action-open, .ride-card details[open] .ride-card-action-closed { display: none; }
     .ride-card details[open] .ride-card-action-open { display: inline; }
+    .wind-badge { display: inline-block; margin: 3px 0 0 6px; padding: 2px 6px; border: 1px solid #d89b48; border-radius: 5px; background: #fff3d9; color: #704300; font-size: .72rem; font-weight: 700; white-space: nowrap; }
     .ride-card-history { margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid #e4e9ef; }
     .ride-card-history a { display: block; margin-bottom: 8px; }
     .ride-card-record { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
@@ -417,6 +418,7 @@
     :root[data-theme="dark"] .ride-card, :root[data-theme="dark"] .ride-card-history, :root[data-theme="dark"] footer { border-color: #2c3b4b; }
     :root[data-theme="dark"] .ride-card summary:hover, :root[data-theme="dark"] .ride-card summary:focus-visible { background: #213752; }
     :root[data-theme="dark"] .ride-card-action { background: #24486d; border-color: #79a9e3; color: #fff; }
+    :root[data-theme="dark"] .wind-badge { background: #493517; border-color: #b68336; color: #ffe0a5; }
     :root[data-theme="dark"] .heatmap-table thead th, :root[data-theme="dark"] .show-axis,
     :root[data-theme="dark"] .show-axis .show-label { background: #1d2a37; }
     :root[data-theme="dark"] .heatmap-table tbody th, :root[data-theme="dark"] .show-label { background: #17212c; }
@@ -645,8 +647,7 @@
   </header>
   <div class="sticky-nav">
     <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/map">地図で探す</a><a href="/plan" data-tab="plan">行く前に</a></nav>
-    <nav class="jump-nav" data-only="now" aria-label="ページ内の項目"><a href="#heatmap-title">待ち時間</a><a href="#shows-title">ショー</a><a href="#closures-title">休止</a><a href="#weather-title">天気</a></nav>
-    <nav class="jump-nav" data-only="plan" aria-label="ページ内の項目"><a href="#archive-title">カレンダー</a><a href="#shows-title">ショー</a><a href="#events-title">イベント</a></nav>
+    <nav class="jump-nav" aria-label="ページ内の項目"><a href="#heatmap-title" data-only="now">待ち時間</a><a href="#shows-title" data-only="now">ショー</a><a href="#closures-title" data-only="now">休止</a><a href="#weather-title" data-only="now">天気</a><a href="#archive-title" data-only="plan">カレンダー</a><a href="#shows-title" data-only="plan">ショー</a><a href="#events-title" data-only="plan">イベント</a></nav>
   </div>
   <div class="today-hours" data-only="now" role="status" aria-label="本日の公表営業時間">
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
@@ -791,8 +792,9 @@
     <p class="muted">休止予定は確認日現在の掲載情報です。急な中止・変更は反映されません。<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure" target="_blank" rel="noopener noreferrer">USJ公式の休止情報</a>で最新情報をご確認ください。</p>
   </section>
   <section class="weather-panel" data-only="now" aria-labelledby="weather-title">
+    <h2 id="weather-title">大阪の天気とUSJ付近の予報</h2>
     <details class="weather-details">
-      <summary><h2 id="weather-title">大阪の天気とUSJ付近の予報</h2><small id="weather-summary">予報を読み込み中…</small></summary>
+      <summary><strong>予報・実測の詳細を見る</strong><small id="weather-summary">予報を読み込み中…</small></summary>
       <div class="weather-details-body">
     <p id="jma-forecast" class="muted">気象庁の大阪府予報を読み込み中…</p>
     <p id="jma-status" class="muted" role="status">大阪観測所の実測値を読み込み中…</p>
@@ -854,8 +856,8 @@
   <footer>
     <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
-    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。</p>
-    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。ページも5分おきに再表示します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
+    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。表示値は通常の待ち列の目安で、シングルライダーやエクスプレス・パスの所要時間ではありません。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。</p>
+    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。画面を開いたままでも約5分ごとにデータだけを更新します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
   </footer>
   <script>
     const PAGE = document.documentElement.dataset.page || (location.pathname === '/plan' ? 'plan' : 'now');
@@ -927,6 +929,7 @@
     let historyRequest = 0;
     let todayRequest = 0;
     let todayData = null;
+    let windWarning = '';
     let todayView = mobileHeatmap.matches ? 'cards' : 'table';
     let archiveData = null;
     let archivePage = 0;
@@ -954,6 +957,17 @@
     const CHILD_SWITCH = new Set([14402, 12061, 12071, 12065, 12073, 14918, 12066,
       12072, 14919, 12075, 7065, 7077, 12070, 12082, 12084, 12083, 13005,
       7092, 12067, 12068, 17894]);
+    const WIND_SENSITIVE_RIDES = new Set([7077, 12070, 7092, 12073]);
+    function windBadge(id) {
+      if (!windWarning || !WIND_SENSITIVE_RIDES.has(Number(id))) return null;
+      const badge = document.createElement('span');
+      badge.className = 'wind-badge';
+      badge.textContent = '⚠ 風による運休注意';
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', '風速の注意目安に達しています。運休を予測する表示ではありません');
+      badge.title = '風速の注意目安に達しています。運休を予測する表示ではありません。運行状況はUSJ公式アプリでご確認ください。';
+      return badge;
+    }
     // 運営者がまとめた分類表に基づく固定値。IDはQueue-TimesのアトラクションID。
     const RIDE_TAGS = [
       {key: 'kids', icon: '🧒', label: 'キッズにおすすめ',
@@ -1044,8 +1058,14 @@
       const measuredWind = Number.isFinite(jma?.wind_speed) ? jma.wind_speed : null;
       const windNow = measuredWind != null && measuredWind >= 7;
       const windReasons = reasons.filter(reason => reason.includes('風速'));
-      if (!windReasons.length && !windNow) { alert.hidden = true; return; }
+      if (!windReasons.length && !windNow) {
+        alert.hidden = true;
+        if (windWarning) { windWarning = ''; if (todayData && currentData) renderToday(todayData); }
+        return;
+      }
       const strong = level === 'high' || (measuredWind != null && measuredWind >= 10);
+      const nextWarning = strong ? 'high' : 'caution';
+      if (windWarning !== nextWarning) { windWarning = nextWarning; if (todayData && currentData) renderToday(todayData); }
       alert.dataset.level = strong ? 'high' : 'caution';
       const parts = [];
       if (windReasons.length) parts.push(`今後約6時間に${windReasons.join('・')}の予報`);
@@ -3065,6 +3085,8 @@
         const name = document.createElement('th');
         name.scope = 'row';
         setAttractionName(name, ride.id, rideName(ride));
+        const rowWindBadge = windBadge(ride.id);
+        if (rowWindBadge) name.append(rowWindBadge);
         const currentCell = currentCells.get(ride.id);
         row.append(name, currentCell);
         const currentWait = isWaitCell(currentCell) ? Number.parseFloat(currentCell.textContent) : null;
@@ -3096,6 +3118,8 @@
         name.textContent = label;
         const cardMeta = rideMeta(ride.id);
         if (cardMeta) name.append(cardMeta);
+        const cardWindBadge = windBadge(ride.id);
+        if (cardWindBadge) name.append(cardWindBadge);
         const current = currentCells.get(ride.id);
         const wait = document.createElement('strong');
         wait.className = `ride-card-wait ${current.className}`;
@@ -3432,9 +3456,9 @@
     monthNext.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, 1); renderCalendar(); });
     rideSelect.addEventListener('change', () => { updateMetrics(); renderRecentRecords(); });
     function setupScrollSpy() {
-      const nav = document.querySelector(`.jump-nav[data-only="${PAGE}"]`) || document.querySelector('.jump-nav');
+      const nav = document.querySelector('.jump-nav');
       if (!nav) return;
-      const items = [...nav.querySelectorAll('a[href^="#"]')]
+      const items = [...nav.querySelectorAll(`a[href^="#"][data-only="${PAGE}"]`)]
         .map(link => ({link, target: document.getElementById(link.getAttribute('href').slice(1))?.closest('section')}))
         .filter(item => item.target);
       if (!items.length) return;
