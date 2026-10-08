@@ -728,6 +728,19 @@ async function archiveDay(db, day) {
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
+  if (url.hostname === 'usj-wait-nav.kotaro-7436.workers.dev') {
+    url.hostname = 'uniba-waittimes.com';
+    return Response.redirect(url.toString(), 308);
+  }
+  if (url.pathname === '/en' || url.pathname === '/en/') {
+    const assetUrl = new URL('/en/index.html', url);
+    const asset = await assetFetch(new Request(assetUrl, request), env);
+    const headers = new Headers(asset.headers);
+    headers.set('Content-Type', 'text/html; charset=utf-8');
+    headers.set('X-Robots-Tag', 'noindex, nofollow');
+    headers.set('Cache-Control', 'public, max-age=60');
+    return new Response(asset.body, { status: asset.status, headers });
+  }
   const shortRidePath = /^\/r\/([1-9]\d{0,7})$/.exec(url.pathname);
   if (url.pathname === '/' || url.pathname === '/plan' || shortRidePath) {
     const indexUrl = new URL(request.url);
@@ -950,7 +963,7 @@ async function fallbackRoute(request, env) {
 }
 
 const API_CACHE_SECONDS = new Map([
-  ['/', 60], ['/plan', 60],
+  ['/', 60], ['/en', 60], ['/en/', 60], ['/plan', 60],
   ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400], ['/api/history', 300],
