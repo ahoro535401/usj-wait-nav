@@ -51,6 +51,8 @@
     .map-pin { position:absolute; transform:translate(-50%,-100%) scale(var(--inverse-scale,1)); transform-origin:center bottom; pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:46px; min-height:48px; border:2px solid #fff; border-radius:16px 16px 16px 4px; background:#12599e; color:#fff; box-shadow:0 2px 8px #0009; cursor:pointer; font-weight:800; white-space:nowrap; line-height:1.05; padding:4px 6px; }
     .map-pin .pin-value { font-size:1.08rem; font-variant-numeric:tabular-nums; }
     .map-pin .pin-unit { font-size:.65rem; margin-top:2px; }
+    .map-pin .pin-main { display:flex; align-items:baseline; gap:3px; }
+    .map-pin .pin-trend { font-size:.88rem; text-shadow:0 1px 2px #0009; }
     .map-pin:hover,.map-pin:focus-visible,.map-pin[aria-pressed="true"] { outline:3px solid #ffd34f; outline-offset:2px; z-index:2; }
     .map-pin[data-tone="short"] { background:#087d60; }
     .map-pin[data-tone="mid"] { background:#af6617; }
@@ -71,6 +73,7 @@
     .map-viewport[data-zoom="overview"] .area-pin:focus-visible { outline:3px solid #ffd34f; }
     .map-foot { margin:10px 2px 0; display:flex; gap:6px 14px; flex-wrap:wrap; color:#415268; font-size:.84rem; }
     .map-foot span { white-space:nowrap; }
+    .map-foot span:last-child { white-space:normal; }
     .map-foot i { display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:-1px; margin-right:3px; }
     .map-foot .short { background:#087d60; }.map-foot .mid { background:#af6617; }.map-foot .long { background:#9c2638; }.map-foot .closed { background:#64748b; }
     #selection { margin:14px 0 0; padding:14px; min-height:90px; background:#f5f9fd; border:1px solid #cbd9e8; border-radius:10px; }
@@ -118,7 +121,7 @@
         <div id="map-stage" class="map-stage"><img src="/park-map.jpg" alt="運営者制作のUSJエリア地図" draggable="false"><div id="pin-layer" class="pin-layer"></div><div id="area-pins" class="area-pins"></div></div>
         <section id="selection" aria-live="polite" hidden><button type="button" id="selection-close" aria-label="詳細を閉じる">✕</button><div id="selection-content"></div></section>
       </div>
-      <div class="map-foot" aria-label="ピンの色"><span><i class="short"></i>0～39分</span><span><i class="mid"></i>40～89分</span><span><i class="long"></i>90分以上</span><span><i class="closed"></i>休止・未取得</span></div>
+      <div class="map-foot" aria-label="ピンの色と矢印"><span><i class="short"></i>0～39分</span><span><i class="mid"></i>40～89分</span><span><i class="long"></i>90分以上</span><span><i class="closed"></i>休止・未取得</span><span>20分前比：↑増加・→ほぼ横ばい・↓減少（比較できない場合は非表示）</span></div>
     </section>
     <nav id="area-jumps" class="area-jumps" aria-label="エリアへ移動"></nav>
     <p class="notes">待ち時間は5分ごとに画面更新されます。位置は概略のため、入口や経路は現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。地図の画像は運営者制作です。本サイトは個人運営の非公式サイトです。</p>
@@ -202,7 +205,7 @@
     const selection=document.querySelector('#selection');
     const selectionContent=document.querySelector('#selection-content');
     const status=document.querySelector('#map-status');
-    let scale=1, tx=0, ty=0, current=null, rides=new Map(), fetchedAt=null, activeSpot=null;
+    let scale=1, tx=0, ty=0, current=null, rides=new Map(), fetchedAt=null, todaySnapshots=[], activeSpot=null;
     const pointers=new Map();
     let drag=null, pinch=null;
     const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
@@ -245,6 +248,24 @@
       if(!Number.isInteger(ride.wait_time)) return 'unknown';
       return ride.wait_time>=90?'long':ride.wait_time>=40?'mid':'short';
     }
+    function twentyMinuteTrend(ride){
+      const currentAt=Date.parse(fetchedAt);
+      if(!ride||!ride.is_open||ride.data_unavailable||!isFresh(ride)||
+          !Number.isInteger(ride.wait_time)||!Number.isFinite(currentAt)) return null;
+      const target=currentAt/1000-20*60;
+      const previous=todaySnapshots.filter(snapshot=>Number.isFinite(snapshot.captured_at)&&
+        Math.abs(snapshot.captured_at-target)<=11*60)
+        .sort((a,b)=>Math.abs(a.captured_at-target)-Math.abs(b.captured_at-target)||
+          b.captured_at-a.captured_at)[0];
+      const sample=previous?.rides?.[String(ride.id)];
+      if(!sample||!sample.is_open||sample.data_unavailable||sample.estimated||
+          !Number.isFinite(sample.wait_minutes)) return null;
+      const difference=ride.wait_time-sample.wait_minutes;
+      const arrow=Math.abs(difference)<5?'→':difference>0?'↑':'↓';
+      const time=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'});
+      const detail=`20分前比：${time.format(new Date(previous.captured_at*1000))}の${sample.wait_minutes}分から${time.format(new Date(currentAt))}の${ride.wait_time}分へ${difference>0?'+':''}${difference}分`;
+      return {arrow,detail};
+    }
     function representative(spot){
       const values=spot.ids.map(id=>rides.get(id)).filter(Boolean);
       return values.find(ride=>ride.is_open&&!ride.data_unavailable&&isFresh(ride)&&Number.isInteger(ride.wait_time))||values[0];
@@ -276,15 +297,18 @@
         button.dataset.tone=tone(ride);
         const value=waitLabel(ride);
         const short=document.createElement('span');short.className='pin-value';short.textContent=value==='未取得/不明'||value==='未取得'?'不明':value==='休止中'?'休止':value.replace('分','');
+        const trend=twentyMinuteTrend(ride);
         if(/^\d+分$/.test(value)){
+          const main=document.createElement('span');main.className='pin-main';main.append(short);
+          if(trend){const arrow=document.createElement('span');arrow.className='pin-trend';arrow.textContent=trend.arrow;arrow.setAttribute('aria-hidden','true');arrow.title=trend.detail;main.append(arrow);}
           const unit=document.createElement('span');unit.className='pin-unit';unit.textContent='分待ち';
-          button.append(short,unit);
+          button.append(main,unit);
         }else{
           button.append(short);
         }
         const label=document.createElement('span');label.className='pin-label';label.textContent=spot.name;
         button.append(label);
-        button.setAttribute('aria-label',`${spot.name}、${/^\d+分$/.test(value)?`${value}待ち`:value}。詳細を表示`);
+        button.setAttribute('aria-label',`${spot.name}、${/^\d+分$/.test(value)?`${value}待ち`:value}${trend?`。${trend.detail}`:''}。詳細を表示`);
         button.setAttribute('aria-pressed',String(activeSpot===spot));
         button.addEventListener('click',()=>{showSpot(spot);renderPins();});
         pinLayer.append(button);
@@ -312,8 +336,16 @@
     }
     async function loadWaits(){
       try{
-        const response=await fetch('/api/waits',{cache:'no-store'});
+        const [response,todayResponse]=await Promise.all([
+          fetch('/api/waits',{cache:'no-store'}),
+          fetch('/api/today',{cache:'no-store'}).catch(()=>null),
+        ]);
         const data=await response.json();if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`);
+        todaySnapshots=[];
+        if(todayResponse?.ok){
+          try{const today=await todayResponse.json();todaySnapshots=Array.isArray(today.snapshots)?today.snapshots:[];}
+          catch(error){console.warn('20分前比の記録を読み込めません',error);}
+        }
         rides=new Map((data.rides||[]).map(ride=>[Number(ride.id),ride]));
         fetchedAt=data.fetched_at;
         const time=fetchedAt?new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'}).format(new Date(fetchedAt)):'時刻不明';
