@@ -48,7 +48,9 @@
     .map-stage { position:absolute; inset:0; transform-origin:0 0; }
     .map-stage img { width:100%; height:100%; object-fit:fill; display:block; pointer-events:none; }
     .pin-layer { position:absolute; inset:0; z-index:2; pointer-events:none; }
-    .map-pin { position:absolute; transform:translate(-50%,-100%) scale(var(--inverse-scale,1)); transform-origin:center bottom; pointer-events:auto; min-width:38px; min-height:38px; border:2px solid #fff; border-radius:20px 20px 20px 4px; background:#12599e; color:#fff; box-shadow:0 2px 8px #0009; cursor:pointer; font-size:.8rem; font-weight:800; white-space:nowrap; padding:6px 8px; }
+    .map-pin { position:absolute; transform:translate(-50%,-100%) scale(var(--inverse-scale,1)); transform-origin:center bottom; pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:46px; min-height:48px; border:2px solid #fff; border-radius:16px 16px 16px 4px; background:#12599e; color:#fff; box-shadow:0 2px 8px #0009; cursor:pointer; font-weight:800; white-space:nowrap; line-height:1.05; padding:4px 6px; }
+    .map-pin .pin-value { font-size:1.08rem; font-variant-numeric:tabular-nums; }
+    .map-pin .pin-unit { font-size:.65rem; margin-top:2px; }
     .map-pin:hover,.map-pin:focus-visible,.map-pin[aria-pressed="true"] { outline:3px solid #ffd34f; outline-offset:2px; z-index:2; }
     .map-pin[data-tone="short"] { background:#087d60; }
     .map-pin[data-tone="mid"] { background:#af6617; }
@@ -273,10 +275,16 @@
         button.style.left=`${spot.x}%`;button.style.top=`${spot.y}%`;
         button.dataset.tone=tone(ride);
         const value=waitLabel(ride);
-        const short=document.createElement('span');short.textContent=value==='未取得/不明'?'？':value==='休止中'?'休':value==='未取得'?'？':value.replace('分','');
+        const short=document.createElement('span');short.className='pin-value';short.textContent=value==='未取得/不明'||value==='未取得'?'不明':value==='休止中'?'休止':value.replace('分','');
+        if(/^\d+分$/.test(value)){
+          const unit=document.createElement('span');unit.className='pin-unit';unit.textContent='分待ち';
+          button.append(short,unit);
+        }else{
+          button.append(short);
+        }
         const label=document.createElement('span');label.className='pin-label';label.textContent=spot.name;
-        button.append(short,label);
-        button.setAttribute('aria-label',`${spot.name}、${value}。詳細を表示`);
+        button.append(label);
+        button.setAttribute('aria-label',`${spot.name}、${/^\d+分$/.test(value)?`${value}待ち`:value}。詳細を表示`);
         button.setAttribute('aria-pressed',String(activeSpot===spot));
         button.addEventListener('click',()=>{showSpot(spot);renderPins();});
         pinLayer.append(button);
