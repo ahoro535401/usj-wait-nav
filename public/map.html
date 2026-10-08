@@ -183,7 +183,7 @@
     <section class="map-shell" aria-label="アトラクションの地図">
       <div class="view-switch" role="group" aria-label="地図の種類"><button type="button" id="geo-view-button" aria-pressed="true">地図と現在地</button><button type="button" id="illustration-view-button" aria-pressed="false">イラスト地図</button></div>
       <div id="geo-view">
-        <div class="geo-options" role="group" aria-label="地図の操作"><button type="button" id="my-location" aria-label="GPSで現在地を表示" aria-describedby="location-status">📍 GPS 現在地</button><label><input id="restaurant-toggle" type="checkbox">飲食店も表示</label><button type="button" id="geo-reset">全体・北上</button><button type="button" id="geo-zoom-in" class="geo-zoom" aria-label="地図を拡大">＋</button><button type="button" id="geo-zoom-out" class="geo-zoom" aria-label="地図を縮小">－</button><span id="location-status" role="status"></span></div>
+        <div class="geo-options" role="group" aria-label="地図の操作"><button type="button" id="my-location" aria-label="GPSで現在地を表示" aria-describedby="location-status">📍 GPS 現在地</button><label><input id="restaurant-toggle" type="checkbox">飲食店も表示</label><button type="button" id="geo-reset">全体・南上</button><button type="button" id="geo-zoom-in" class="geo-zoom" aria-label="地図を拡大">＋</button><button type="button" id="geo-zoom-out" class="geo-zoom" aria-label="地図を縮小">－</button><span id="location-status" role="status"></span></div>
         <p id="geo-status" class="notes" role="status">待ち時間を読み込み中…</p>
         <p class="map-attribution">全体表示では主な施設を表示します。拡大すると全23施設と飲食店の位置を確認できます。</p>
         <div class="geo-map-wrap"><div id="geo-map" aria-label="USJ付近の地図。アトラクションの待ち時間をピンで表示"></div></div>
@@ -303,8 +303,8 @@
     function resetGeoView(){
       if(!geoMap)return;
       geoMap.stop();
-      geoMap.jumpTo({bearing:0,pitch:0});
-      geoMap.fitBounds([[135.4293,34.6628],[135.4368,34.6694]],{padding:18,maxZoom:16.6,duration:0});
+      geoMap.jumpTo({bearing:180,pitch:0});
+      geoMap.fitBounds([[135.4293,34.6628],[135.4368,34.6694]],{padding:18,maxZoom:16.6,bearing:180,duration:0});
     }
     function syncMapStyle(){
       if(geoMap) geoMap.setStyle(`https://tiles.openfreemap.org/styles/${document.documentElement.dataset.theme==='dark'?'dark':'liberty'}`);
@@ -492,7 +492,7 @@
       try{
         const style=document.documentElement.dataset.theme==='dark'?'dark':'liberty';
         geoMap=new maplibregl.Map({container:'geo-map',style:`https://tiles.openfreemap.org/styles/${style}`,
-          center:[135.43305,34.6661],zoom:15.2,bearing:0,pitch:0,dragRotate:false,minZoom:13,maxZoom:19,attributionControl:true});
+          center:[135.43305,34.6661],zoom:15.2,bearing:180,pitch:0,dragRotate:false,minZoom:13,maxZoom:19,attributionControl:true});
         geoMap.touchZoomRotate.disableRotation();
         resetGeoView();
         renderGeoRides();
