@@ -198,7 +198,7 @@
       </div>
       </div>
       <section id="selection" aria-live="polite" hidden><button type="button" id="selection-close" aria-label="詳細を閉じる">✕</button><div id="selection-content"></div></section>
-      <div class="map-foot" aria-label="ピンの色と矢印"><span><i class="short"></i>0～39分</span><span><i class="mid"></i>40～89分</span><span><i class="long"></i>90分以上</span><span><i class="closed"></i>休止・未取得</span><span>20分前比：↑増加・→ほぼ横ばい・↓減少（比較できない場合は非表示）</span></div>
+      <div class="map-foot" aria-label="ピンの色と矢印"><span><i class="short"></i>0～39分</span><span><i class="mid"></i>40～89分</span><span><i class="long"></i>90分以上</span><span><i class="closed"></i>休止・確認中・未取得</span><span>20分前比：↑増加・→ほぼ横ばい・↓減少（比較できない場合は非表示）</span></div>
     </section>
     <nav id="area-jumps" class="area-jumps" aria-label="イラスト地図のエリアへ移動" hidden></nav>
     <p class="notes">待ち時間は5分ごとに画面更新されます。飲食店の営業時間・混雑状況は掲載していません。施設詳細の「徒歩ルート」はGoogle マップで開きます。園内の通行可能な道や施設入口は正確に反映されない場合があるため、現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。イラスト地図は運営者制作です。本サイトは個人運営の非公式サイトです。</p>
@@ -376,6 +376,30 @@
       const values=spot.ids.map(id=>rides.get(id)).filter(Boolean);
       return values.find(ride=>ride.is_open&&!ride.data_unavailable&&isFresh(ride)&&Number.isInteger(ride.wait_time))||values[0];
     }
+    function nightSchedule(spot){
+      const dayId=spot.ids[0],nightId=spot.ids[1];
+      if(![12067,12068].includes(dayId))return null;
+      const date=new Date(Number.isFinite(Date.parse(fetchedAt))?fetchedAt:Date.now());
+      const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date).map(part=>[part.type,part.value]));
+      const day=`${parts.year}-${parts.month}-${parts.day}`;
+      if(day<'2026-09-11'||day>(dayId===12067?'2026-11-08':'2027-01-31'))return null;
+      const start=day<='2026-10-09'?'18:30':'18:00';
+      return {dayId,nightId,start,after:`${parts.hour}:${parts.minute}`>=start,
+        officialUrl:dayId===12067?'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/jurassic-park-the-ride-in-the-dark':'https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions'};
+    }
+    function hasOpenedToday(id){
+      return todaySnapshots.some(snapshot=>snapshot.rides?.[String(id)]?.is_open);
+    }
+    function spotState(spot){
+      const ride=representative(spot);
+      const schedule=nightSchedule(spot);
+      if(!schedule||ride?.is_open&&!ride.data_unavailable&&isFresh(ride)&&Number.isInteger(ride.wait_time))
+        return {ride,label:waitLabel(ride),tone:tone(ride)};
+      const selected=rides.get(schedule.after?schedule.nightId:schedule.dayId);
+      let label=waitLabel(selected);
+      if(label==='休止中'&&!hasOpenedToday(selected.id)) label=schedule.after?'夜版情報待ち':'運行確認中';
+      return {ride:selected,label,tone:label==='休止中'?'closed':'unknown'};
+    }
     function appendWalkingRoute(place){
       if(!place||!Number.isFinite(place.lat)||!Number.isFinite(place.lng))return;
       const paragraph=document.createElement('p');
@@ -390,30 +414,43 @@
       activeSpot=spot;
       selection.hidden=false;selectionContent.replaceChildren();
       const title=document.createElement('h2'); title.textContent=spot.name; selectionContent.append(title);
+      const schedule=nightSchedule(spot);
       let found=false;
       for(const id of spot.ids){
         const ride=rides.get(id); if(!ride) continue;
         found=true;
         const row=document.createElement('div');row.className='ride-result';
         const name=document.createElement('strong');name.textContent=names.get(id)||ride.name||spot.name;
-        const value=document.createElement('span');value.className='wait';value.textContent=waitLabel(ride);
+        const value=document.createElement('span');value.className='wait';
+        let label=waitLabel(ride);
+        if(schedule&&label==='休止中'){
+          if(id===schedule.nightId&&!schedule.after)label=`${schedule.start}開始予定`;
+          else if(id===schedule.dayId&&schedule.after)label='昼の運行終了';
+          else if(!hasOpenedToday(id))label='運行確認中';
+        }
+        value.textContent=label;
         row.append(name,value);selectionContent.append(row);
       }
       if(!found){const text=document.createElement('p');text.textContent='この施設の現在値を確認できません。';selectionContent.append(text);}
+      if(schedule){
+        const note=document.createElement('p');note.className='map-attribution';
+        note.append(`夜版は${schedule.start}開始予定。変更・中止の可能性があります。`,Object.assign(document.createElement('a'),{href:schedule.officialUrl,textContent:'USJ公式で確認 ↗',target:'_blank',rel:'noopener noreferrer'}));
+        selectionContent.append(note);
+      }
       const link=document.createElement('p');
-      const anchor=document.createElement('a');anchor.href=`/r/${representative(spot)?.id||spot.ids[0]}`;anchor.textContent='待ち時間一覧で確認する ›';
+      const anchor=document.createElement('a');anchor.href=`/r/${spotState(spot).ride?.id||spot.ids[0]}`;anchor.textContent='待ち時間一覧で確認する ›';
       link.append(anchor);selectionContent.append(link);
       appendWalkingRoute(geoBySuffix.get(spotGeoKeys[spots.indexOf(spot)]));
     }
     function renderPins(){
       pinLayer.replaceChildren();
       for(const spot of spots){
-        const ride=representative(spot);
+        const state=spotState(spot),ride=state.ride;
         const button=document.createElement('button');button.type='button';button.className='map-pin';
         button.style.left=`${spot.x}%`;button.style.top=`${spot.y}%`;
-        button.dataset.tone=tone(ride);
-        const value=waitLabel(ride);
-        const short=document.createElement('span');short.className='pin-value';short.textContent=value==='未取得/不明'||value==='未取得'?'不明':value==='休止中'?'休止':value.replace('分','');
+        button.dataset.tone=state.tone;
+        const value=state.label;
+        const short=document.createElement('span');short.className='pin-value';short.textContent=value==='未取得/不明'||value==='未取得'?'不明':value==='休止中'?'休止':value==='運行確認中'?'確認中':value==='夜版情報待ち'?'夜版待ち':value.replace('分','');
         const trend=twentyMinuteTrend(ride);
         if(/^\d+分$/.test(value)){
           const main=document.createElement('span');main.className='pin-main';main.append(short);
@@ -443,12 +480,12 @@
       else requestAnimationFrame(applyTransform);
     }
     function makeGeoMarker(place,spot){
-      const ride=spot?representative(spot):null;
-      const label=spot?waitLabel(ride):'飲食店';
+      const state=spot?spotState(spot):null,ride=state?.ride;
+      const label=state?.label||'飲食店';
       const trend=spot?twentyMinuteTrend(ride):null;
       const button=document.createElement('button');
       button.type='button';button.className=spot?'geo-marker':'geo-marker restaurant';
-      button.dataset.tone=spot?tone(ride):'restaurant';
+      button.dataset.tone=spot?state.tone:'restaurant';
       const display=spot?(/^\d+分$/.test(label)?`${label}待ち${trend?` ${trend.arrow}`:''}`:label):'🍽';
       button.textContent=display;
       button.title=spot?`${spot.name}：${display}${trend?`。${trend.detail}`:''}`:`飲食店：${place.name}`;
