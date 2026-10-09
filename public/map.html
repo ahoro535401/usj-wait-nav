@@ -246,7 +246,7 @@
     const sitePageThreadsText = 'USJのアトラクションを地図で探して待ち時間を確認。現在地表示や飲食店の位置表示も使える「USJ待ち時間ナビ」の地図で探すページです。個人運営の非公式サイト。';
     const siteShareLinks = {
       line: `https://line.me/R/share?text=${encodeURIComponent(`${sitePageText}\n${sitePageUrl}`)}`,
-      x: `https://x.com/intent/post?text=${encodeURIComponent(sitePageXText)}&url=${encodeURIComponent(sitePageUrl)}`,
+      x: `https://x.com/intent/post?text=${encodeURIComponent(sitePageXText)}&url=${encodeURIComponent(`${sitePageUrl}?utm_source=x&utm_medium=social&utm_campaign=share_map`)}`,
       threads: `https://www.threads.com/intent/post?text=${encodeURIComponent(sitePageThreadsText)}&url=${encodeURIComponent(sitePageUrl)}`,
     };
     for (const channel of ['line', 'x', 'threads']) {
@@ -461,7 +461,7 @@
       const line=document.createElement('a');line.className='share-line';line.textContent='LINEで送る';
       line.href=`https://line.me/R/share?text=${encodeURIComponent(`${summary}\n${url}`)}`;
       const x=document.createElement('a');x.className='share-x';x.textContent='Xで共有';
-      x.href=`https://x.com/intent/post?text=${encodeURIComponent(xSummary)}&url=${encodeURIComponent(url)}`;
+      x.href=`https://x.com/intent/post?text=${encodeURIComponent(xSummary)}&url=${encodeURIComponent(`${url}?utm_source=x&utm_medium=social&utm_campaign=share_map_ride`)}`;
       for(const link of [line,x]){link.target='_blank';link.rel='noopener noreferrer';}
       line.addEventListener('click',()=>window.trackSiteEvent?.('share_click',
         {share_channel:'line',content_type:'map_ride',ride_id:ride.id}));

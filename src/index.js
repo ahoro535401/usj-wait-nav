@@ -30,6 +30,8 @@ const X_DAILY_POST_TIME = '22:30';
 const X_PREVIOUS_DAY_TEST_DATE = '2026-10-10';
 const X_PREVIOUS_DAY_TEST_TIME = '05:30';
 const X_POST_WINDOW_SECONDS = 15 * 60;
+const X_WAIT_URL = 'https://uniba-waittimes.com/?utm_source=x&utm_medium=social&utm_campaign=live_waits';
+const X_DAILY_URL = 'https://uniba-waittimes.com/?utm_source=x&utm_medium=social&utm_campaign=daily_recap';
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
 const COLLECTION_TRAIL_SECONDS = 30 * 60;
@@ -104,8 +106,7 @@ function dueDailyXPost(seconds) {
 }
 
 function xWeightedLength(value) {
-  const url = 'https://uniba-waittimes.com/';
-  const withoutUrl = value.replace(url, '');
+  const withoutUrl = value.replace(/https:\/\/uniba-waittimes\.com\/\S*/, '');
   return [...withoutUrl].reduce((total, character) => total +
     (character.codePointAt(0) > 0x2ff ? 2 : 1), 23);
 }
@@ -125,7 +126,7 @@ function xWaitPost(rides, names, fetchedAt) {
   if (ranked.length < 5) return null;
   const date = xDateLabel(jstDay(captured));
   const header = `【USJ待ち時間｜${date} ${hhmm(captured)}】非公式\n長い順・上位5施設`;
-  const footer = '\n全施設はこちら↓\nhttps://uniba-waittimes.com/\n#USJ #ユニバ';
+  const footer = `\n全施設はこちら↓\n${X_WAIT_URL}\n#USJ #ユニバ`;
   const aliases = new Map([
     [12066, 'ミニオン・ライド'], [13005, 'コナン4-D'],
     [12073, 'ヒッポグリフ'], [12072, 'ミニオン・アイス'],
@@ -212,7 +213,7 @@ function xDailyPost(day, data) {
     `この日の平均待ち時間：${Math.round(data.average_wait)}分\n` +
     `最も混雑した時間帯：${hhmm(peak.at).slice(0, 2)}時台（平均${Math.round(peak.average_wait)}分）\n` +
     `20分ごとの記録を集計。休止・欠測は除外。\n` +
-    `今日の履歴はこちら↓\nhttps://uniba-waittimes.com/\n#USJ #ユニバ`;
+    `今日の履歴はこちら↓\n${X_DAILY_URL}\n#USJ #ユニバ`;
   return xWeightedLength(post) <= 250 ? post : null;
 }
 

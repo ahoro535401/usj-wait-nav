@@ -3062,12 +3062,15 @@
     function lineShareUrl(payload) {
       return `https://line.me/R/share?text=${encodeURIComponent(`${payload.text}\n${payload.url}`)}`;
     }
-    function xShareUrl(payload) {
+    function xShareUrl(payload, contentType) {
       const text = payload.xText || [...payload.text].slice(0, 110).join('');
       const shareUrl = new URL(payload.url);
       if (!payload.exactUrl && !/^\/r\/[1-9]\d{0,7}$/.test(shareUrl.pathname)) {
         shareUrl.searchParams.set('v', '4');
       }
+      shareUrl.searchParams.set('utm_source', 'x');
+      shareUrl.searchParams.set('utm_medium', 'social');
+      shareUrl.searchParams.set('utm_campaign', `share_${contentType}`);
       return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.href)}`;
     }
     function threadsShareUrl(payload) {
@@ -3124,7 +3127,7 @@
       const updateLinks = () => {
         const payload = getPayload();
         line.href = lineShareUrl(payload);
-        x.href = xShareUrl(payload);
+        x.href = xShareUrl(payload, contentType);
         threads.href = threadsShareUrl(payload);
       };
       const recordShare = channel => window.trackSiteEvent?.('share_click', {
