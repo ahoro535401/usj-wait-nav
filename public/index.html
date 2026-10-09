@@ -3274,7 +3274,7 @@
         ]) {
           const changeLabel = document.createElement('span');
           changeLabel.className = `ride-card-trend ${change.className}`;
-          changeLabel.textContent = `${period.replace('前比', '前')} ${change.text}${change.text !== '—' && change.text !== '→' ? '分' : ''}`;
+          changeLabel.textContent = `${period} ${change.text}${change.text !== '—' && change.text !== '→' ? '分' : ''}`;
           changeLabel.title = change.title;
           changeLabel.setAttribute('role', 'img');
           changeLabel.setAttribute('aria-label', `${period}：${change.title}`);
