@@ -1603,7 +1603,7 @@
     }
     async function loadSchedule() {
       try {
-        const response = await apiRequest('/api/schedule?v=hours2', {cache: 'no-store'});
+        const response = await apiRequest('/api/schedule?v=hours-20261010', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         scheduleDays = new Map(data.days.map(item => [item.day, item]));
