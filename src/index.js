@@ -110,13 +110,20 @@ function xWeightedLength(value) {
     (character.codePointAt(0) > 0x2ff ? 2 : 1), 23);
 }
 
+function xDateLabel(day) {
+  const month = Number(day.slice(5, 7));
+  const date = Number(day.slice(8, 10));
+  const weekday = '日月火水木金土'[new Date(`${day}T00:00:00Z`).getUTCDay()];
+  return `${month}/${date}（${weekday}）`;
+}
+
 function xWaitPost(rides, names, fetchedAt) {
   const captured = Date.parse(fetchedAt) / 1000;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
     Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5) return null;
-  const date = `${Number(jstDay(captured).slice(5, 7))}/${Number(jstDay(captured).slice(8, 10))}`;
+  const date = xDateLabel(jstDay(captured));
   const header = `【USJ待ち時間｜${date} ${hhmm(captured)}】非公式\n長い順・上位5施設`;
   const footer = '\n全施設はこちら↓\nhttps://uniba-waittimes.com/\n#USJ #ユニバ';
   const aliases = new Map([
@@ -200,7 +207,7 @@ function xDailyPost(day, data) {
   const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
     Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
-  const date = `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
+  const date = xDateLabel(day);
   const post = `【USJ待ち時間ナビ｜${date}の混雑実績】非公式\n` +
     `この日の平均待ち時間：${Math.round(data.average_wait)}分\n` +
     `最も混雑した時間帯：${hhmm(peak.at).slice(0, 2)}時台（平均${Math.round(peak.average_wait)}分）\n` +
