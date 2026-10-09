@@ -797,6 +797,7 @@ function pageHtml(html, page) {
       ['<a id="park-alert"', '</a>'], ['<section class="heatmap-panel"', '</section>'],
       ['<section class="shows-panel"', '</section>'],
       ['<section class="closures-panel"', '</section>'], ['<section class="weather-panel"', '</section>'],
+      ['<aside class="site-share-panel"', '</aside>'],
     ]
     : [
       ['<section class="archive-panel"', '</section>'],
