@@ -137,6 +137,16 @@
     .area-jumps { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
     .area-jumps .area-button { font-size:.83rem; }
     .notes { font-size:.85rem; line-height:1.6; color:#415268; }
+    .site-share-panel { margin:24px 0 0; padding:14px; border:1px solid #bcd2eb; border-radius:12px; background:#fff; }
+    .site-share-panel > strong { display:block; font-size:1rem; }
+    .site-share-panel p { margin:4px 0 10px; color:#415268; font-size:.85rem; }
+    .page-share-actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+    .page-share-actions a,.page-share-actions button { display:inline-flex; min-height:44px; align-items:center; justify-content:center; padding:6px; border:1px solid transparent; border-radius:999px; color:#fff; font:inherit; font-size:.8rem; font-weight:700; text-align:center; text-decoration:none; white-space:nowrap; cursor:pointer; }
+    .page-share-actions .share-line { background:#06c755; }.page-share-actions .share-x { background:#0f1419; }.page-share-actions .share-threads { background:#292929; }
+    .page-share-actions .share-copy { border-color:#c5d3e3; background:#fff; color:#1058a7; }
+    .page-share-actions a:hover,.page-share-actions button:hover,.page-share-actions a:focus-visible,.page-share-actions button:focus-visible { outline:2px solid #1058a7; outline-offset:2px; }
+    #site-share-status:empty { display:none; }
+    #site-share-status:not(:empty) { margin:8px 0 0; }
     footer { max-width:1120px; margin:auto; padding:12px; border-top:1px solid #d8e1eb; color:#415268; font-size:.82rem; }
     :root[data-theme="dark"] { color-scheme:dark; color:#e7eff8; background:#0e1721; }
     :root[data-theme="dark"] a { color:#9fc5ff; }
@@ -163,11 +173,15 @@
     :root[data-theme="dark"] .map-comparisons { color:#bccbdc; }
     :root[data-theme="dark"] .map-share .share-line { color:#fff; }
     :root[data-theme="dark"] .map-share .share-x { background:#e7eff8; color:#172536; }
+    :root[data-theme="dark"] .site-share-panel { background:#182638; border-color:#2f4a6b; }
+    :root[data-theme="dark"] .site-share-panel p { color:#bccbdc; }
+    :root[data-theme="dark"] .page-share-actions .share-x,:root[data-theme="dark"] .page-share-actions .share-threads { background:#e6edf3; color:#0f1419; }
+    :root[data-theme="dark"] .page-share-actions .share-copy { background:#17212c; color:#9cc4ff; border-color:#3a4b5d; }
     :root[data-theme="dark"] #my-location,:root[data-theme="dark"] .route-link { background:#2f6fc0; color:#fff; }
     :root[data-theme="dark"] footer { border-color:#344b61; }
     @media(max-width:700px) { .area-pin { border:0; background:transparent; color:transparent; box-shadow:none; text-shadow:none; } .area-pin .area-number,.area-pin .area-name { visibility:hidden; } }
     @media(max-width:620px) { .site-header { min-height:190px; margin:-12px -10px 9px; border-radius:0 0 16px 16px; } .hero-photo { object-position:55% 43%; } .site-header::after { background:linear-gradient(0deg,#071526f5 0%,#071526b8 40%,#07152633 100%),linear-gradient(90deg,#07152666,transparent 65%); } .hero-content { min-height:190px; padding:11px 14px 13px; } .text-logo { font-size:1rem; } .unofficial { font-size:.69rem; } .theme-toggle { min-height:32px; padding:0 8px; font-size:.72rem; } .site-header h1 { font-size:1.4rem; margin-bottom:3px; } .hero-copy .sub { font-size:.72rem; line-height:1.4; } }
-    @media(max-width:600px) { .page-tabs a { padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .geo-options { top:66px; gap:4px; padding:5px; } .geo-options label { font-size:.8rem; } #my-location { padding-inline:8px; font-size:.82rem; } #geo-reset { padding-inline:7px; font-size:.78rem; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } }
+    @media(max-width:600px) { .page-tabs a { padding-inline:4px; font-size:.84rem; } .map-shell { padding:7px; } .geo-options { top:66px; gap:4px; padding:5px; } .geo-options label { font-size:.8rem; } #my-location { padding-inline:8px; font-size:.82rem; } #geo-reset { padding-inline:7px; font-size:.78rem; } .toolbar { gap:5px; } .toolbar button { padding-inline:10px; } #map-status { width:100%; margin-left:0; } .page-share-actions { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   </style>
   <script src="/analytics.js" defer></script>
 </head>
@@ -211,11 +225,46 @@
     </section>
     <nav id="area-jumps" class="area-jumps" aria-label="イラスト地図のエリアへ移動" hidden></nav>
     <p class="notes">待ち時間は5分ごとに画面更新されます。飲食店の営業時間・混雑状況は掲載していません。施設詳細の「徒歩ルート」はGoogle マップで開きます。園内の通行可能な道や施設入口は正確に反映されない場合があるため、現地表示・<a href="https://www.usj.co.jp/web/ja/jp/enjoy/app" target="_blank" rel="noopener noreferrer">USJ公式アプリ</a>でご確認ください。本サイトは個人運営の非公式サイトです。</p>
+    <aside class="site-share-panel" aria-label="このページをシェア">
+      <strong>このページをシェア</strong>
+      <p>地図で探すページを、現在の待ち時間や取得時刻を含まない文で紹介できます。</p>
+      <div class="page-share-actions">
+        <a id="site-share-line" class="share-line" target="_blank" rel="noopener noreferrer">LINEで紹介</a>
+        <a id="site-share-x" class="share-x" target="_blank" rel="noopener noreferrer">Xで紹介</a>
+        <a id="site-share-threads" class="share-threads" target="_blank" rel="noopener noreferrer">Threadsで紹介</a>
+        <button id="site-share-copy" class="share-copy" type="button" aria-label="地図で探すページの紹介文とURLをコピー">紹介文をコピー</button>
+      </div>
+      <p id="site-share-status" role="status"></p>
+    </aside>
   </main>
   <footer><a href="/vote">No.1アトラクション投票</a> · <a href="/privacy">このサイトについて・プライバシーポリシー</a> · 待ち時間データ：<a href="https://queue-times.com/">Queue-Times</a>、<a href="https://www.themeparks.wiki/">ThemeParks.wiki</a></footer>
   <script id="map-locations" type="application/json"><!--MAP_LOCATIONS--></script>
   <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.15.0/dist/maplibre-gl.js" defer></script>
   <script>
+    const sitePageUrl = `${location.origin}/map`;
+    const sitePageText = '【USJ待ち時間ナビ｜地図で探す・非公式】\n地図でアトラクションを探して待ち時間を確認。現在地表示や飲食店の位置表示も使えます。';
+    const sitePageXText = 'USJのアトラクションを地図で探して待ち時間を確認。現在地や飲食店の位置も表示できます。\n個人運営の非公式サイト「USJ待ち時間ナビ」\n#USJ #ユニバ';
+    const sitePageThreadsText = 'USJのアトラクションを地図で探して待ち時間を確認。現在地表示や飲食店の位置表示も使える「USJ待ち時間ナビ」の地図で探すページです。個人運営の非公式サイト。';
+    const siteShareLinks = {
+      line: `https://line.me/R/share?text=${encodeURIComponent(`${sitePageText}\n${sitePageUrl}`)}`,
+      x: `https://x.com/intent/post?text=${encodeURIComponent(sitePageXText)}&url=${encodeURIComponent(sitePageUrl)}`,
+      threads: `https://www.threads.com/intent/post?text=${encodeURIComponent(sitePageThreadsText)}&url=${encodeURIComponent(sitePageUrl)}`,
+    };
+    for (const channel of ['line', 'x', 'threads']) {
+      const link = document.querySelector(`#site-share-${channel}`);
+      link.href = siteShareLinks[channel];
+      link.addEventListener('click', () => window.trackSiteEvent?.('share_click', {share_channel:channel, content_type:'site'}));
+    }
+    document.querySelector('#site-share-copy').addEventListener('click', async () => {
+      window.trackSiteEvent?.('share_click', {share_channel:'copy', content_type:'site'});
+      const status = document.querySelector('#site-share-status');
+      try {
+        await navigator.clipboard.writeText(`${sitePageText}\n${sitePageUrl}`);
+        status.textContent = '紹介文とURLをコピーしました。';
+      } catch (_) {
+        status.textContent = 'コピーできませんでした。LINE・X・Threadsのボタンをお使いください。';
+      }
+    });
     const THEME_KEY = 'usj-wait-nav:theme';
     const themeToggle = document.querySelector('#theme-toggle');
     const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');

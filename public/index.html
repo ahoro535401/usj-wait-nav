@@ -854,11 +854,6 @@
     <p id="weather-advice" class="weather-alert" role="status">屋外ライドの運行状況はUSJ公式アプリでご確認ください。</p>
     <details class="weather-details"><summary>風速による注意表示の目安</summary><p class="muted">平均風速7m/s以上で注意、平均風速10m/s以上で強い注意を表示します。最大瞬間風速が取得できる場合は、10m/s以上の突風も強い注意の対象です。これは本サイト独自の目安で、USJの運休基準や運休の予測ではありません。</p></details>
   </section>
-  <aside class="site-share-panel" data-only="now" aria-label="このサイトをシェア">
-    <strong>このサイトをシェア</strong>
-    <p>待ち時間・地図・混雑カレンダーを紹介。現在の待ち時間や取得時刻を含まない文を送れます。</p>
-    <div id="site-share-actions"></div>
-  </aside>
   <section class="calendar-panel" data-only="plan" hidden aria-labelledby="calendar-title">
     <h2 id="calendar-title">パーク営業時間</h2>
     <p class="muted">予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
@@ -903,6 +898,13 @@
   </section>
   <!-- 広告枠2：関連するアフィリエイト紹介のみ。広告であることを表示してから有効化 -->
   <aside id="ad-slot-2" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-2"></div></aside>
+  <aside class="site-share-panel" aria-label="このページをシェア">
+    <strong data-only="now">このサイトをシェア</strong>
+    <strong data-only="plan">このページをシェア</strong>
+    <p data-only="now">待ち時間・地図・混雑カレンダーを紹介。現在の待ち時間や取得時刻を含まない文を送れます。</p>
+    <p data-only="plan">過去の混雑カレンダーや来園前に役立つ情報を、現在の待ち時間を含まない文で紹介できます。</p>
+    <div id="site-share-actions"></div>
+  </aside>
   </main>
   <footer>
     <p><a href="/vote">No.1アトラクション投票</a> · <a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
@@ -3026,7 +3028,7 @@
     function xShareUrl(payload) {
       const text = payload.xText || [...payload.text].slice(0, 110).join('');
       const shareUrl = new URL(payload.url);
-      if (!/^\/r\/[1-9]\d{0,7}$/.test(shareUrl.pathname)) {
+      if (!payload.exactUrl && !/^\/r\/[1-9]\d{0,7}$/.test(shareUrl.pathname)) {
         shareUrl.searchParams.set('v', '4');
       }
       return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.href)}`;
@@ -3117,6 +3119,14 @@
       return bar;
     }
     function siteSharePayload() {
+      if (PAGE === 'plan') return {
+        title: 'USJ待ち時間ナビ｜行く前に・非公式',
+        text: '【USJ待ち時間ナビ｜行く前に・非公式】\n来園前に過去の混雑実績をカレンダーで確認。営業時間やイベント情報もチェックできます。',
+        xText: 'USJへ行く前に、過去の混雑カレンダーや営業時間・イベント情報をチェック。\n個人運営の非公式サイト「USJ待ち時間ナビ」\n#USJ #ユニバ',
+        threadsText: 'USJへ行く前に、過去の混雑実績をカレンダーで確認。営業時間やイベント情報も見られる「USJ待ち時間ナビ」の行く前にページです。個人運営の非公式サイト。',
+        url: `${location.origin}/plan`,
+        exactUrl: true,
+      };
       return {
         title: 'USJ待ち時間ナビ｜非公式',
         text: '【USJ待ち時間ナビ｜非公式】\nUSJに行く前も、パークにいる時も。\n\n' +
