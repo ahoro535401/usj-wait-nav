@@ -846,6 +846,10 @@ async function route(request, env) {
     url.pathname = '/privacy.html';
     return assetFetch(new Request(url, request), env);
   }
+  if (url.pathname === '/vote') {
+    url.pathname = '/vote.html';
+    return assetFetch(new Request(url, request), env);
+  }
   // 位置データの一括配信は行わず、地図ページの表示にのみ使用する。
   if (url.pathname === '/map-locations.json') return new Response('Not found', { status: 404 });
   if (url.pathname === '/map') {
@@ -1002,7 +1006,7 @@ async function fallbackRoute(request, env) {
 }
 
 const API_CACHE_SECONDS = new Map([
-  ['/', 60], ['/en', 60], ['/en/', 60], ['/plan', 60], ['/map', 300],
+  ['/', 60], ['/en', 60], ['/en/', 60], ['/plan', 60], ['/map', 300], ['/vote', 300],
   ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400], ['/api/history', 300],

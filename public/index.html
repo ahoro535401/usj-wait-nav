@@ -600,6 +600,11 @@
     .archive-cal-pass { display: block; max-width: 100%; margin-top: 2px; padding: 0 2px; border-radius: 3px; background: #5b3a8c; color: #fff; font-size: .55rem; line-height: 1.5; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .archive-cal-day .archive-cal-pass { white-space: normal; overflow-wrap: anywhere; line-height: 1.2; text-align: center; }
     .archive-cal-day.is-pass-excluded .archive-cal-holiday { white-space: normal; overflow-wrap: anywhere; }
+    .vote-cta { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:9px; margin:12px 0; padding:12px 14px; border:1px solid #a9c6e4; border-radius:12px; background:#eef5ff; }
+    .vote-cta p { margin:0; line-height:1.45; }
+    .vote-cta a { display:inline-flex; min-height:44px; align-items:center; padding:8px 14px; border-radius:9px; background:#1058a7; color:#fff; font-weight:700; text-decoration:none; }
+    .vote-cta a:hover,.vote-cta a:focus-visible { background:#0b477f; outline:2px solid #1058a7; outline-offset:2px; }
+    :root[data-theme="dark"] .vote-cta { border-color:#456b92; background:#1d3550; }
     .pass-exclusion-note .archive-cal-pass { display: inline-block; margin-right: 4px; font-size: .7rem; vertical-align: 1px; }
     .selected-pass-excluded { color: #5b3a8c; font-weight: 700; }
     :root[data-theme="dark"] .archive-cal-pass { background: #8e6cc4; color: #fff; }
@@ -673,6 +678,7 @@
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:55%"></span><span class="skeleton" style="width:3em"></span></li>
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:65%"></span><span class="skeleton" style="width:3em"></span></li>
     </ol></div>
+    <aside class="vote-cta" aria-label="アトラクション投票" data-only="now"><p><strong>あなたのNo.1アトラクションは？</strong><br>1つ選んで投票。回答後に読者の投票結果も見られます。</p><a href="/vote">投票する ›</a></aside>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <details id="heatmap-options" class="heatmap-options">
       <summary>絞り込み・並び順・色の見方</summary>
@@ -857,7 +863,7 @@
   <aside id="ad-slot-2" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-2"></div></aside>
   </main>
   <footer>
-    <p><a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
+    <p><a href="/vote">No.1アトラクション投票</a> · <a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
     <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。表示値は通常の待ち列の目安で、シングルライダーやエクスプレス・パスの所要時間ではありません。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。</p>
     <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。画面を開いたままでも約5分ごとにデータだけを更新します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>

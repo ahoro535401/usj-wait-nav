@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142233">
+  <title>No.1アトラクション投票｜USJ待ち時間ナビ</title>
+  <meta name="description" content="あなたの好きなUSJのアトラクションを1つ選んで投票。回答後に当サイト読者の投票結果を確認できます。個人運営の非公式サイトです。">
+  <link rel="canonical" href="https://uniba-waittimes.com/vote">
+  <meta property="og:url" content="https://uniba-waittimes.com/vote">
+  <meta property="og:site_name" content="USJ待ち時間ナビ">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="No.1アトラクション投票｜USJ待ち時間ナビ">
+  <meta property="og:description" content="あなたの好きなUSJのアトラクションを1つ選んで投票。個人運営の非公式サイトです。">
+  <meta property="og:image" content="https://uniba-waittimes.com/og-photo-labeled.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>
+    (function () {
+      var pref = 'auto';
+      try { pref = localStorage.getItem('usj-wait-nav:theme') || 'auto'; } catch (_) {}
+      document.documentElement.dataset.theme = pref === 'dark' ||
+        (pref === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      document.documentElement.dataset.themePref = pref;
+    })();
+  </script>
+  <style>
+    :root { color-scheme:light; font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; color:#172536; background:#f3f6fa; }
+    * { box-sizing:border-box; }
+    body { max-width:1000px; margin:0 auto; padding:24px 16px 48px; }
+    a { color:#145aa5; }
+    button { font:inherit; }
+    .site-header { position:relative; min-height:208px; margin-bottom:12px; overflow:hidden; isolation:isolate; border-radius:18px; background:#102238; box-shadow:0 10px 28px #10223829; }
+    .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 45%; }
+    .site-header::after { content:''; position:absolute; inset:0; z-index:0; background:linear-gradient(90deg,#08192bf5 0%,#08192bdc 36%,#08192b24 78%),linear-gradient(0deg,#08192b7a,transparent 60%); pointer-events:none; }
+    .hero-content { position:relative; z-index:1; display:flex; flex-direction:column; min-height:208px; padding:16px 22px 18px; }
+    .hero-brand { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+    .text-logo { display:inline-flex; align-items:center; color:#fff; font-size:clamp(1.1rem,3vw,1.35rem); font-weight:800; letter-spacing:.02em; text-decoration:none; text-shadow:0 1px 3px #0009; }
+    .logo-usj { display:inline-block; margin-right:5px; padding:2px 7px; border-radius:5px; background:#fff; color:#1058a7; letter-spacing:.05em; text-shadow:none; }
+    .unofficial { display:inline-block; padding:2px 7px; border:1px solid #fffa; border-radius:4px; background:#08192baa; color:#fff; font-size:.76rem; font-weight:700; }
+    .theme-toggle { margin-left:auto; min-height:34px; padding:0 12px; border:1px solid #fffa; border-radius:999px; background:#08192bc7; color:#fff; cursor:pointer; font-size:.8rem; font-weight:700; white-space:nowrap; }
+    .theme-toggle:hover,.theme-toggle:focus-visible,.text-logo:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+    .hero-copy { max-width:620px; margin-top:auto; }
+    .site-header h1 { margin:0 0 6px; color:#fff; font-size:clamp(1.6rem,3.3vw,2.15rem); line-height:1.25; text-shadow:0 2px 5px #0009; }
+    .hero-copy .sub { max-width:460px; margin:0; color:#f0f6ff; font-size:.85rem; line-height:1.5; text-shadow:0 1px 3px #000c; }
+    .sticky-nav { position:sticky; top:0; z-index:20; margin:0 0 14px; padding:6px 0 8px; background:#f3f6fa; }
+    .page-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:0; padding:4px; border-radius:10px; background:#e8eef5; }
+    .page-tabs a { display:flex; min-height:44px; align-items:center; justify-content:center; border-radius:8px; color:#1058a7; font-weight:700; text-align:center; text-decoration:none; }
+    .page-tabs a:hover,.page-tabs a:focus-visible { outline:2px solid #1058a7; outline-offset:1px; }
+    main { max-width:760px; margin:0 auto; }
+    .poll-intro,.poll-frame-wrap,.results { border:1px solid #d8e1eb; border-radius:14px; background:#fff; box-shadow:0 2px 12px #1725360a; }
+    .poll-intro { padding:18px 20px; margin-bottom:12px; }
+    .poll-intro h2 { margin:0 0 8px; font-size:1.2rem; }
+    .poll-intro p { margin:6px 0; line-height:1.6; }
+    .poll-intro .muted,.results .muted { color:#526477; font-size:.9rem; }
+    .poll-frame-wrap { padding:8px; }
+    iframe { display:block; width:100%; height:760px; border:0; border-radius:8px; background:#fff; }
+    .results { margin-top:12px; padding:18px 20px; line-height:1.6; }
+    .results h2 { margin:0 0 8px; font-size:1.15rem; }
+    .action-link { display:inline-flex; min-height:44px; align-items:center; justify-content:center; padding:8px 15px; border-radius:9px; background:#1058a7; color:#fff; font-weight:700; text-decoration:none; }
+    .action-link:hover,.action-link:focus-visible { background:#0b477f; outline:2px solid #145aa5; outline-offset:2px; }
+    footer { max-width:760px; margin:24px auto 0; padding-top:14px; border-top:1px solid #d8e1eb; color:#526477; font-size:.88rem; line-height:1.6; }
+    :root[data-theme="dark"] { color-scheme:dark; color:#e8f0f9; background:#0e1721; }
+    :root[data-theme="dark"] a { color:#a6cbff; }
+    :root[data-theme="dark"] .sticky-nav { background:#0e1721; }
+    :root[data-theme="dark"] .page-tabs { background:#1d2d3e; }
+    :root[data-theme="dark"] .poll-intro,:root[data-theme="dark"] .poll-frame-wrap,:root[data-theme="dark"] .results { background:#172532; border-color:#34475c; }
+    :root[data-theme="dark"] .poll-intro .muted,:root[data-theme="dark"] .results .muted,:root[data-theme="dark"] footer { color:#b8c9dc; }
+    :root[data-theme="dark"] .action-link { color:#fff; }
+    @media(max-width:620px) {
+      body { padding:12px 10px 36px; }
+      .site-header { min-height:190px; margin:-12px -10px 9px; border-radius:0 0 16px 16px; }
+      .site-header::after { background:linear-gradient(0deg,#071526f5 0%,#071526b8 40%,#07152633 100%); }
+      .hero-content { min-height:190px; padding:11px 14px 13px; }
+      .site-header h1 { font-size:1.4rem; }
+      .hero-copy .sub { font-size:.72rem; }
+      .poll-intro,.results { padding:14px; }
+      .poll-frame-wrap { padding:0; }
+      iframe { height:730px; }
+    }
+  </style>
+  <script src="/analytics.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <img class="hero-photo" src="/og-photo.jpg" alt="運営者が撮影したユニバーサル・スタジオ・ジャパンのグローブ" width="1280" height="720">
+    <div class="hero-content">
+      <div class="hero-brand">
+        <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
+        <span class="unofficial">非公式</span>
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button>
+      </div>
+      <div class="hero-copy">
+        <h1>No.1アトラクション投票</h1>
+        <p class="sub">あなたの「いちばん好き」を1つ教えてください。</p>
+      </div>
+    </div>
+  </header>
+  <div class="sticky-nav"><nav class="page-tabs" aria-label="ページ切り替え"><a href="/">今日のパーク</a><a href="/map">地図で探す</a><a href="/plan">行く前に</a></nav></div>
+  <main>
+    <section class="poll-intro" aria-labelledby="poll-heading">
+      <h2 id="poll-heading">あなたのNo.1は？</h2>
+      <p>当サイト掲載中の29施設から1つ選んで投票できます。回答後に、読者の投票結果をご覧いただけます。</p>
+      <p class="muted">Googleフォームを使用します。回答はお一人1回でお願いします。氏名・メールアドレスは尋ねません。投票結果は任意回答者の傾向であり、USJ全来場者の人気順位ではありません。</p>
+    </section>
+    <div class="poll-frame-wrap">
+      <iframe title="あなたのNo.1アトラクション投票フォーム" src="https://docs.google.com/forms/d/e/1FAIpQLSchRG6Up4pDYXdta10fx_4c6ZnOM8PA0d9sKFpkU29I7pCtaQ/viewform?embedded=true" loading="eager" referrerpolicy="strict-origin-when-cross-origin">投票フォームを読み込めませんでした。</iframe>
+    </div>
+    <section class="results" aria-labelledby="results-heading">
+      <h2 id="results-heading">投票結果</h2>
+      <p>送信後にGoogleフォームの集計グラフを開けます。回答数もあわせてご確認ください。</p>
+      <p><a class="action-link" href="https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics" target="_blank" rel="noopener noreferrer">現在の集計を見る ↗</a></p>
+      <p class="muted">投票ページが表示されない場合は<a href="https://docs.google.com/forms/d/e/1FAIpQLSchRG6Up4pDYXdta10fx_4c6ZnOM8PA0d9sKFpkU29I7pCtaQ/viewform" target="_blank" rel="noopener noreferrer">Googleフォームを別タブで開く</a>こともできます。</p>
+    </section>
+  </main>
+  <footer><a href="/privacy">このサイトについて・プライバシーポリシー</a> · 制作・運営：USJ待ち時間ナビ（個人運営・非公式）<br>Since Oct. 2026</footer>
+  <script>
+    const themeToggle = document.querySelector('#theme-toggle');
+    const themeLabels = {auto:'画面：自動', dark:'画面：ダーク', light:'画面：ライト'};
+    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    let themePref = document.documentElement.dataset.themePref || 'auto';
+    function applyTheme(pref) {
+      const dark = pref === 'dark' || (pref === 'auto' && darkQuery.matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      themeToggle.textContent = themeLabels[pref] || themeLabels.auto;
+      document.querySelector('meta[name="theme-color"]').content = dark ? '#0e1721' : '#142233';
+    }
+    applyTheme(themePref);
+    themeToggle.addEventListener('click', () => {
+      themePref = {auto:'dark',dark:'light',light:'auto'}[themePref] || 'auto';
+      try { localStorage.setItem('usj-wait-nav:theme', themePref); } catch (_) {}
+      applyTheme(themePref);
+    });
+    darkQuery.addEventListener?.('change', () => { if (themePref === 'auto') applyTheme('auto'); });
+  </script>
+</body>
+</html>

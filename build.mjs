@@ -10,6 +10,7 @@ const files = {
   '/index.html': 'index.html',
   '/en/index.html': 'en/index.html',
   '/map.html': 'map.html',
+  '/vote.html': 'vote.html',
   '/map-locations.json': 'map-locations.json',
   '/privacy.html': 'privacy.html',
   '/analytics.js': 'analytics.js',
