@@ -3059,8 +3059,12 @@
       const dayFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric'});
       return dayFormat.format(new Date(fetchedAt)) === dayFormat.format(new Date()) ? '今日の混雑状況' : '混雑状況';
     }
-    function lineShareUrl(payload) {
-      return `https://line.me/R/share?text=${encodeURIComponent(`${payload.text}\n${payload.url}`)}`;
+    function lineShareUrl(payload, contentType) {
+      const shareUrl = new URL(payload.url);
+      shareUrl.searchParams.set('utm_source', 'line');
+      shareUrl.searchParams.set('utm_medium', 'social');
+      shareUrl.searchParams.set('utm_campaign', `share_${contentType}`);
+      return `https://line.me/R/share?text=${encodeURIComponent(`${payload.text}\n${shareUrl.href}`)}`;
     }
     function xShareUrl(payload, contentType) {
       const text = payload.xText || [...payload.text].slice(0, 110).join('');
@@ -3073,9 +3077,13 @@
       shareUrl.searchParams.set('utm_campaign', `share_${contentType}`);
       return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.href)}`;
     }
-    function threadsShareUrl(payload) {
+    function threadsShareUrl(payload, contentType) {
+      const shareUrl = new URL(payload.url);
+      shareUrl.searchParams.set('utm_source', 'threads');
+      shareUrl.searchParams.set('utm_medium', 'social');
+      shareUrl.searchParams.set('utm_campaign', `share_${contentType}`);
       return `https://www.threads.com/intent/post?text=${encodeURIComponent(payload.threadsText || payload.text)}` +
-        `&url=${encodeURIComponent(payload.url)}`;
+        `&url=${encodeURIComponent(shareUrl.href)}`;
     }
     function showShareToast(message) {
       let toast = document.querySelector('#share-toast');
@@ -3126,9 +3134,9 @@
       threads.textContent = `Threadsで${label}`;
       const updateLinks = () => {
         const payload = getPayload();
-        line.href = lineShareUrl(payload);
+        line.href = lineShareUrl(payload, contentType);
         x.href = xShareUrl(payload, contentType);
-        threads.href = threadsShareUrl(payload);
+        threads.href = threadsShareUrl(payload, contentType);
       };
       const recordShare = channel => window.trackSiteEvent?.('share_click', {
         share_channel: channel, content_type: contentType, ride_id: rideId

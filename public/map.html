@@ -245,9 +245,9 @@
     const sitePageXText = 'USJのアトラクションを地図で探して待ち時間を確認。現在地や飲食店の位置も表示できます。\n個人運営の非公式サイト「USJ待ち時間ナビ」\n#USJ #ユニバ';
     const sitePageThreadsText = 'USJのアトラクションを地図で探して待ち時間を確認。現在地表示や飲食店の位置表示も使える「USJ待ち時間ナビ」の地図で探すページです。個人運営の非公式サイト。';
     const siteShareLinks = {
-      line: `https://line.me/R/share?text=${encodeURIComponent(`${sitePageText}\n${sitePageUrl}`)}`,
+      line: `https://line.me/R/share?text=${encodeURIComponent(`${sitePageText}\n${sitePageUrl}?utm_source=line&utm_medium=social&utm_campaign=share_map`)}`,
       x: `https://x.com/intent/post?text=${encodeURIComponent(sitePageXText)}&url=${encodeURIComponent(`${sitePageUrl}?utm_source=x&utm_medium=social&utm_campaign=share_map`)}`,
-      threads: `https://www.threads.com/intent/post?text=${encodeURIComponent(sitePageThreadsText)}&url=${encodeURIComponent(sitePageUrl)}`,
+      threads: `https://www.threads.com/intent/post?text=${encodeURIComponent(sitePageThreadsText)}&url=${encodeURIComponent(`${sitePageUrl}?utm_source=threads&utm_medium=social&utm_campaign=share_map`)}`,
     };
     for (const channel of ['line', 'x', 'threads']) {
       const link = document.querySelector(`#site-share-${channel}`);
@@ -459,7 +459,7 @@
       const xWait=/^\d+分$/.test(label)?`${label}待ち`:label;
       const xSummary=`USJ待ち時間ナビ｜${topic}（${date}・非公式）\n${name}：${xWait}\n${xComparisons?`${xComparisons}\n`:''}他の施設も確認👇\n#USJ #ユニバ`;
       const line=document.createElement('a');line.className='share-line';line.textContent='LINEで送る';
-      line.href=`https://line.me/R/share?text=${encodeURIComponent(`${summary}\n${url}`)}`;
+      line.href=`https://line.me/R/share?text=${encodeURIComponent(`${summary}\n${url}?utm_source=line&utm_medium=social&utm_campaign=share_map_ride`)}`;
       const x=document.createElement('a');x.className='share-x';x.textContent='Xで共有';
       x.href=`https://x.com/intent/post?text=${encodeURIComponent(xSummary)}&url=${encodeURIComponent(`${url}?utm_source=x&utm_medium=social&utm_campaign=share_map_ride`)}`;
       for(const link of [line,x]){link.target='_blank';link.rel='noopener noreferrer';}

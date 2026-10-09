@@ -172,7 +172,7 @@
     const pollShareTitle = 'No.1アトラクション投票｜USJ待ち時間ナビ';
     const pollShareText = 'あなたのNo.1アトラクションは？ USJ待ち時間ナビで投票受付中。結果も見られます（非公式）。';
     const pollXText = 'あなたのNo.1アトラクションは？🎢\nUSJ待ち時間ナビで投票受付中。結果も公開中（非公式）\n#USJ #ユニバ';
-    const lineShareHref = `https://line.me/R/share?text=${encodeURIComponent(`${pollShareText}\n${pollShareUrl}`)}`;
+    const lineShareHref = `https://line.me/R/share?text=${encodeURIComponent(`${pollShareText}\n${pollShareUrl}?utm_source=line&utm_medium=social&utm_campaign=share_poll`)}`;
     const xShareHref = `https://x.com/intent/post?text=${encodeURIComponent(pollXText)}&url=${encodeURIComponent(`${pollShareUrl}?utm_source=x&utm_medium=social&utm_campaign=share_poll`)}`;
     for (const group of document.querySelectorAll('[data-poll-share]')) {
       const feedback = group.querySelector('.poll-share-feedback');
