@@ -164,8 +164,7 @@
     :root[data-theme="dark"] .geo-options button { background:#253b50; border-color:#5b7792; color:#e8f2ff; }
     :root[data-theme="dark"] .toolbar button,:root[data-theme="dark"] .area-button,:root[data-theme="dark"] #selection-close { background:#253b50; border-color:#5b7792; color:#e8f2ff; }
     :root[data-theme="dark"] .toolbar button:hover,:root[data-theme="dark"] .area-button:hover,:root[data-theme="dark"] #selection-close:hover,:root[data-theme="dark"] .toolbar button:focus-visible,:root[data-theme="dark"] .area-button:focus-visible,:root[data-theme="dark"] #selection-close:focus-visible { background:#315371; outline-color:#9fc5ff; }
-    :root[data-theme="dark"] .map-viewport { background:#142b35; }
-    :root[data-theme="dark"] .map-stage img { filter:brightness(.8) saturate(.86); }
+    :root[data-theme="dark"] .map-viewport { background:#d9e6d4; }
     :root[data-theme="dark"] .map-pin[data-tone="closed"] { background:#70849a; }
     :root[data-theme="dark"] .map-pin[data-tone="unknown"] { background:#576f87; }
     :root[data-theme="dark"] .ride-result { border-color:#344b61; }
@@ -364,11 +363,6 @@
       geoMap.jumpTo({bearing:180,pitch:0});
       geoMap.fitBounds([[135.4293,34.6628],[135.4368,34.6694]],{padding:18,maxZoom:16.6,bearing:180,duration:0});
     }
-    function syncMapStyle(){
-      if(geoMap) geoMap.setStyle(`https://tiles.openfreemap.org/styles/${document.documentElement.dataset.theme==='dark'?'dark':'liberty'}`);
-    }
-    themeToggle.addEventListener('click',syncMapStyle);
-    darkQuery.addEventListener?.('change',()=>{if(themePref==='auto')syncMapStyle();});
     let scale=1, tx=0, ty=0, current=null, rides=new Map(), fetchedAt=null, previousWaits=null, todaySnapshots=[], activeSpot=null;
     const pointers=new Map();
     let drag=null, pinch=null;
@@ -646,8 +640,7 @@
         switchView('illustration');return;
       }
       try{
-        const style=document.documentElement.dataset.theme==='dark'?'dark':'liberty';
-        geoMap=new maplibregl.Map({container:'geo-map',style:`https://tiles.openfreemap.org/styles/${style}`,
+        geoMap=new maplibregl.Map({container:'geo-map',style:'https://tiles.openfreemap.org/styles/liberty',
           center:[135.43305,34.6661],zoom:15.2,bearing:180,pitch:0,dragRotate:false,minZoom:13,maxZoom:19,attributionControl:true});
         geoMap.touchZoomRotate.disableRotation();
         resetGeoView();
