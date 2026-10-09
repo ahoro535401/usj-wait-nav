@@ -42,6 +42,8 @@ const binaryFiles = {
   '/icon-192.png': 'icon-192.png',
   '/icon-512.png': 'icon-512.png',
   '/icon-maskable-512.png': 'icon-maskable-512.png',
+  '/icon-512.jpg': 'icon-512.jpg',
+  '/icon-maskable-512.jpg': 'icon-maskable-512.jpg',
 };
 const binaryAssets = {};
 for (const [route, name] of Object.entries(binaryFiles)) {

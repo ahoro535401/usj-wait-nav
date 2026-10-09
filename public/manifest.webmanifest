@@ -14,14 +14,14 @@
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png?v=20261010",
+      "src": "/icon-512.jpg?v=20261010",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/jpeg"
     },
     {
-      "src": "/icon-maskable-512.png?v=20261010",
+      "src": "/icon-maskable-512.jpg?v=20261010",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "maskable"
     }
   ]
