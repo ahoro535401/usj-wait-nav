@@ -19,7 +19,7 @@
 | `map_place_open` | 地図上のアトラクション・飲食店の詳細を開く | `place_type`, 該当時 `ride_id` |
 | `map_location_request` / `map_location_success` / `map_location_failure` | GPSボタンの押下と結果 | なし |
 | `walking_route_open` | 徒歩ルートへのリンクを押す | `place_type` |
-| `share_click` | LINE・X・その他の共有操作を押す | `share_channel`, `content_type`, 該当時 `ride_id` |
+| `share_click` | LINE・X・その他の共有操作を押す（投票ページを含む） | `share_channel`, `content_type`, 該当時 `ride_id` |
 
 `share_click` は投稿・送信の完了数ではない。`walking_route_open` は実際の来店・乗車を意味しない。GA4 の自動 `click`（外部リンク）とサイト固有の `share_click` を加算しない。
 

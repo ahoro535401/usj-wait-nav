@@ -18,7 +18,7 @@
     filter_type: new Set(['height', 'child_switch', 'favorites', 'tag', 'sort', 'restaurants']),
     place_type: new Set(['ride', 'restaurant']),
     share_channel: new Set(['line', 'x', 'other']),
-    content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride'])
+    content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride', 'poll'])
   };
 
   function readChoice() {

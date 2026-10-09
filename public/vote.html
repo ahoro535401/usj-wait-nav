@@ -64,6 +64,16 @@
     .poll-votes { font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
     .poll-track { grid-column:1/-1; height:13px; border-radius:999px; background:#e8eef5; overflow:hidden; }
     .poll-fill { display:block; height:100%; min-width:3px; border-radius:999px; background:#246bbb; }
+    .poll-share { margin-top:14px; padding-top:12px; border-top:1px solid #d8e1eb; }
+    .poll-share-title { margin:0 0 9px; font-weight:700; }
+    .poll-share-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .poll-share-actions a,.poll-share-actions button { display:flex; min-height:46px; align-items:center; justify-content:center; padding:8px 6px; border:1px solid transparent; border-radius:999px; font:inherit; font-size:.88rem; font-weight:700; text-align:center; text-decoration:none; cursor:pointer; }
+    .poll-share-actions a:hover,.poll-share-actions button:hover,.poll-share-actions a:focus-visible,.poll-share-actions button:focus-visible { outline:2px solid #1058a7; outline-offset:2px; }
+    .poll-share-line { background:#06c755; color:#fff; }
+    .poll-share-x { background:#0f1419; color:#fff; }
+    .poll-share-other { background:#fff; color:#1058a7; border-color:#c5d3e3 !important; }
+    .poll-share-feedback { margin:8px 0 0 !important; font-size:.85rem; }
+    .poll-share-feedback[hidden] { display:none; }
     .action-link { display:inline-flex; min-height:44px; align-items:center; justify-content:center; padding:8px 15px; border-radius:9px; background:#1058a7; color:#fff; font-weight:700; text-decoration:none; }
     .action-link:hover,.action-link:focus-visible { background:#0b477f; outline:2px solid #145aa5; outline-offset:2px; }
     footer { max-width:760px; margin:24px auto 0; padding-top:14px; border-top:1px solid #d8e1eb; color:#526477; font-size:.88rem; line-height:1.6; }
@@ -76,6 +86,10 @@
     :root[data-theme="dark"] .action-link { color:#fff; }
     :root[data-theme="dark"] .poll-track { background:#304254; }
     :root[data-theme="dark"] .poll-fill { background:#75abf3; }
+    :root[data-theme="dark"] .poll-share { border-color:#34475c; }
+    :root[data-theme="dark"] .poll-share-line { color:#fff; }
+    :root[data-theme="dark"] .poll-share-x { background:#e6edf3; color:#0f1419; }
+    :root[data-theme="dark"] .poll-share-other { background:#172532; color:#a6cbff; border-color:#526b85 !important; }
     @media(max-width:620px) {
       body { padding:12px 10px 36px; }
       .site-header { min-height:190px; margin:-12px -10px 9px; border-radius:0 0 16px 16px; }
@@ -86,6 +100,7 @@
       .poll-intro,.results { padding:14px; }
       .poll-frame-wrap { padding:0; }
       iframe { height:730px; }
+      .poll-share-actions a,.poll-share-actions button { font-size:.78rem; }
     }
   </style>
   <script src="/analytics.js" defer></script>
@@ -111,6 +126,11 @@
       <h2 id="poll-heading">あなたのNo.1は？</h2>
       <p>当サイト掲載中の29施設から1つ選んで投票できます。投票結果はこのページ下部の横棒グラフで確認できます。</p>
       <p class="muted">Googleフォームを使用します。回答はお一人1回でお願いします。氏名・メールアドレスは尋ねません。投票結果は任意回答者の傾向であり、USJ全来場者の人気順位ではありません。</p>
+      <div class="poll-share" data-poll-share>
+        <p class="poll-share-title">この投票をシェア</p>
+        <div class="poll-share-actions"><a class="poll-share-line" data-share-channel="line" target="_blank" rel="noopener noreferrer">LINEで送る</a><a class="poll-share-x" data-share-channel="x" target="_blank" rel="noopener noreferrer">Xで送る</a><button class="poll-share-other" data-share-channel="other" type="button">共有・コピー</button></div>
+        <p class="poll-share-feedback muted" role="status" hidden></p>
+      </div>
     </section>
     <div class="poll-frame-wrap">
       <iframe title="あなたのNo.1アトラクション投票フォーム" src="https://docs.google.com/forms/d/e/1FAIpQLSchRG6Up4pDYXdta10fx_4c6ZnOM8PA0d9sKFpkU29I7pCtaQ/viewform?embedded=true" loading="eager" referrerpolicy="strict-origin-when-cross-origin">投票フォームを読み込めませんでした。</iframe>
@@ -122,6 +142,11 @@
       <p class="muted">投票のあった施設を票数順に表示します。集計は数分遅れて反映される場合があります。</p>
       <p><a class="action-link" href="https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics" target="_blank" rel="noopener noreferrer">Googleフォームの集計を見る ↗</a></p>
       <p class="muted">投票ページが表示されない場合は<a href="https://docs.google.com/forms/d/e/1FAIpQLSchRG6Up4pDYXdta10fx_4c6ZnOM8PA0d9sKFpkU29I7pCtaQ/viewform" target="_blank" rel="noopener noreferrer">Googleフォームを別タブで開く</a>こともできます。</p>
+      <div class="poll-share" data-poll-share>
+        <p class="poll-share-title">結果を見たら、友だちにも投票をシェア</p>
+        <div class="poll-share-actions"><a class="poll-share-line" data-share-channel="line" target="_blank" rel="noopener noreferrer">LINEで送る</a><a class="poll-share-x" data-share-channel="x" target="_blank" rel="noopener noreferrer">Xで送る</a><button class="poll-share-other" data-share-channel="other" type="button">共有・コピー</button></div>
+        <p class="poll-share-feedback muted" role="status" hidden></p>
+      </div>
     </section>
   </main>
   <footer><a href="/privacy">このサイトについて・プライバシーポリシー</a> · 制作・運営：USJ待ち時間ナビ（個人運営・非公式）<br>Since Oct. 2026</footer>
@@ -143,6 +168,38 @@
       applyTheme(themePref);
     });
     darkQuery.addEventListener?.('change', () => { if (themePref === 'auto') applyTheme('auto'); });
+    const pollShareUrl = 'https://uniba-waittimes.com/vote';
+    const pollShareTitle = 'No.1アトラクション投票｜USJ待ち時間ナビ';
+    const pollShareText = 'あなたのNo.1アトラクションは？ USJ待ち時間ナビで投票受付中。結果も見られます（非公式）。';
+    const pollXText = 'あなたのNo.1アトラクションは？🎢\nUSJ待ち時間ナビで投票受付中。結果も公開中（非公式）\n#USJ #ユニバ';
+    const lineShareHref = `https://line.me/R/share?text=${encodeURIComponent(`${pollShareText}\n${pollShareUrl}`)}`;
+    const xShareHref = `https://x.com/intent/post?text=${encodeURIComponent(pollXText)}&url=${encodeURIComponent(pollShareUrl)}`;
+    for (const group of document.querySelectorAll('[data-poll-share]')) {
+      const feedback = group.querySelector('.poll-share-feedback');
+      for (const channel of ['line', 'x']) {
+        const link = group.querySelector(`[data-share-channel="${channel}"]`);
+        link.href = channel === 'line' ? lineShareHref : xShareHref;
+        link.addEventListener('click', () => window.trackSiteEvent?.('share_click', {share_channel:channel, content_type:'poll'}));
+      }
+      group.querySelector('[data-share-channel="other"]').addEventListener('click', async () => {
+        window.trackSiteEvent?.('share_click', {share_channel:'other', content_type:'poll'});
+        if (typeof navigator.share === 'function') {
+          try {
+            await navigator.share({title:pollShareTitle, text:pollShareText, url:pollShareUrl});
+            return;
+          } catch (error) {
+            if (error?.name === 'AbortError') return;
+          }
+        }
+        try {
+          await navigator.clipboard.writeText(`${pollShareText}\n${pollShareUrl}`);
+          feedback.textContent = '共有用の文章とURLをコピーしました。';
+        } catch (_) {
+          feedback.textContent = 'コピーできませんでした。LINEまたはXのボタンをお使いください。';
+        }
+        feedback.hidden = false;
+      });
+    }
     async function showPollResults() {
       const status = document.querySelector('#poll-result-status');
       const list = document.querySelector('#poll-bars');
