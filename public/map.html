@@ -404,11 +404,14 @@
       const links=document.createElement('div');links.className='map-share';
       const date=fetchedAt?new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(fetchedAt)):'時刻不明';
       const comparisons=`${trendText('5分前比',fiveMinuteTrend(ride))}／${trendText('20分前比',twentyMinuteTrend(ride))}`;
-      const xComparisons=`${compactTrendText('5分前比',fiveMinuteTrend(ride))}｜${compactTrendText('20分前比',twentyMinuteTrend(ride))}`;
+      const xComparisons=[['5分前比',fiveMinuteTrend(ride)],['20分前比',twentyMinuteTrend(ride)]]
+        .filter(([,trend])=>trend)
+        .map(([period,trend])=>compactTrendText(period,trend))
+        .join('｜');
       const url=`${location.origin}/r/${encodeURIComponent(ride.id)}`;
       const summary=`USJ待ち時間ナビ｜待ち時間・非公式\n${name}：${label}（${date}時点）\n${comparisons}`;
       const xWait=/^\d+分$/.test(label)?`${label}待ち`:label;
-      const xSummary=`USJ待ち時間ナビ｜${date}（非公式）\n${name}：${xWait}\n${xComparisons}\n他の施設も確認👇`;
+      const xSummary=`USJ待ち時間ナビ｜${date}（非公式）\n${name}：${xWait}\n${xComparisons?`${xComparisons}\n`:''}他の施設も確認👇`;
       const line=document.createElement('a');line.className='share-line';line.textContent='LINEで送る';
       line.href=`https://line.me/R/share?text=${encodeURIComponent(`${summary}\n${url}`)}`;
       const x=document.createElement('a');x.className='share-x';x.textContent='Xで共有';

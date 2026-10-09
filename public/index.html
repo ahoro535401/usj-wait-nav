@@ -2971,12 +2971,15 @@
       const comparisons = `${comparisonText('5分前比', fiveMinute)}／${comparisonText('20分前比', twentyMinutes)}`;
       const compactComparison = (period, change) =>
         `${period} ${change.text === '—' ? '比較不可' : change.text === '→' ? '→横ばい' : `${change.text}分`}`;
-      const xComparisons = `${compactComparison('5分前比', fiveMinute)}｜${compactComparison('20分前比', twentyMinutes)}`;
+      const xComparisons = [['5分前比', fiveMinute], ['20分前比', twentyMinutes]]
+        .filter(([, change]) => change.text !== '—')
+        .map(([period, change]) => compactComparison(period, change))
+        .join('｜');
       const xWait = currentWait == null ? waitText : `${waitText}待ち`;
       return {
         title: label,
         text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）\n${comparisons}`,
-        xText: `USJ待ち時間ナビ｜${time}（非公式）\n${label}：${xWait}\n${xComparisons}\n他の施設も確認👇`,
+        xText: `USJ待ち時間ナビ｜${time}（非公式）\n${label}：${xWait}\n${xComparisons ? `${xComparisons}\n` : ''}他の施設も確認👇`,
         url: `${location.origin}/r/${encodeURIComponent(id)}`,
       };
     }
