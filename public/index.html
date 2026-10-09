@@ -761,7 +761,7 @@
     <div class="archive-summary" aria-label="選択日の記録概要">
       <div><small>この日の平均待ち時間</small><strong id="archive-average">—</strong></div>
       <div><small>いちばん混んだ時間帯</small><strong id="archive-peak">—</strong></div>
-      <div><small>最も待ち時間が長かったアトラクション</small><strong id="archive-top-ride">—</strong></div>
+      <div><small>1時間平均が最も長かったアトラクション</small><strong id="archive-top-ride">—</strong></div>
     </div>
     <h3 class="archive-sub-title">時間帯ごとの平均待ち時間（全アトラクション）</h3>
     <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
@@ -2591,7 +2591,7 @@
         if (valid.length) {
           const max = Math.max(...valid);
           peakIndex = values.indexOf(max);
-          peak.textContent = `最長${max}分（${hourOf(hours[peakIndex].at)}時台）`;
+          peak.textContent = `1時間平均の最大${max}分（${hourOf(hours[peakIndex].at)}時台）`;
         } else {
           peak.textContent = '記録なし・休止';
         }
@@ -2709,7 +2709,7 @@
       const {peak, top} = archiveHighlights(hours);
       const hourText = at => `${hourMinuteFormat.format(new Date(at * 1000)).slice(0, 2)}時台`;
       archivePeak.textContent = peak ? `${hourText(peak.at)}（平均${Math.round(peak.average_wait)}分）` : '記録なし';
-      archiveTopRide.textContent = top ? `${archiveRideName(top.id)} ${Math.round(top.wait)}分（${hourText(top.at)}）` : '記録なし';
+      archiveTopRide.textContent = top ? `${archiveRideName(top.id)} 平均${Math.round(top.wait)}分（${hourText(top.at)}）` : '記録なし';
       archiveShareBar.updateLinks();
       archiveShareBar.hidden = false;
 
@@ -2949,7 +2949,8 @@
       const more = document.createElement('button');
       more.type = 'button';
       more.className = 'share-more';
-      more.textContent = 'その他';
+      more.textContent = '共有・コピー';
+      more.setAttribute('aria-label', 'ほかのアプリで共有、または文章をコピー');
       more.addEventListener('click', () => { recordShare('other'); shareOrCopy(getPayload()); });
       updateLinks();
       bar.updateLinks = updateLinks;
@@ -3016,7 +3017,7 @@
       const lines = [
         `この日の平均待ち時間：${archiveAverage.textContent}`,
         `いちばん混んだ時間帯：${archivePeak.textContent}`,
-        `最も長かったアトラクション：${archiveTopRide.textContent}`,
+        `1時間平均が最も長かったアトラクション：${archiveTopRide.textContent}`,
       ];
       const weather = document.querySelector('#archive-weather')?.textContent;
       if (weather) lines.push(weather.replace(/^天気（[^）]*）：/, '天気：'));
