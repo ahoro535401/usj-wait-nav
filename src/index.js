@@ -677,20 +677,26 @@ async function refreshSchedule(db) {
   const previous = new Map(existing.map(item => [item.day, item]));
   const next = new Set(days.map(item => item.day));
   const statements = [];
+  const today = jstDay(epoch());
+  const fetchedAt = new Date().toISOString();
   for (const item of days) {
     const old = previous.get(item.day);
+    if (item.day < today && old) continue;
     if (old && old.opens === item.opens && old.closes === item.closes && old.status === item.status) continue;
     statements.push(db.prepare(
-      'INSERT INTO park_days (day,opens,closes,status) VALUES (?,?,?,?) ' +
-      'ON CONFLICT(day) DO UPDATE SET opens=excluded.opens,closes=excluded.closes,status=excluded.status'
-    ).bind(item.day, item.opens, item.closes, item.status));
+      'INSERT INTO park_days (day,opens,closes,status,source,checked_at) VALUES (?,?,?,?,?,?) ' +
+      'ON CONFLICT(day) DO UPDATE SET opens=excluded.opens,closes=excluded.closes,' +
+      'status=excluded.status,source=excluded.source,checked_at=excluded.checked_at'
+    ).bind(item.day, item.opens, item.closes, item.status, 'ThemeParks.wiki', fetchedAt));
   }
+  // 過去日に表示する公表営業時間は保持する。提供元から消えた将来の予定だけを取り除く。
   for (const item of existing) {
-    if (!next.has(item.day)) statements.push(db.prepare('DELETE FROM park_days WHERE day=?').bind(item.day));
+    if (item.day >= today && !next.has(item.day))
+      statements.push(db.prepare('DELETE FROM park_days WHERE day=?').bind(item.day));
   }
   statements.push(db.prepare(
     'INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value'
-  ).bind('schedule_fetched_at', new Date().toISOString()));
+  ).bind('schedule_fetched_at', fetchedAt));
   await db.batch(statements);
 }
 
@@ -1303,7 +1309,7 @@ async function route(request, env) {
       source: results[0].source === 'cao' ? '内閣府「国民の祝日」' : 'holidays-jp（予備）' });
   }
   if (url.pathname === '/api/schedule') {
-    const { results } = await env.DB.prepare('SELECT day,opens,closes,status FROM park_days ORDER BY day').all();
+    const { results } = await env.DB.prepare('SELECT day,opens,closes,status,source,checked_at FROM park_days ORDER BY day').all();
     return json({ days: results, fetched_at: await readMeta(env.DB, 'schedule_fetched_at'),
       error: await readMeta(env.DB, 'schedule_error'), source: 'ThemeParks.wiki', official_url: OFFICIAL_SCHEDULE_URL });
   }

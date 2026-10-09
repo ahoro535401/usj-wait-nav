@@ -233,6 +233,9 @@
     .archive-cal-date { font-weight: 700; white-space: nowrap; }
     .archive-cal-holiday { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .62rem; line-height: 1.2; font-weight: 600; }
     .archive-cal-value { font-size: .7rem; white-space: nowrap; }
+    .archive-cal-hours { display: block; color: #355777; font-size: .62rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+    .archive-cal-hours span { display: block; white-space: nowrap; }
+    .archive-cal-day.is-future .archive-cal-hours { color: #1058a7; }
     .archive-cal-price { display: block; color: #704318; font-size: .6rem; font-weight: 700; white-space: nowrap; }
     .archive-cal-weather { margin-left: 2px; font-size: .9rem; }
     .archive-cal-weather.wx-sun { color: #a85800; }
@@ -479,6 +482,7 @@
     :root[data-theme="dark"] .archive-cal-day, :root[data-theme="dark"] .calendar-grid button,
     :root[data-theme="dark"] .event-card { background: #17212c; color: #e6edf3; border-color: #2c3b4b; }
     :root[data-theme="dark"] .archive-cal-day.today { border-color: #8fb6ff; }
+    :root[data-theme="dark"] .archive-cal-hours, :root[data-theme="dark"] .archive-cal-day.is-future .archive-cal-hours { color: #9cc4ff; }
     :root[data-theme="dark"] .archive-calendar-head button { background: #1d2a37; color: #9cc4ff; }
     :root[data-theme="dark"] .archive-cal-dow.sun, :root[data-theme="dark"] .archive-cal-day.sun,
     :root[data-theme="dark"] .calendar-grid .weekday:first-child, :root[data-theme="dark"] .closure-count { color: #ff9b9b; }
@@ -775,7 +779,7 @@
   </div>
   <section class="archive-panel" data-only="plan" aria-labelledby="archive-title">
     <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
-    <p class="muted">過去の日付をタップするとその日の混雑実績、今日以降の日付をタップすると営業時間と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
+    <p class="muted">過去の日付をタップするとその日の混雑実績と公表営業時間、今日以降の日付をタップすると開園・閉園時刻と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
     <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑実績と今後の営業時間のカレンダー"></div>
     <details id="archive-notes" class="archive-notes">
       <summary>凡例・注記を見る</summary>
@@ -785,6 +789,7 @@
     <p class="muted">営業時間・休止予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
     </details>
     <div id="selected-day" class="selected-day" role="status" hidden>カレンダーの日付を選ぶと営業時間と休止予定を表示します。</div>
+    <p id="archive-published-hours" class="muted" role="status" hidden></p>
     <div class="archive-controls">
       <label hidden>記録日 <select id="archive-date" aria-label="過去の記録日"></select></label>
       <label class="archive-hour-picker">表示する時間帯 <select id="archive-hours" aria-label="過去の表示時間帯"></select></label>
@@ -1329,6 +1334,18 @@
       return item.opens && item.closes ? `${item.opens}〜${item.closes}` : '未掲載';
     }
 
+    function renderArchivePublishedHours(day) {
+      const line = document.querySelector('#archive-published-hours');
+      if (!line || !day) return;
+      const item = scheduleDays.get(day);
+      const label = item?.source === 'USJ公式' ? 'USJ公式の公表営業時間' : '当時取得した公表営業時間';
+      line.textContent = item?.status === 'CLOSED' ? `当時の公表予定：休園（参考）。`
+        : item?.opens && item?.closes
+          ? `${label}（参考）：${hoursLabel(item)}。実際の開園・閉園時刻とは異なる場合があります。`
+          : 'この日の公表営業時間は保存されていません。';
+      line.hidden = false;
+    }
+
     function closuresFor(day) {
       if (!closuresData) return [];
       return closuresData.closures.filter(item => item.start <= day && (!item.end || day <= item.end));
@@ -1376,6 +1393,7 @@
     function showSelectedDay(day) {
       selectedDate = day;
       selectedDay.hidden = false;
+      document.querySelector('#archive-published-hours').hidden = true;
       if (PAGE === 'plan') document.querySelector('.archive-panel').dataset.mode = 'future';
       selectedDay.replaceChildren();
       const heading = document.createElement('strong');
@@ -1585,11 +1603,12 @@
     }
     async function loadSchedule() {
       try {
-        const response = await apiRequest('/api/schedule', {cache: 'no-store'});
+        const response = await apiRequest('/api/schedule?v=hours2', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         scheduleDays = new Map(data.days.map(item => [item.day, item]));
         if (PAGE === 'plan') renderArchiveCalendar();
+        if (PAGE === 'plan' && archiveDate?.value) renderArchivePublishedHours(archiveDate.value);
         if (todayHoursTime) todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
         updateParkStateBanner();
         if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length && !passExclusion.url && !ticketPrices.adult.has(selectedDate)) {
@@ -2587,7 +2606,8 @@
           cell.type = 'button';
           cell.classList.add('is-future');
           cell.setAttribute('aria-pressed', String(selectedDate === key));
-          value.textContent = plan.status === 'CLOSED' ? '休園' : plan.opens ? `${plan.opens.replace(/^0/, '')}〜` : '未掲載';
+          value.textContent = plan.status === 'CLOSED' ? '休園' : plan.opens && plan.closes ? '' : '未掲載';
+          if (plan.opens && plan.closes) value.hidden = true;
           const closureCount = closuresFor(key).filter(item => item.end).length;
           cell.title = `${month}/${date}${key === today ? '（今日）' : ''}：営業時間 ${hoursLabel(plan)}` +
             (Number.isInteger(adultPrice) ? `・1デイ大人${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認）` : '') +
@@ -2615,6 +2635,22 @@
           }
         } else if (key === today) value.textContent = '今日';
         if (!cell.firstChild) cell.append(label, value);
+        const publishedHours = scheduleDays.get(key);
+        if (publishedHours?.opens && publishedHours?.closes) {
+          const hours = document.createElement('span');
+          hours.className = 'archive-cal-hours';
+          const opening = document.createElement('span');
+          const closing = document.createElement('span');
+          opening.textContent = `${publishedHours.opens.replace(/^0/, '')}〜`;
+          closing.textContent = publishedHours.closes.replace(/^0/, '');
+          hours.append(opening, closing);
+          cell.append(hours);
+          if (key < today) {
+            const source = publishedHours.source === 'USJ公式' ? 'USJ公式で確認した公表営業時間' : '当時取得した公表営業時間';
+            cell.title += `・${source} ${hoursLabel(publishedHours)}（参考）`;
+            cell.setAttribute('aria-label', `${cell.title}。タップでこの日の詳細を表示`);
+          }
+        }
         if (key < today && Number.isInteger(adultPrice)) {
           const price = document.createElement('span');
           price.className = 'archive-cal-price';
@@ -2657,7 +2693,7 @@
       }
       const note = document.createElement('p');
       note.className = 'muted';
-      note.textContent = '今日以降の日付には公表の開園時刻（期間が決まっている休止がある日は件数）を表示します。数字は記録された営業中の待ち時間の平均です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
+      note.textContent = '営業時間の上下2行は公表された開園・閉園時刻です。過去日は当時保存した予定時刻の参考表示で、実際の開園・閉園とは異なる場合があります。過去日の「分」は記録された営業中の平均待ち時間です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
       const longTerm = closuresData ? closuresData.closures.filter(item => !item.end) : [];
       const longNote = document.createElement('p');
       longNote.className = 'archive-cal-longterm';
@@ -2836,6 +2872,7 @@
       const last = hourMinuteFormat.format(new Date(data.last_at * 1000));
       const archiveHoliday = holidayDays.get(data.day);
       archiveStatus.textContent = `${formatEventDate(data.day)}${archiveHoliday ? `（${archiveHoliday.label}）` : ''}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
+      renderArchivePublishedHours(data.day);
       if (passExclusion.days.has(data.day)) archiveStatus.textContent += '（年パス スタンダード除外日）';
       renderArchiveTicketPrice(data.day);
       const weather = weatherInfo(data.weather);
