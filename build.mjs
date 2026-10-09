@@ -13,6 +13,7 @@ const files = {
   '/vote.html': 'vote.html',
   '/map-locations.json': 'map-locations.json',
   '/privacy.html': 'privacy.html',
+  '/install.html': 'install.html',
   '/analytics.js': 'analytics.js',
   '/events.json': 'events.json',
   '/closures.json': 'closures.json',

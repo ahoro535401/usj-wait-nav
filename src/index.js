@@ -1260,6 +1260,10 @@ async function route(request, env) {
     url.pathname = '/privacy.html';
     return assetFetch(new Request(url, request), env);
   }
+  if (url.pathname === '/install') {
+    url.pathname = '/install.html';
+    return assetFetch(new Request(url, request), env);
+  }
   if (url.pathname === '/vote') {
     url.pathname = '/vote.html';
     return assetFetch(new Request(url, request), env);
