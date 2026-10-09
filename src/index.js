@@ -644,11 +644,15 @@ async function scheduled(event, env) {
     }
     return;
   }
-  if (retry) {
+  // Cron は予定時刻より数分遅れて起動することがある。実行時の分だけで
+  // 保存可否を決めると、その20分枠を丸ごと取り逃すため、未保存なら補う。
+  let save = minute % 20 === 0;
+  if (!save) {
     const slot = Math.floor(seconds / SNAPSHOT_SECONDS);
-    if (await env.DB.prepare('SELECT slot FROM snapshots WHERE slot=?').bind(slot).first()) return;
+    const existing = await env.DB.prepare('SELECT slot FROM snapshots WHERE slot=?').bind(slot).first();
+    if (existing && retry) return;
+    save = !existing;
   }
-  const save = minute % 20 === 0 || retry;
   const collected = await refreshLive(env, seconds, save);
   if (save && !collected) throw new Error('定時の待ち時間取得に失敗しました');
 }
