@@ -17,8 +17,8 @@
       'show_list', 'show_timeline', 'map_geo', 'map_illustration']),
     filter_type: new Set(['height', 'child_switch', 'favorites', 'tag', 'sort', 'restaurants']),
     place_type: new Set(['ride', 'restaurant']),
-    share_channel: new Set(['line', 'x', 'other']),
-    content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride', 'poll'])
+    share_channel: new Set(['line', 'x', 'threads', 'other', 'copy']),
+    content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride', 'poll', 'site'])
   };
 
   function readChoice() {

@@ -506,6 +506,7 @@
     .share-bar a, .share-bar button { flex: 1 1 30%; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 10px; border-radius: 999px; font: inherit; font-size: .85rem; font-weight: 700; text-align: center; text-decoration: none; white-space: nowrap; }
     .share-line { background: #06c755; color: #fff; }
     .share-x { background: #0f1419; color: #fff; }
+    .share-threads { background: #292929; color: #fff; }
     .share-more { background: #fff; color: #1058a7; border: 1px solid #c5d3e3; }
     .share-bar[hidden] { display: none; }
     .is-linked { outline: 3px solid #f59e0b; outline-offset: 2px; border-radius: 8px; }
@@ -514,6 +515,7 @@
     :root[data-theme="dark"] .share-line { color: #fff; }
     :root[data-theme="dark"] .share-more { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     :root[data-theme="dark"] .share-x { background: #e6edf3; color: #0f1419; }
+    :root[data-theme="dark"] .share-threads { background: #e6edf3; color: #0f1419; }
     @media (max-width: 620px) {
       body > h1 { font-size: 1.35rem; margin: 6px 0 4px; }
       .sub { font-size: .8rem; margin: 0 0 10px; }
@@ -525,6 +527,10 @@
     :root[data-theme="dark"] .rides-more { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     .share-bar { flex-wrap: nowrap; gap: 6px; }
     .share-bar a, .share-bar button { flex: 1 1 0; min-width: 0; height: 40px; min-height: 40px; padding: 0 6px; font-size: .8rem; }
+    @media (max-width: 620px) {
+      .share-bar.has-threads { flex-wrap: wrap; }
+      .share-bar.has-threads > a, .share-bar.has-threads > button { box-sizing: border-box; flex: 0 0 calc((100% - 6px) / 2); }
+    }
     button.archive-cal-day { color: #172332; }
     .archive-cal-day[aria-pressed="true"] { outline: 3px solid #1058a7; outline-offset: -3px; }
     .archive-cal-day.is-partial { background: #eef1f4; color: #526477; }
@@ -626,6 +632,10 @@
     .vote-cta a { display:inline-flex; min-height:44px; align-items:center; padding:8px 14px; border-radius:9px; background:#1058a7; color:#fff; font-weight:700; text-decoration:none; }
     .vote-cta a:hover,.vote-cta a:focus-visible { background:#0b477f; outline:2px solid #1058a7; outline-offset:2px; }
     :root[data-theme="dark"] .vote-cta { border-color:#456b92; background:#1d3550; }
+    .site-share-panel { margin: 12px 0; padding: 12px 14px; border: 1px solid #bcd2eb; border-radius: 12px; background: #f8fafc; }
+    .site-share-panel > strong { display: block; font-size: 1rem; }
+    .site-share-panel p { margin: 4px 0 8px; font-size: .85rem; }
+    :root[data-theme="dark"] .site-share-panel { background: #182638; border-color: #2f4a6b; }
     .pass-exclusion-note .archive-cal-pass { display: inline-block; margin-right: 4px; font-size: .7rem; vertical-align: 1px; }
     .selected-pass-excluded { color: #5b3a8c; font-weight: 700; }
     :root[data-theme="dark"] .archive-cal-pass { background: #8e6cc4; color: #fff; }
@@ -706,6 +716,11 @@
       <p class="muted">「ほぼ同じ」は差が5分未満。今後の予測ではありません。</p>
     </div>
     <aside class="vote-cta" aria-label="アトラクション投票" data-only="now"><p><strong>あなたのNo.1アトラクションは？</strong><br>1つ選んで投票。回答後に読者の投票結果も見られます。</p><a href="/vote">投票する ›</a></aside>
+    <aside class="site-share-panel" aria-label="このサイトをシェア">
+      <strong>このサイトをシェア</strong>
+      <p>待ち時間・地図・混雑カレンダーを紹介。現在の待ち時間や取得時刻を含まない文を送れます。</p>
+      <div id="site-share-actions"></div>
+    </aside>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
     <details id="heatmap-options" class="heatmap-options">
       <summary>絞り込み・並び順・色の見方</summary>
@@ -3016,6 +3031,10 @@
       }
       return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.href)}`;
     }
+    function threadsShareUrl(payload) {
+      return `https://www.threads.com/intent/post?text=${encodeURIComponent(payload.threadsText || payload.text)}` +
+        `&url=${encodeURIComponent(payload.url)}`;
+    }
     function showShareToast(message) {
       let toast = document.querySelector('#share-toast');
       if (!toast) {
@@ -3042,12 +3061,12 @@
         await navigator.clipboard.writeText(`${payload.text}\n${payload.url}`);
         showShareToast('送る文をコピーしました。LINEなどに貼り付けてください。');
       } catch (_) {
-        showShareToast('コピーできませんでした。「LINEで送る」「Xで送る」をお使いください。');
+        showShareToast('コピーできませんでした。LINE・X・Threadsのボタンをお使いください。');
       }
     }
     function shareBar(getPayload, label = '送る', contentType = 'top_waits', rideId = null) {
       const bar = document.createElement('div');
-      bar.className = 'share-bar';
+      bar.className = 'share-bar has-threads';
       const line = document.createElement('a');
       line.className = 'share-line';
       line.target = '_blank';
@@ -3058,26 +3077,59 @@
       x.target = '_blank';
       x.rel = 'noopener noreferrer';
       x.textContent = `Xで${label}`;
+      const threads = document.createElement('a');
+      threads.className = 'share-threads';
+      threads.target = '_blank';
+      threads.rel = 'noopener noreferrer';
+      threads.textContent = `Threadsで${label}`;
       const updateLinks = () => {
         const payload = getPayload();
         line.href = lineShareUrl(payload);
         x.href = xShareUrl(payload);
+        threads.href = threadsShareUrl(payload);
       };
       const recordShare = channel => window.trackSiteEvent?.('share_click', {
         share_channel: channel, content_type: contentType, ride_id: rideId
       });
       line.addEventListener('click', () => { updateLinks(); recordShare('line'); });
       x.addEventListener('click', () => { updateLinks(); recordShare('x'); });
+      threads.addEventListener('click', () => { updateLinks(); recordShare('threads'); });
       const more = document.createElement('button');
       more.type = 'button';
       more.className = 'share-more';
-      more.textContent = '共有・コピー';
-      more.setAttribute('aria-label', 'ほかのアプリで共有、または文章をコピー');
-      more.addEventListener('click', () => { recordShare('other'); shareOrCopy(getPayload()); });
+      const copyOnly = contentType === 'site';
+      more.textContent = copyOnly ? '紹介文をコピー' : '共有・コピー';
+      more.setAttribute('aria-label', copyOnly ? 'サイト紹介文とURLをコピー' : 'ほかのアプリで共有、または文章をコピー');
+      more.addEventListener('click', async () => {
+        recordShare(copyOnly ? 'copy' : 'other');
+        if (!copyOnly) return shareOrCopy(getPayload());
+        const payload = getPayload();
+        try {
+          await navigator.clipboard.writeText(`${payload.text}\n${payload.url}`);
+          showShareToast('サイト紹介文とURLをコピーしました。');
+        } catch (_) {
+          showShareToast('コピーできませんでした。LINE・X・Threadsのボタンをお使いください。');
+        }
+      });
       updateLinks();
       bar.updateLinks = updateLinks;
-      bar.append(line, x, more);
+      bar.append(line, x, threads, more);
       return bar;
+    }
+    function siteSharePayload() {
+      return {
+        title: 'USJ待ち時間ナビ｜非公式',
+        text: '【USJ待ち時間ナビ｜非公式】\nUSJに行く前も、パークにいる時も。\n\n' +
+          '・アトラクションの待ち時間と直近の変化\n' +
+          '・地図でアトラクションや飲食店を探す\n' +
+          '・過去の混雑実績をカレンダーで確認',
+        xText: 'USJの待ち時間や直近の変化、地図での施設探し、過去の混雑カレンダーをまとめてチェック。' +
+          '\n個人運営の非公式サイト「USJ待ち時間ナビ」\n#USJ #ユニバ',
+        threadsText: 'USJに行く前も、パークにいる時も。アトラクションの待ち時間と直近の変化、' +
+          '地図での施設探し、過去の混雑カレンダーをまとめて確認できる「USJ待ち時間ナビ」。' +
+          '個人運営の非公式サイトです。',
+        url: `${location.origin}/`,
+      };
     }
     function topWaitsPayload() {
       const items = [...topWaitsList.querySelectorAll('li')].map(item => {
@@ -3177,6 +3229,7 @@
     const topShareBar = movementPanel ? shareBar(topWaitsPayload) : {updateLinks() {}, hidden: true};
     topShareBar.hidden = true;
     if (movementPanel) movementPanel.append(topShareBar);
+    document.querySelector('#site-share-actions')?.append(shareBar(siteSharePayload, '紹介', 'site'));
     const archivePanel = document.querySelector('.archive-summary');
     const archiveShareBar = archivePanel ? shareBar(archiveDayPayload, 'この日を送る', 'archive_day') : {updateLinks() {}, hidden: true};
     archiveShareBar.hidden = true;
