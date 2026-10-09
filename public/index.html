@@ -91,6 +91,11 @@
     .movement-summary { margin: 10px 0; padding: 10px 12px; border: 1px solid #c5d3e3; border-radius: 9px; background: #f8fafc; }
     .movement-summary > strong { display: block; margin-bottom: 4px; }
     .movement-summary p { margin: 3px 0; font-size: .85rem; line-height: 1.5; }
+    .movement-summary .movement-period { display: block; margin: 7px 0; }
+    .movement-summary .movement-period + .movement-period { padding-top: 7px; border-top: 1px solid #c5d3e3; }
+    .movement-summary .movement-period-label { display: block; font-weight: 700; }
+    .movement-summary .movement-breakdown { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+    .movement-summary .movement-breakdown span { white-space: nowrap; }
     .movement-summary .share-bar { margin-top: 8px; }
     .heatmap-options { margin: 10px 0; }
     .heatmap-options > summary { display: list-item; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd8e6; border-radius: 8px; background: #f8fafc; color: #1058a7; cursor: pointer; font-weight: 700; }
@@ -411,6 +416,7 @@
     :root[data-theme="dark"] .weather-panel, :root[data-theme="dark"] .closures-panel, :root[data-theme="dark"] .ad-slot { background: #17212c; border-color: #2c3b4b; }
     :root[data-theme="dark"] .today-hours, :root[data-theme="dark"] .top-waits { background: #182638; border-color: #2f4a6b; }
     :root[data-theme="dark"] .movement-summary { background: #182638; border-color: #2f4a6b; }
+    :root[data-theme="dark"] .movement-summary .movement-period + .movement-period { border-color: #2f4a6b; }
     :root[data-theme="dark"] .today-hours-time, :root[data-theme="dark"] .top-waits li strong,
     :root[data-theme="dark"] .archive-summary strong { color: #8fb6ff; }
     :root[data-theme="dark"] .park-state { background: #1d2733; border-color: #3a4b5d; color: #c8d3df; }
@@ -695,9 +701,9 @@
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:65%"></span><span class="skeleton" style="width:3em"></span></li>
     </ol></div>
     <div class="movement-summary" data-only="now" aria-label="直近の待ち時間の動き">
-      <strong>直近の待ち時間の動き</strong>
+      <strong>待ち時間の変化（施設数）</strong>
       <p id="movement-status">比較データを確認中…</p>
-      <p class="muted">過去の変化です。今後の予測ではありません。</p>
+      <p class="muted">「ほぼ同じ」は差が5分未満。今後の予測ではありません。</p>
     </div>
     <aside class="vote-cta" aria-label="アトラクション投票" data-only="now"><p><strong>あなたのNo.1アトラクションは？</strong><br>1つ選んで投票。回答後に読者の投票結果も見られます。</p><a href="/vote">投票する ›</a></aside>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
@@ -2135,7 +2141,7 @@
 
     function movementLine(label, counts) {
       const total = counts.up + counts.flat + counts.down;
-      return total ? `${label}（比較可能${total}施設）：↑${counts.up}・→${counts.flat}・↓${counts.down}` : '';
+      return total ? `${label}（${total}施設）：増加${counts.up}施設・ほぼ同じ${counts.flat}施設・減少${counts.down}施設` : '';
     }
 
     function renderMovementSummary() {
@@ -2145,10 +2151,30 @@
       } else {
         const readableLine = (label, values) => {
           const total = values.up + values.flat + values.down;
-          return total ? `${label}（${total}施設） ↑${values.up} →${values.flat} ↓${values.down}` : '';
+          if (!total) return null;
+          const period = document.createElement('span');
+          period.className = 'movement-period';
+          const heading = document.createElement('span');
+          heading.className = 'movement-period-label';
+          heading.textContent = `${label}と比較（${total}施設）`;
+          const breakdown = document.createElement('span');
+          breakdown.className = 'movement-breakdown';
+          for (const [className, text] of [
+            ['trend-up', `↑ 増加 ${values.up}施設`],
+            ['trend-flat', `→ ほぼ同じ ${values.flat}施設`],
+            ['trend-down', `↓ 減少 ${values.down}施設`],
+          ]) {
+            const item = document.createElement('span');
+            item.className = className;
+            item.textContent = text;
+            breakdown.append(item);
+          }
+          period.append(heading, breakdown);
+          return period;
         };
-        const lines = [readableLine('20分前比', counts.twenty), readableLine('5分前比', counts.five)].filter(Boolean);
-        movementStatus.textContent = lines.length ? lines.join(' ／ ') : '比較できる施設はまだありません。';
+        const lines = [readableLine('20分前', counts.twenty), readableLine('5分前', counts.five)].filter(Boolean);
+        movementStatus.replaceChildren(...lines);
+        if (!lines.length) movementStatus.textContent = '比較できる施設はまだありません。';
       }
       topShareBar.updateLinks();
     }
@@ -3065,8 +3091,8 @@
       const twentyMovement = counts ? movementLine('20分前比', counts.twenty) : '';
       const fiveMovement = counts ? movementLine('5分前比', counts.five) : '';
       const compactMovement = counts && twentyMovement
-        ? `施設数：20分 ↑${counts.twenty.up}→${counts.twenty.flat}↓${counts.twenty.down}` +
-          (fiveMovement ? `／5分 ↑${counts.five.up}→${counts.five.flat}↓${counts.five.down}` : '')
+        ? `待ち時間の変化：20分前比 増加${counts.twenty.up}施設・横ばい${counts.twenty.flat}施設・減少${counts.twenty.down}施設` +
+          (fiveMovement ? `／5分前比 増加${counts.five.up}施設・横ばい${counts.five.flat}施設・減少${counts.five.down}施設` : '')
         : '';
       const body = items.length
         ? items.map((item, index) => `${index + 1}. ${item.name} ${item.wait}`).join('\n')
