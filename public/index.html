@@ -2947,7 +2947,7 @@
         if (name.includes('レッド・アラート')) return 'ジョーズ夜';
         const cleaned = name.replace(/™/g, '').replace(/\s*[～〜].*$/, '').trim();
         const characters = [...cleaned];
-        return characters.length > 12 ? `${characters.slice(0, 12).join('')}…` : cleaned;
+        return characters.length > 9 ? `${characters.slice(0, 9).join('')}…` : cleaned;
       };
       const short = items.length
         ? items.map((item, index) => `${index + 1}. ${compactName(item.name)} ${item.wait}`).join('\n')
@@ -2955,7 +2955,9 @@
       return {
         title: 'USJ待ち時間ナビ',
         text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}\n※個人運営の非公式サイト`,
-        xText: `USJ待ち時間ナビ｜待ち時間・非公式\n${time}時点の上位${items.length}件\n${short}`,
+        xText: items.length
+          ? `USJ待ち時間ナビ｜${time}（非公式）\n待ち時間が長い${items.length}施設\n${short}\n全施設の待ち時間はこちら👇`
+          : `USJ待ち時間ナビ｜${time}（非公式）\n現在表示できる待ち時間はありません。最新の状況はこちら👇`,
         url: `${location.origin}/`,
       };
     }
@@ -2967,10 +2969,14 @@
       const comparisonText = (period, change) =>
         `${period}：${change.text === '—' ? '比較不可' : `${change.text}${change.text === '→' ? '（ほぼ横ばい）' : '分'}`}`;
       const comparisons = `${comparisonText('5分前比', fiveMinute)}／${comparisonText('20分前比', twentyMinutes)}`;
+      const compactComparison = (period, change) =>
+        `${period} ${change.text === '—' ? '比較不可' : change.text === '→' ? '→横ばい' : `${change.text}分`}`;
+      const xComparisons = `${compactComparison('5分前比', fiveMinute)}｜${compactComparison('20分前比', twentyMinutes)}`;
+      const xWait = currentWait == null ? waitText : `${waitText}待ち`;
       return {
         title: label,
         text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）\n${comparisons}`,
-        xText: `USJ待ち時間ナビ｜待ち時間・非公式\n${label}：${waitText}（${time}時点）\n${comparisons}`,
+        xText: `USJ待ち時間ナビ｜${time}（非公式）\n${label}：${xWait}\n${xComparisons}\n他の施設も確認👇`,
         url: `${location.origin}/r/${encodeURIComponent(id)}`,
       };
     }
@@ -2986,7 +2992,7 @@
       return {
         title: 'USJ混雑カレンダー',
         text: `【USJ待ち時間ナビ】${day.replaceAll('-', '/')}の待ち時間実績\n${lines.join('\n')}\n※個人運営の非公式サイト`,
-        xText: `USJ待ち時間ナビ｜過去の待ち時間・非公式\n${day.replaceAll('-', '/')}：平均${archiveAverage.textContent}、ピーク${archivePeak.textContent}`,
+        xText: `USJ待ち時間ナビ｜${day.replaceAll('-', '/')}の混雑実績（非公式）\n平均${archiveAverage.textContent}／混雑ピーク${archivePeak.textContent}\n来園前に過去の待ち時間を確認👇`,
         url: `${location.origin}/plan?date=${encodeURIComponent(day)}`,
       };
     }
