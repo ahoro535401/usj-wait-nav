@@ -838,6 +838,15 @@ function rideJapaneseNames(html) {
 async function renderInitialData(html, page, request, env, rides, fetchedAt, todayRow) {
   const failure = escapeHtml(unavailableText());
   if (page === 'now') {
+    let initialMeta = {};
+    try {
+      const { results } = await env.DB.prepare(
+        "SELECT key,value FROM app_meta WHERE key IN ('shows_payload','weather_payload','jma_weather_payload')"
+      ).all();
+      initialMeta = Object.fromEntries(results.map(row => [row.key, row.value]));
+    } catch (error) {
+      console.warn('Initial display meta read failed', error);
+    }
     const nightPeriods = JSON.parse(html.match(/<script id="night-schedule" type="application\/json">([^<]+)<\/script>/)?.[1] || '{}');
     for (const [kind, id] of [['jaws', 'jaws-night-hours'], ['jurassic', 'jurassic-night-hours']]) {
       const slot = nightPeriods[kind]?.find(item => item.start <= jstDay(epoch()) && jstDay(epoch()) <= item.end);
@@ -874,7 +883,7 @@ async function renderInitialData(html, page, request, env, rides, fetchedAt, tod
       html = replaceElementContent(html, 'closures-status', failure);
     }
     try {
-      const raw = await readMeta(env.DB, 'shows_payload');
+      const raw = initialMeta.shows_payload;
       const data = raw ? JSON.parse(raw) : null;
       const shows = data?.day === jstDay(epoch()) ? data.shows : null;
       if (!shows?.length) throw new Error('No current shows');
@@ -888,9 +897,8 @@ async function renderInitialData(html, page, request, env, rides, fetchedAt, tod
       html = replaceElementContent(html, 'shows-status', failure);
     }
     try {
-      const [weatherRaw, jmaRaw] = await Promise.all([
-        readMeta(env.DB, 'weather_payload'), readMeta(env.DB, 'jma_weather_payload'),
-      ]);
+      const weatherRaw = initialMeta.weather_payload;
+      const jmaRaw = initialMeta.jma_weather_payload;
       const weather = weatherRaw ? JSON.parse(weatherRaw) : null;
       const jma = jmaRaw ? JSON.parse(jmaRaw) : null;
       const period = weather?.periods?.find(item => Date.parse(item.time) >= Date.now() - 3600000);
