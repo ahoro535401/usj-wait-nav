@@ -129,6 +129,11 @@
     .ride-result { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; padding:8px 0; border-top:1px solid #dbe5ef; }
     .ride-result strong { flex:1 1 230px; }
     .ride-result .wait { font-weight:800; color:#12599e; }
+    .map-comparisons { display:flex; flex-wrap:wrap; gap:5px 12px; margin:0 0 8px; color:#415268; font-size:.84rem; }
+    .map-share { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; }
+    .map-share a { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:8px 14px; border-radius:999px; color:#fff; font-weight:700; text-decoration:none; }
+    .map-share .share-line { background:#06b74f; }.map-share .share-x { background:#172536; }
+    .map-share a:hover,.map-share a:focus-visible { outline:3px solid #ffd34f; outline-offset:2px; }
     .area-jumps { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
     .area-jumps .area-button { font-size:.83rem; }
     .notes { font-size:.85rem; line-height:1.6; color:#415268; }
@@ -155,6 +160,7 @@
     :root[data-theme="dark"] .map-pin[data-tone="unknown"] { background:#576f87; }
     :root[data-theme="dark"] .ride-result { border-color:#344b61; }
     :root[data-theme="dark"] .ride-result .wait { color:#9fc5ff; }
+    :root[data-theme="dark"] .map-comparisons { color:#bccbdc; }
     :root[data-theme="dark"] #my-location,:root[data-theme="dark"] .route-link { background:#2f6fc0; color:#fff; }
     :root[data-theme="dark"] footer { border-color:#344b61; }
     @media(max-width:700px) { .area-pin { border:0; background:transparent; color:transparent; box-shadow:none; text-shadow:none; } .area-pin .area-number,.area-pin .area-name { visibility:hidden; } }
@@ -311,7 +317,7 @@
     }
     themeToggle.addEventListener('click',syncMapStyle);
     darkQuery.addEventListener?.('change',()=>{if(themePref==='auto')syncMapStyle();});
-    let scale=1, tx=0, ty=0, current=null, rides=new Map(), fetchedAt=null, todaySnapshots=[], activeSpot=null;
+    let scale=1, tx=0, ty=0, current=null, rides=new Map(), fetchedAt=null, previousWaits=null, todaySnapshots=[], activeSpot=null;
     const pointers=new Map();
     let drag=null, pinch=null;
     const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
@@ -354,6 +360,20 @@
       if(!Number.isInteger(ride.wait_time)) return 'unknown';
       return ride.wait_time>=90?'long':ride.wait_time>=40?'mid':'short';
     }
+    function fiveMinuteTrend(ride){
+      const currentAt=Date.parse(fetchedAt),previousAt=Date.parse(previousWaits?.fetched_at);
+      const previousRide=previousWaits?.rides?.find(item=>Number(item.id)===Number(ride?.id));
+      const previousSourceAt=Date.parse(previousRide?.verified_at||previousRide?.last_updated);
+      const previousSourceAge=previousAt-previousSourceAt;
+      const gap=currentAt-previousAt;
+      if(!ride||!ride.is_open||ride.data_unavailable||!isFresh(ride)||
+          !Number.isInteger(ride.wait_time)||!previousRide?.is_open||previousRide.data_unavailable||
+          !Number.isFinite(previousRide.wait_time)||ride.source!==previousRide.source||
+          !Number.isFinite(gap)||gap<3*60*1000||gap>8*60*1000||
+          !Number.isFinite(previousSourceAge)||previousSourceAge< -2*60*1000||previousSourceAge>15*60*1000) return null;
+      const difference=ride.wait_time-previousRide.wait_time;
+      return {arrow:Math.abs(difference)<5?'→':difference>0?'↑':'↓',difference};
+    }
     function twentyMinuteTrend(ride){
       const currentAt=Date.parse(fetchedAt);
       if(!ride||!ride.is_open||ride.data_unavailable||!isFresh(ride)||
@@ -370,7 +390,23 @@
       const arrow=Math.abs(difference)<5?'→':difference>0?'↑':'↓';
       const time=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'});
       const detail=`20分前比：${time.format(new Date(previous.captured_at*1000))}の${sample.wait_minutes}分から${time.format(new Date(currentAt))}の${ride.wait_time}分へ${difference>0?'+':''}${difference}分`;
-      return {arrow,detail};
+      return {arrow,difference,detail};
+    }
+    function trendText(period,trend){
+      return `${period}：${trend?`${trend.arrow}${trend.arrow==='→'?'（ほぼ横ばい）':`${Math.abs(trend.difference)}分`}`:'比較不可'}`;
+    }
+    function mapShareLinks(ride,name,label){
+      const links=document.createElement('div');links.className='map-share';
+      const date=fetchedAt?new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(fetchedAt)):'時刻不明';
+      const comparisons=`${trendText('5分前比',fiveMinuteTrend(ride))}／${trendText('20分前比',twentyMinuteTrend(ride))}`;
+      const url=`${location.origin}/r/${encodeURIComponent(ride.id)}`;
+      const summary=`USJ待ち時間ナビ｜待ち時間・非公式\n${name}：${label}（${date}時点）\n${comparisons}`;
+      const line=document.createElement('a');line.className='share-line';line.textContent='LINEで送る';
+      line.href=`https://line.me/R/share?text=${encodeURIComponent(`${summary}\n${url}`)}`;
+      const x=document.createElement('a');x.className='share-x';x.textContent='Xで共有';
+      x.href=`https://x.com/intent/post?text=${encodeURIComponent(summary)}&url=${encodeURIComponent(url)}`;
+      for(const link of [line,x]){link.target='_blank';link.rel='noopener noreferrer';}
+      links.append(line,x);return links;
     }
     function representative(spot){
       const values=spot.ids.map(id=>rides.get(id)).filter(Boolean);
@@ -430,6 +466,13 @@
         }
         value.textContent=label;
         row.append(name,value);selectionContent.append(row);
+        const comparisons=document.createElement('p');comparisons.className='map-comparisons';
+        for(const [period,trend] of [['5分前比',fiveMinuteTrend(ride)],['20分前比',twentyMinuteTrend(ride)]]){
+          const item=document.createElement('span');item.textContent=trendText(period,trend);
+          if(trend?.detail)item.title=trend.detail;
+          comparisons.append(item);
+        }
+        selectionContent.append(comparisons,mapShareLinks(ride,name.textContent,label));
       }
       if(!found){const text=document.createElement('p');text.textContent='この施設の現在値を確認できません。';selectionContent.append(text);}
       if(schedule){
@@ -580,6 +623,7 @@
         }
         rides=new Map((data.rides||[]).map(ride=>[Number(ride.id),ride]));
         fetchedAt=data.fetched_at;
+        previousWaits=data.previous||null;
         const time=fetchedAt?new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'}).format(new Date(fetchedAt)):'時刻不明';
         status.textContent=`待ち時間 ${time}時点 · 5分ごとに画面更新`;
         geoStatus.textContent=status.textContent;

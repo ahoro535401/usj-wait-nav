@@ -2961,10 +2961,16 @@
     }
     function ridePayload(id, label, waitText) {
       const time = shareTimeLabel();
+      const currentWait = /^\d+分$/.test(waitText) ? Number.parseInt(waitText, 10) : null;
+      const fiveMinute = recentTrend(id, currentWait);
+      const twentyMinutes = twentyMinuteTrend(id, currentWait, todayData?.snapshots || []);
+      const comparisonText = (period, change) =>
+        `${period}：${change.text === '—' ? '比較不可' : `${change.text}${change.text === '→' ? '（ほぼ横ばい）' : '分'}`}`;
+      const comparisons = `${comparisonText('5分前比', fiveMinute)}／${comparisonText('20分前比', twentyMinutes)}`;
       return {
         title: label,
-        text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）`,
-        xText: `USJ待ち時間ナビ｜待ち時間・非公式\n${label}：${waitText}（${time}時点）`,
+        text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）\n${comparisons}`,
+        xText: `USJ待ち時間ナビ｜待ち時間・非公式\n${label}：${waitText}（${time}時点）\n${comparisons}`,
         url: `${location.origin}/r/${encodeURIComponent(id)}`,
       };
     }
