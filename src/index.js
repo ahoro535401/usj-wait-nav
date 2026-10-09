@@ -217,10 +217,12 @@ async function maybePostDailyX(env, seconds) {
   const closing = Date.parse(`${day}T${schedule.closes}:00+09:00`) / 1000;
   if (!Number.isFinite(opening) || !Number.isFinite(closing) || closing <= opening ||
       seconds < closing + 20 * 60) return;
+  const coverage = await env.DB.prepare('SELECT COUNT(*) AS count FROM snapshots WHERE captured_at>=? AND captured_at<?')
+    .bind(opening, closing).first();
+  if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
   const data = await archiveDay(env.DB, day);
   if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
-      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60 ||
-      data.snapshots < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
+      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
   const post = xDailyPost(day, data);
   if (post) await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post, new Date(data.last_at * 1000).toISOString());
 }
