@@ -12,6 +12,7 @@ const files = {
   '/map.html': 'map.html',
   '/map-locations.json': 'map-locations.json',
   '/privacy.html': 'privacy.html',
+  '/analytics.js': 'analytics.js',
   '/events.json': 'events.json',
   '/closures.json': 'closures.json',
   '/pass-exclusions.json': 'pass-exclusions.json',
@@ -57,7 +58,7 @@ const preamble = `const EMBEDDED_ASSETS = ${JSON.stringify(assets)};\n` +
   }
   const body = EMBEDDED_ASSETS[route];
   if (body === undefined) return Promise.resolve(new Response('Not found', { status: 404 }));
-  const type = route.endsWith('.json') ? 'application/json' : route.endsWith('.webmanifest') ? 'application/manifest+json' : route.endsWith('.xml') ? 'application/xml' : route.endsWith('.txt') ? 'text/plain' : 'text/html';
+  const type = route.endsWith('.json') ? 'application/json' : route.endsWith('.webmanifest') ? 'application/manifest+json' : route.endsWith('.xml') ? 'application/xml' : route.endsWith('.txt') ? 'text/plain' : route.endsWith('.js') ? 'text/javascript' : 'text/html';
   return Promise.resolve(new Response(body, { headers: { 'Content-Type': type + '; charset=utf-8', 'X-Content-Type-Options': 'nosniff' } }));
 }\n`;
 const source = await readFile(join(base, 'src', 'index.js'), 'utf8');

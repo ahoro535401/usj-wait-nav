@@ -27,7 +27,9 @@
     .date { color: #526477; font-size: .9rem; }
     .notice { padding: 12px 16px; background: #eef5ff; border-left: 4px solid #1058a7; border-radius: 4px; }
     footer { margin-top: 22px; color: #526477; font-size: .9rem; }
+    #analytics-settings { min-height: 44px; padding: 8px 13px; border: 1px solid #1058a7; border-radius: 8px; background: #fff; color: #1058a7; font: inherit; font-weight: 700; cursor: pointer; }
   </style>
+  <script src="/analytics.js" defer></script>
 </head>
 <body>
   <header class="site-header">
@@ -45,12 +47,15 @@
 
     <h2>閲覧時に扱う情報と利用目的</h2>
     <p>現在のサイトには、会員登録、問い合わせフォーム、閲覧者が氏名やメールアドレスを入力する機能はありません。ページの配信時には、IPアドレス、閲覧日時、アクセス先、ブラウザー情報などの通信上の情報が、サーバーや配信事業者のログに記録される場合があります。これらはページの配信、セキュリティ確保、障害調査のために扱います。</p>
-    <p>お気に入りに登録したアトラクションのIDは、お使いのブラウザーのローカルストレージに保存します。サーバーには送信せず、ブラウザーのサイトデータを消去すると削除されます。身長などの絞り込み条件は閲覧中の画面表示に使います。現在のプログラムは、閲覧者を識別するためのアカウントや行動履歴を作成していません。</p>
+    <p>お気に入りに登録したアトラクションのIDは、お使いのブラウザーのローカルストレージに保存します。サーバーには送信せず、ブラウザーのサイトデータを消去すると削除されます。身長などの絞り込み条件は閲覧中の画面表示に使います。当サイトは閲覧者の会員アカウントを作成しません。アクセス解析の取扱いは以下に記載します。</p>
     <p>地図はOpenFreeMapとOpenStreetMapの地図データを利用し、地図表示のために各配信先へ通信します。アトラクション・飲食店の位置情報はThemeParks.wikiの公開データを使用します。「GPSで現在地を表示」を押してブラウザーで許可した場合に限り、端末の位置情報を地図上に表示します。位置情報は当サイトのサーバーやデータベースに送信・保存しません。施設詳細の「徒歩ルート」を押すと、施設の座標を含むリンクでGoogle マップへ移動します。このリンクに利用者の現在地は含めません。地図の表示に使うMapLibre GL JSは外部のCDNから読み込みます。</p>
 
     <h2>Cookie・広告・アクセス解析</h2>
-    <p>2026年10月5日現在、当サイトのプログラムには広告配信タグとアクセス解析ツールを設置しておらず、広告やアクセス解析を目的とするCookieを設定していません。公開時に利用する配信事業者が、セキュリティなどのために技術的なCookieを使う場合は、公開環境を確認して本ページに反映します。</p>
-    <p>今後、Google AdSense、楽天・Amazonのアフィリエイト広告、およびGoogle アナリティクス4の導入を予定しています。これらは現在有効ではありません。導入するサービス、Cookie等の利用、利用者の設定方法を確認し、広告や計測を開始する前にこの説明を更新します。広告を掲載する際は、広告枠や紹介リンクに「広告」を表示します。</p>
+    <p>ページの閲覧状況と表示品質を把握するため、Cloudflare Web Analyticsを利用しています。公開ページに計測用スクリプトが挿入され、ページ閲覧や端末の種類などがCloudflareに送られます。<a href="https://developers.cloudflare.com/web-analytics/about/" target="_blank" rel="noopener noreferrer">Cloudflareの説明</a>では、この計測で閲覧者の個人データを収集・利用しません。</p>
+    <p>サイト改善のためGoogle アナリティクス4（GA4）も利用します。初回に表示する確認画面で「解析を許可」を選んだ場合だけ、Googleの計測タグを読み込みます。許可前および「許可しない」を選んだ場合、当サイトはGA4タグを読み込まず、GA4への計測データを送信しません。許可すると、閲覧ページ、利用端末、サイト内の利用状況などがGoogleへ送られ、<a href="https://support.google.com/analytics/answer/11397207" target="_blank" rel="noopener noreferrer">GA4の識別用Cookie</a>が使われます。選択結果はお使いのブラウザーのローカルストレージに保存します。</p>
+    <p>以下のボタンで選択を変更できます。「許可しない」に変更すると、以後の当サイトによるGA4タグの読み込みを止めます。Google側で既に収集されたデータの削除や、既に設定されたCookieの自動削除は行いません。ブラウザーのサイトデータ消去も利用できます。Googleによる情報の取扱いは<a href="https://policies.google.com/technologies/partner-sites?hl=ja" target="_blank" rel="noopener noreferrer">Googleの説明</a>をご確認ください。</p>
+    <p><button type="button" id="analytics-settings">アクセス解析の設定を変更</button></p>
+    <p>現在、広告配信タグは設置していません。今後Google AdSenseや楽天・Amazonのアフィリエイト広告を導入する場合は、広告の表示と本ページを更新します。</p>
 
     <h2>外部サイトへのリンク</h2>
     <p>出典や公式確認先として外部サイトへリンクしています。リンク先を開いた後の情報の取扱いには、各サイトの方針が適用されます。</p>
