@@ -3061,7 +3061,7 @@
       const twentyMovement = counts ? movementLine('20分前比', counts.twenty) : '';
       const fiveMovement = counts ? movementLine('5分前比', counts.five) : '';
       const compactMovement = counts && twentyMovement
-        ? `直近の変化（施設数）：20分 ↑${counts.twenty.up}→${counts.twenty.flat}↓${counts.twenty.down}` +
+        ? `施設数：20分 ↑${counts.twenty.up}→${counts.twenty.flat}↓${counts.twenty.down}` +
           (fiveMovement ? `／5分 ↑${counts.five.up}→${counts.five.flat}↓${counts.five.down}` : '')
         : '';
       const body = items.length
@@ -3083,7 +3083,7 @@
         title: 'USJ待ち時間ナビ',
         text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}${twentyMovement ? `\n直近の動き：${twentyMovement}` : ''}${fiveMovement ? `\n${fiveMovement}` : ''}\n※個人運営の非公式サイト。将来予測ではありません`,
         xText: items.length
-          ? `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n待ち時間が長い${items.length}施設\n${short}${compactMovement ? `\n${compactMovement}` : ''}\n全施設の待ち時間はこちら👇\n#USJ #ユニバ`
+          ? `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n${short}${compactMovement ? `\n${compactMovement}` : ''}\n#USJ #ユニバ`
           : `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n現在表示できる待ち時間はありません。最新の状況はこちら👇\n#USJ #ユニバ`,
         url: `${location.origin}/`,
       };
