@@ -465,7 +465,8 @@ async function saveSnapshot(db, rides, capturedAt) {
     if (ride.is_open && (!Number.isInteger(wait) || wait < 0 || wait > 9999)) continue;
     const sample = { ride_id: ride.id, source: ride.source };
     if (visibleSample(sample)) snapshot.rides[String(ride.id)] = {
-      wait_minutes: wait, is_open: !!ride.is_open, estimated: ride.source === DARK_ESTIMATE_SOURCE,
+      wait_minutes: wait, is_open: !!ride.is_open, source: ride.source,
+      estimated: ride.source === DARK_ESTIMATE_SOURCE,
     };
     statements.push(db.prepare(
       'INSERT OR IGNORE INTO ride_samples (slot,ride_id,wait_minutes,is_open,source) VALUES (?,?,?,?,?)'
@@ -696,6 +697,7 @@ async function readTodayMatrix(db, seconds) {
     }
     if (row.ride_id != null && visibleSample(row)) snapshots.at(-1).rides[String(row.ride_id)] = {
       wait_minutes: row.wait_minutes, is_open: !!row.is_open,
+      source: row.source,
       estimated: row.source === DARK_ESTIMATE_SOURCE,
     };
   }
