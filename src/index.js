@@ -23,7 +23,10 @@ const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
 const SOURCE_MAX_AGE = 15 * 60;
-const X_POST_TIMES = ['09:30', '12:00', '15:00', '17:00'];
+const X_POST_TIMES = ['09:30', '12:00', '15:00', '17:00', '19:00'];
+const X_EVENING_FIRST_DAY = '2026-10-09';
+const X_EVENING_LAST_DAY = '2026-11-03';
+const X_DAILY_POST_TIME = '22:30';
 const X_POST_WINDOW_SECONDS = 15 * 60;
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
@@ -81,10 +84,21 @@ const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : em
 function dueXPost(seconds) {
   const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
   return X_POST_TIMES.find(time => {
+    if (time === '19:00' &&
+        (jstDay(seconds) < X_EVENING_FIRST_DAY || jstDay(seconds) > X_EVENING_LAST_DAY)) return false;
     const [hour, minute] = time.split(':').map(Number);
     const start = hour * 3600 + minute * 60;
     return now >= start && now < start + X_POST_WINDOW_SECONDS;
   }) || null;
+}
+
+function dueDailyXPost(seconds) {
+  const day = jstDay(seconds);
+  if (day < X_EVENING_FIRST_DAY || day > X_EVENING_LAST_DAY) return false;
+  const [hour, minute] = X_DAILY_POST_TIME.split(':').map(Number);
+  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
+  const start = hour * 3600 + minute * 60;
+  return now >= start && now < start + X_POST_WINDOW_SECONDS;
 }
 
 function xWeightedLength(value) {
@@ -149,9 +163,13 @@ async function maybePostX(env, seconds) {
   const post = xWaitPost(rides, rideJapaneseNames(await response.text()), fetchedAt);
   if (!post) return;
 
+  await sendBufferPost(env, seconds, slot, post, fetchedAt);
+}
+
+async function sendBufferPost(env, seconds, slot, post, capturedAt) {
   const key = `buffer_x_${jstDay(seconds)}_${slot.replace(':', '')}`;
   const claimed = await env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
-    .bind(key, JSON.stringify({ status: 'sending', captured_at: fetchedAt })).run();
+    .bind(key, JSON.stringify({ status: 'sending', captured_at: capturedAt })).run();
   if (!claimed.meta?.changes) return;
   try {
     const mutation = 'mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ' +
@@ -168,11 +186,43 @@ async function maybePostX(env, seconds) {
     const created = body?.data?.createPost?.post;
     if (!result.ok || body.errors?.length || !created?.id)
       throw new Error(`Buffer post failed: HTTP ${result.status}; ${body?.data?.createPost?.message || body.errors?.[0]?.message || 'unknown'}`);
-    await writeMeta(env.DB, key, JSON.stringify({ status: 'accepted', post_id: created.id, captured_at: fetchedAt }));
+    await writeMeta(env.DB, key, JSON.stringify({ status: 'accepted', post_id: created.id, captured_at: capturedAt }));
   } catch (error) {
-    await writeMeta(env.DB, key, JSON.stringify({ status: 'failed', message: String(error).slice(0, 400), captured_at: fetchedAt }));
+    await writeMeta(env.DB, key, JSON.stringify({ status: 'failed', message: String(error).slice(0, 400), captured_at: capturedAt }));
     console.error('Buffer X post failed', error);
   }
+}
+
+function xDailyPost(day, data) {
+  if (!Number.isFinite(data.average_wait)) return null;
+  const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
+  if (!peak) return null;
+  const date = `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
+  const post = `【USJ待ち時間ナビ｜${date}の混雑実績】非公式\n` +
+    `この日の平均待ち時間：${Math.round(data.average_wait)}分\n` +
+    `最も混雑した時間帯：${hhmm(peak.at).slice(0, 2)}時台（平均${Math.round(peak.average_wait)}分）\n` +
+    `20分ごとの記録を集計。休止・欠測は除外。\n` +
+    `今日の履歴はこちら↓\nhttps://uniba-waittimes.com/\n#USJ #ユニバ`;
+  return xWeightedLength(post) <= 250 ? post : null;
+}
+
+async function maybePostDailyX(env, seconds) {
+  if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
+      !dueDailyXPost(seconds)) return;
+  const day = jstDay(seconds);
+  const schedule = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?').bind(day).first();
+  if (schedule?.status !== 'OPERATING' || !schedule.opens || !schedule.closes) return;
+  const opening = Date.parse(`${day}T${schedule.opens}:00+09:00`) / 1000;
+  const closing = Date.parse(`${day}T${schedule.closes}:00+09:00`) / 1000;
+  if (!Number.isFinite(opening) || !Number.isFinite(closing) || closing <= opening ||
+      seconds < closing + 20 * 60) return;
+  const data = await archiveDay(env.DB, day);
+  if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
+      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60 ||
+      data.snapshots < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
+  const post = xDailyPost(day, data);
+  if (post) await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post, new Date(data.last_at * 1000).toISOString());
 }
 function parsePollAnalytics(html) {
   const marker = 'var ANALYTICS_LOAD_DATA_ = ';
@@ -731,6 +781,8 @@ async function scheduled(event, env) {
         new Date(Date.now() - HOLIDAY_REFRESH_MS + HOLIDAY_RETRY_MS).toISOString());
     }
   }
+  // 閉園後の実績投稿は収集時間外でも実行する。営業時間と記録量が不足すれば見送る。
+  await maybePostDailyX(env, seconds);
   if (!(await inCollectionWindow(env.DB, seconds))) {
     // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
     const saved = await readMeta(env.DB, 'shows_payload');
