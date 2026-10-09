@@ -2120,9 +2120,11 @@
           todayData.day !== new Date(fetchedAt + 9 * 3600000).toISOString().slice(0, 10)) return null;
       const counts = {five: {up: 0, flat: 0, down: 0}, twenty: {up: 0, flat: 0, down: 0}};
       for (const ride of currentData.rides) {
-        if (ride.data_unavailable || !ride.is_open || !Number.isFinite(ride.wait_time)) continue;
-        const five = trendDirection(recentTrend(ride.id, ride.wait_time));
-        const twenty = trendDirection(twentyMinuteTrend(ride.id, ride.wait_time, todayData.snapshots || []));
+        const current = heatCell(ride, '現在', true);
+        if (!/^heat-[0-4]$/.test(current.className)) continue;
+        const wait = Number.parseFloat(current.textContent);
+        const five = trendDirection(recentTrend(ride.id, wait));
+        const twenty = trendDirection(twentyMinuteTrend(ride.id, wait, todayData.snapshots || []));
         if (five) counts.five[five]++;
         if (twenty) counts.twenty[twenty]++;
       }
