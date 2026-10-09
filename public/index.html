@@ -126,11 +126,6 @@
     .ride-card-wait { flex: 0 0 auto; min-width: 72px; padding: 5px; border-radius: 5px; text-align: center; font-weight: 700; }
     .ride-card-trends { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px 10px; }
     .ride-card-trend { font-size: .76rem; font-weight: 700; line-height: 1.2; white-space: nowrap; }
-    .ride-card-direction { grid-column: 1 / -1; justify-self: start; padding: 3px 7px; border: 1px solid currentColor; border-radius: 6px; font-size: .78rem; font-weight: 700; line-height: 1.35; }
-    .ride-card-direction.trend-up { background: #fff0ed; }
-    .ride-card-direction.trend-down { background: #e8f7ef; }
-    .ride-card-direction.trend-flat, .ride-card-direction.trend-none { background: #eef2f6; }
-    .ride-card-direction.trend-mixed { color: #795300; background: #fff3d4; }
     .ride-card-action { grid-column: 1 / -1; justify-self: end; padding: 4px 9px; border: 1px solid #7cabdf; border-radius: 20px; background: #e6f1ff; color: #1058a7; font-size: .86rem; font-weight: 700; white-space: nowrap; }
     .ride-card-action-open, .ride-card details[open] .ride-card-action-closed { display: none; }
     .ride-card details[open] .ride-card-action-open { display: inline; }
@@ -406,10 +401,6 @@
     :root[data-theme="dark"] .weather-panel, :root[data-theme="dark"] .closures-panel, :root[data-theme="dark"] .ad-slot { background: #17212c; border-color: #2c3b4b; }
     :root[data-theme="dark"] .today-hours, :root[data-theme="dark"] .top-waits { background: #182638; border-color: #2f4a6b; }
     :root[data-theme="dark"] .movement-summary { background: #182638; border-color: #2f4a6b; }
-    :root[data-theme="dark"] .ride-card-direction.trend-up { background: #412622; }
-    :root[data-theme="dark"] .ride-card-direction.trend-down { background: #173b2b; }
-    :root[data-theme="dark"] .ride-card-direction.trend-flat, :root[data-theme="dark"] .ride-card-direction.trend-none { background: #263340; }
-    :root[data-theme="dark"] .ride-card-direction.trend-mixed { color: #ffd580; background: #463718; }
     :root[data-theme="dark"] .today-hours-time, :root[data-theme="dark"] .top-waits li strong,
     :root[data-theme="dark"] .archive-summary strong { color: #8fb6ff; }
     :root[data-theme="dark"] .park-state { background: #1d2733; border-color: #3a4b5d; color: #c8d3df; }
@@ -683,7 +674,7 @@
   <main>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間</h2>
-    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。5分前比と20分前比で直近の動きを見られます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
+    <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。カードでは5分・20分・1時間前との変化を見られます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
     <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・5分前比・20分前比・今日の推移を一覧できます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
       <li class="skeleton-row"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:3em"></span><span class="visually-hidden">現在値を確認中…</span></li>
@@ -695,7 +686,7 @@
     <div class="movement-summary" data-only="now" aria-label="直近の待ち時間の動き">
       <strong>直近の待ち時間の動き</strong>
       <p id="movement-status">比較データを確認中…</p>
-      <p class="muted">施設ごとの掲載値の変化です。これからの待ち時間の予測ではありません。</p>
+      <p class="muted">過去の変化です。今後の予測ではありません。</p>
     </div>
     <aside class="vote-cta" aria-label="アトラクション投票" data-only="now"><p><strong>あなたのNo.1アトラクションは？</strong><br>1つ選んで投票。回答後に読者の投票結果も見られます。</p><a href="/vote">投票する ›</a></aside>
     <p id="heatmap-status" class="muted" role="status">当日の記録を読み込み中…</p>
@@ -741,7 +732,7 @@
     </div>
     <div id="trend-legend" class="muted trend-legend">
       <ul class="trend-legend-list">
-        <li><strong>5分前比</strong>：約5分前の取得値との差。<strong>20分前比</strong>：約20分前に最も近い保存記録との差（最大約11分のずれ）。↑増加・↓減少・→差が5分未満、—は比較不可。両方を使った「直近の動き」は予測ではありません</li>
+        <li><strong>5分前比</strong>：約5分前の取得値との差。<strong>20分・1時間前比</strong>：それぞれの時刻に最も近い保存記録との差（最大約11分のずれ）。↑増加・↓減少・→差が5分未満、—は比較不可。将来の予測ではありません</li>
         <li><strong>今日</strong>：直近約6時間の20分ごとの記録。右端の濃い棒が現在値</li>
         <li>薄い線は記録なし・休止中。棒の高さは行ごとに目盛りが異なります</li>
       </ul>
@@ -2059,9 +2050,9 @@
       };
     }
 
-    function twentyMinuteTrend(rideId, currentWait, snapshots) {
+    function recordedTrend(rideId, currentWait, snapshots, minutes) {
       const currentAt = Date.parse(currentData?.fetched_at);
-      const target = currentAt / 1000 - 20 * 60;
+      const target = currentAt / 1000 - minutes * 60;
       const previous = snapshots.filter(snapshot => Number.isFinite(snapshot.captured_at) &&
         Math.abs(snapshot.captured_at - target) <= 11 * 60)
         .sort((a, b) => Math.abs(a.captured_at - target) - Math.abs(b.captured_at - target) ||
@@ -2071,7 +2062,7 @@
       const currentRide = currentData?.rides?.find(item => String(item.id) === String(rideId));
       if (!currentDataFresh() || !Number.isFinite(currentAt) || !Number.isFinite(currentWait) || pastWait == null || sample.estimated ||
           (sample.source && currentRide?.source !== sample.source)) {
-        return {className: 'trend-none', text: '—', title: '約20分前の記録と現在の待ち時間を比較できません'};
+        return {className: 'trend-none', text: '—', title: `約${minutes}分前の記録と現在の待ち時間を比較できません`};
       }
       const difference = currentWait - pastWait;
       const comparison = `過去の記録 ${timeFormat.format(new Date(previous.captured_at * 1000))} ${pastWait}分 → 現在取得 ${timeFormat.format(new Date(currentAt))} ${currentWait}分`;
@@ -2085,33 +2076,19 @@
       };
     }
 
+    function twentyMinuteTrend(rideId, currentWait, snapshots) {
+      return recordedTrend(rideId, currentWait, snapshots, 20);
+    }
+
+    function hourTrend(rideId, currentWait, snapshots) {
+      return recordedTrend(rideId, currentWait, snapshots, 60);
+    }
+
     function trendDirection(change) {
       if (change.text === '→') return 'flat';
       if (change.text.startsWith('↑')) return 'up';
       if (change.text.startsWith('↓')) return 'down';
       return null;
-    }
-
-    function combinedTrend(fiveMinute, twentyMinutes) {
-      const five = trendDirection(fiveMinute);
-      const twenty = trendDirection(twentyMinutes);
-      if (!currentDataFresh() || !five || !twenty) {
-        return {className: 'trend-none', text: '比較材料不足', comparable: false};
-      }
-      if (five === twenty) {
-        if (five === 'up') return {className: 'trend-up', text: '待ち時間上昇傾向', comparable: true};
-        if (five === 'down') return {className: 'trend-down', text: '待ち時間減少傾向', comparable: true};
-        return {className: 'trend-flat', text: '横ばい（ほぼ変化なし）', comparable: true};
-      }
-      if (five === 'flat') return {
-        className: twenty === 'up' ? 'trend-up' : 'trend-down',
-        text: `20分前より${twenty === 'up' ? '増加' : '減少'}・直近横ばい`, comparable: true,
-      };
-      if (twenty === 'flat') return {
-        className: five === 'up' ? 'trend-up' : 'trend-down',
-        text: `直近5分で${five === 'up' ? '増加' : '減少'}・20分前比は横ばい`, comparable: true,
-      };
-      return {className: 'trend-mixed', text: '5分と20分で動きが異なる', comparable: true};
     }
 
     function movementCounts() {
@@ -2143,7 +2120,7 @@
       } else {
         const readableLine = (label, values) => {
           const total = values.up + values.flat + values.down;
-          return total ? `${label}：増加${values.up}・横ばい${values.flat}・減少${values.down}施設（比較可能${total}施設）` : '';
+          return total ? `${label}（${total}施設） ↑${values.up} →${values.flat} ↓${values.down}` : '';
         };
         const lines = [readableLine('20分前比', counts.twenty), readableLine('5分前比', counts.five)].filter(Boolean);
         movementStatus.textContent = lines.length ? lines.join(' ／ ') : '比較できる施設はまだありません。';
@@ -3083,7 +3060,7 @@
         : '現在表示できる待ち時間はありません';
       return {
         title: 'USJ待ち時間ナビ',
-        text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}${twentyMovement ? `\n直近の動き：${twentyMovement}` : ''}${fiveMovement ? `\n${fiveMovement}` : ''}\n※個人運営の非公式サイト。将来予測ではありません`,
+        text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}${twentyMovement ? `\n${twentyMovement}` : ''}${fiveMovement ? `\n${fiveMovement}` : ''}\n※個人運営の非公式サイト。将来予測ではありません`,
         xText: items.length
           ? `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n${short}${compactMovement ? `\n${compactMovement}` : ''}\n#USJ #ユニバ`
           : `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n現在表示できる待ち時間はありません。最新の状況はこちら👇\n#USJ #ユニバ`,
@@ -3096,21 +3073,25 @@
       const currentWait = /^\d+分$/.test(waitText) ? Number.parseInt(waitText, 10) : null;
       const fiveMinute = recentTrend(id, currentWait);
       const twentyMinutes = twentyMinuteTrend(id, currentWait, todayData?.snapshots || []);
-      const movement = combinedTrend(fiveMinute, twentyMinutes);
+      const hour = hourTrend(id, currentWait, todayData?.snapshots || []);
       const comparisonText = (period, change) =>
-        `${period}：${change.text === '—' ? '比較不可' : `${change.text}${change.text === '→' ? '（ほぼ横ばい）' : '分'}`}`;
-      const comparisons = `${comparisonText('5分前比', fiveMinute)}／${comparisonText('20分前比', twentyMinutes)}`;
+        `${period}：${change.text === '—' ? '比較不可' : `${change.text}${change.text === '→' ? '' : '分'}`}`;
+      const comparisons = [
+        comparisonText('5分前比', fiveMinute),
+        comparisonText('20分前比', twentyMinutes),
+        comparisonText('1時間前比', hour),
+      ].join('／');
       const compactComparison = (period, change) =>
-        `${period} ${change.text === '—' ? '比較不可' : change.text === '→' ? '→横ばい' : `${change.text}分`}`;
-      const xComparisons = [['5分前比', fiveMinute], ['20分前比', twentyMinutes]]
+        `${period}${change.text === '—' ? '—' : change.text === '→' ? '→' : `${change.text}分`}`;
+      const xComparisons = [['5分', fiveMinute], ['20分', twentyMinutes], ['1時間', hour]]
         .filter(([, change]) => change.text !== '—')
         .map(([period, change]) => compactComparison(period, change))
         .join('｜');
       const xWait = currentWait == null ? waitText : `${waitText}待ち`;
       return {
         title: label,
-        text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）${movement.comparable ? `\n直近の動き：${movement.text}` : ''}\n${comparisons}\n※将来予測ではありません`,
-        xText: `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n${label}：${xWait}${movement.comparable ? `\n直近の動き：${movement.text}` : ''}\n${xComparisons ? `${xComparisons}\n` : ''}他の施設も確認👇\n#USJ #ユニバ`,
+        text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）\n${comparisons}\n※過去の変化であり、将来予測ではありません`,
+        xText: `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n${label}：${xWait}${xComparisons ? `\n${xComparisons}` : ''}\n他の施設も確認👇\n#USJ #ユニバ`,
         url: `${location.origin}/r/${encodeURIComponent(id)}`,
       };
     }
@@ -3285,14 +3266,11 @@
         const currentWait = isWaitCell(current) ? Number.parseFloat(current.textContent) : null;
         const fiveMinute = recentTrend(ride.id, currentWait);
         const twentyMinutes = twentyMinuteTrend(ride.id, currentWait, snapshots);
-        const movement = combinedTrend(fiveMinute, twentyMinutes);
-        const direction = document.createElement('span');
-        direction.className = `ride-card-direction ${movement.className}`;
-        direction.textContent = `直近の動き：${movement.text}`;
-        direction.title = '5分前比と20分前比から整理した過去の変化です。将来の予測ではありません。';
+        const hour = hourTrend(ride.id, currentWait, snapshots);
         for (const [period, change] of [
           ['5分前比', fiveMinute],
           ['20分前比', twentyMinutes],
+          ['1時間前比', hour],
         ]) {
           const changeLabel = document.createElement('span');
           changeLabel.className = `ride-card-trend ${change.className}`;
@@ -3305,7 +3283,7 @@
         const action = document.createElement('span');
         action.className = 'ride-card-action';
         action.innerHTML = '<span class="ride-card-action-closed">グラフ・履歴を見る ▼</span><span class="ride-card-action-open">詳細を閉じる ▲</span>';
-        summary.append(name, currentBlock, direction, trendLabels, action);
+        summary.append(name, currentBlock, trendLabels, action);
         const history = document.createElement('div');
         history.className = 'ride-card-history';
         const url = officialAttractionUrls.get(Number(ride.id));
