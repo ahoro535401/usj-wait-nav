@@ -23,6 +23,8 @@ const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
 const SOURCE_MAX_AGE = 15 * 60;
+const X_POST_TIMES = ['09:30', '12:00', '15:00', '17:00'];
+const X_POST_WINDOW_SECONDS = 15 * 60;
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
 const COLLECTION_TRAIL_SECONDS = 30 * 60;
@@ -74,6 +76,104 @@ const writeMeta = (db, key, value) => db.prepare(
   'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE value <> excluded.value'
 ).bind(key, value).run();
 const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : embeddedFetch(request);
+
+// 同じ枠を再送しない。投稿が失敗した場合も自動再試行せず、記録を見て判断する。
+function dueXPost(seconds) {
+  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
+  return X_POST_TIMES.find(time => {
+    const [hour, minute] = time.split(':').map(Number);
+    const start = hour * 3600 + minute * 60;
+    return now >= start && now < start + X_POST_WINDOW_SECONDS;
+  }) || null;
+}
+
+function xWeightedLength(value) {
+  const url = 'https://uniba-waittimes.com/';
+  const withoutUrl = value.replace(url, '');
+  return [...withoutUrl].reduce((total, character) => total +
+    (character.codePointAt(0) > 0x2ff ? 2 : 1), 23);
+}
+
+function xWaitPost(rides, names, fetchedAt) {
+  const captured = Date.parse(fetchedAt) / 1000;
+  const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+    Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
+    .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
+  if (ranked.length < 5) return null;
+  const date = `${Number(jstDay(captured).slice(5, 7))}/${Number(jstDay(captured).slice(8, 10))}`;
+  const header = `【USJ待ち時間｜${date} ${hhmm(captured)}】非公式\n長い順・上位5施設`;
+  const footer = '\n全施設はこちら↓\nhttps://uniba-waittimes.com/\n#USJ #ユニバ';
+  const aliases = new Map([
+    [12066, 'ミニオン・ライド'], [13005, 'コナン4-D'],
+    [12073, 'ヒッポグリフ'], [12072, 'ミニオン・アイス'],
+    [12065, 'フォービドゥン・ジャーニー'], [7065, 'キティ・カップケーキ'],
+    [7063, 'キティ・リボン'], [7077, 'ハリドリ'],
+    [12070, 'ハリドリ・バックドロップ'], [14918, 'ミニオン・ミッション'],
+    [12068, 'ジョーズ通常'], [17894, 'ジョーズ夜'],
+    [12067, 'ジュラシック通常'], [12061, 'マリオカート'],
+    [14402, 'ドンキーコング'], [12197, 'オリバンダー'],
+    [12091, 'おさるのジョージ'], [12324, '貞子の呪い'],
+    [12083, 'セサミ4-D'], [12084, 'シュレック4-D'],
+    [7214, 'シング'], [14919, 'スヌーピー・フライング'],
+    [12082, 'スペース・ファンタジー'], [7092, 'フライング・ダイナソー'],
+    [12075, 'フライング・スヌーピー'], [12071, 'ヨッシー'],
+    [13925, 'チェンソーマン4-D'], [17893, 'ファクトリー・オブ・フィアー'],
+    [15322, 'ジュラシック夜'],
+  ]);
+  for (const maxName of [Infinity, 13, 10, 8]) {
+    const lines = ranked.slice(0, 5).map((ride, index) => {
+      let name = (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
+      if ([...name].length > maxName) name = [...name].slice(0, maxName).join('') + '…';
+      return `${index + 1}. ${name} ${ride.wait_time}分`;
+    });
+    const post = `${header}\n${lines.join('\n')}${footer}`;
+    if (xWeightedLength(post) <= 250) return post;
+  }
+  return null;
+}
+
+async function maybePostX(env, seconds) {
+  if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID) return;
+  const slot = dueXPost(seconds);
+  if (!slot) return;
+  const [raw, fetchedAt] = await Promise.all([
+    readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
+  ]);
+  const captured = Date.parse(fetchedAt) / 1000;
+  if (!raw || !Number.isFinite(captured) || seconds - captured < -120 || seconds - captured > 10 * 60) return;
+  let rides;
+  try { rides = JSON.parse(raw); } catch (_) { return; }
+  if (!Array.isArray(rides)) return;
+  const response = await assetFetch(new Request('https://uniba-waittimes.com/index.html'), env);
+  if (!response.ok) throw new Error('Japanese ride names unavailable');
+  const post = xWaitPost(rides, rideJapaneseNames(await response.text()), fetchedAt);
+  if (!post) return;
+
+  const key = `buffer_x_${jstDay(seconds)}_${slot.replace(':', '')}`;
+  const claimed = await env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
+    .bind(key, JSON.stringify({ status: 'sending', captured_at: fetchedAt })).run();
+  if (!claimed.meta?.changes) return;
+  try {
+    const mutation = 'mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ' +
+      '... on PostActionSuccess { post { id status } } ... on MutationError { message } } }';
+    const result = await fetch('https://api.buffer.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.BUFFER_API_KEY}` },
+      body: JSON.stringify({ query: mutation, variables: { input: {
+        text: post, channelId: env.BUFFER_X_CHANNEL_ID, schedulingType: 'automatic', mode: 'shareNow',
+      } } }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const body = await result.json();
+    const created = body?.data?.createPost?.post;
+    if (!result.ok || body.errors?.length || !created?.id)
+      throw new Error(`Buffer post failed: HTTP ${result.status}; ${body?.data?.createPost?.message || body.errors?.[0]?.message || 'unknown'}`);
+    await writeMeta(env.DB, key, JSON.stringify({ status: 'accepted', post_id: created.id, captured_at: fetchedAt }));
+  } catch (error) {
+    await writeMeta(env.DB, key, JSON.stringify({ status: 'failed', message: String(error).slice(0, 400), captured_at: fetchedAt }));
+    console.error('Buffer X post failed', error);
+  }
+}
 function parsePollAnalytics(html) {
   const marker = 'var ANALYTICS_LOAD_DATA_ = ';
   const start = html.indexOf(marker);
@@ -592,6 +692,11 @@ async function scheduled(event, env) {
       await writeMeta(env.DB, 'map_locations_payload', JSON.stringify(locations));
     } catch (error) { console.error('Map location refresh failed', error); }
   }
+  if (minute === 0 && jstHour(seconds) === 3) {
+    const cutoff = `buffer_x_${jstDay(seconds - 30 * 86400)}`;
+    await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'buffer_x_%' AND key < ?")
+      .bind(cutoff).run();
+  }
   const scheduleFetchedAt = Date.parse(await readMeta(env.DB, 'schedule_fetched_at'));
   if (!Number.isFinite(scheduleFetchedAt) || Date.now() - scheduleFetchedAt > 6 * 3600 * 1000) {
     try {
@@ -656,6 +761,7 @@ async function scheduled(event, env) {
   }
   const collected = await refreshLive(env, seconds, save);
   if (save && !collected) throw new Error('定時の待ち時間取得に失敗しました');
+  if (collected) await maybePostX(env, seconds);
 }
 
 async function history(db, rideId, days) {
