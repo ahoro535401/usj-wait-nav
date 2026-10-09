@@ -14,6 +14,8 @@ const ARCHIVE_START_DAY = '2026-10-05';
 const WEATHER_CHECK_SECONDS = 15 * 60;
 const HOLIDAY_CSV_URL = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
 const HOLIDAY_JSON_URL = 'https://holidays-jp.github.io/api/v1/date.json';
+const POLL_ANALYTICS_URL = 'https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics';
+const POLL_QUESTION_ID = 893336371;
 const HOLIDAY_FROM = '2025-01-01';
 const HOLIDAY_REFRESH_MS = 7 * 86400 * 1000;
 const HOLIDAY_RETRY_MS = 6 * 3600 * 1000;
@@ -72,6 +74,33 @@ const writeMeta = (db, key, value) => db.prepare(
   'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE value <> excluded.value'
 ).bind(key, value).run();
 const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : embeddedFetch(request);
+function parsePollAnalytics(html) {
+  const marker = 'var ANALYTICS_LOAD_DATA_ = ';
+  const start = html.indexOf(marker);
+  const end = start < 0 ? -1 : html.indexOf(';</script>', start);
+  if (end < 0) throw new Error('Google Forms summary data unavailable');
+  const data = JSON.parse(html.slice(start + marker.length, end));
+  const reportedTotal = data?.[5];
+  if (!Number.isInteger(reportedTotal) || reportedTotal < 0) throw new Error('Invalid poll total');
+  const question = data?.[3]?.find(row => row?.[0] === POLL_QUESTION_ID);
+  if (reportedTotal && !Array.isArray(question?.[1])) throw new Error('Poll answers unavailable');
+  const counts = (question?.[1] || []).map(row => ({ name: row?.[0], votes: row?.[2] }));
+  if (counts.some(row => typeof row.name !== 'string' || !row.name ||
+      !Number.isInteger(row.votes) || row.votes < 0) ||
+      counts.reduce((sum, row) => sum + row.votes, 0) !== reportedTotal)
+    throw new Error('Invalid poll counts');
+  counts.sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name, 'ja'));
+  return { total: reportedTotal, results: counts, fetched_at: new Date().toISOString() };
+}
+async function getPollResults() {
+  const response = await fetch(POLL_ANALYTICS_URL, {
+    headers: { Accept: 'text/html', 'Accept-Language': 'ja-JP,ja;q=0.9' },
+  });
+  if (!response.ok) throw new Error(`Google Forms summary HTTP ${response.status}`);
+  const html = await response.text();
+  if (html.length > 300000) throw new Error('Google Forms summary too large');
+  return parsePollAnalytics(html);
+}
 function parseMapLocations(raw) {
   const children = Array.isArray(raw.children) ? raw.children : [];
   const locations = children.filter(item => {
@@ -875,6 +904,13 @@ async function route(request, env) {
     } });
   }
   if (url.pathname === '/sitemap.xml') return embeddedFetch(request);
+  if (url.pathname === '/api/poll-results') {
+    try { return json(await getPollResults()); }
+    catch (error) {
+      console.warn('Poll summary unavailable', error);
+      return json({ unavailable: true, error: '集計を確認できません' }, 503);
+    }
+  }
   if (url.pathname === '/api/events' || url.pathname === '/api/closures' || url.pathname === '/api/pass-exclusions' || url.pathname === '/api/ticket-prices') {
     url.pathname = url.pathname === '/api/events' ? '/events.json'
       : url.pathname === '/api/closures' ? '/closures.json'
@@ -1010,6 +1046,7 @@ const API_CACHE_SECONDS = new Map([
   ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400], ['/api/history', 300],
+  ['/api/poll-results', 300],
 ]);
 
 export default {

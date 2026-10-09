@@ -58,6 +58,12 @@
     iframe { display:block; width:100%; height:760px; border:0; border-radius:8px; background:#fff; }
     .results { margin-top:12px; padding:18px 20px; line-height:1.6; }
     .results h2 { margin:0 0 8px; font-size:1.15rem; }
+    .poll-bars { list-style:none; margin:14px 0; padding:0; }
+    .poll-bars li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 12px; margin:0 0 14px; }
+    .poll-name { min-width:0; font-weight:700; overflow-wrap:anywhere; }
+    .poll-votes { font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .poll-track { grid-column:1/-1; height:13px; border-radius:999px; background:#e8eef5; overflow:hidden; }
+    .poll-fill { display:block; height:100%; min-width:3px; border-radius:999px; background:#246bbb; }
     .action-link { display:inline-flex; min-height:44px; align-items:center; justify-content:center; padding:8px 15px; border-radius:9px; background:#1058a7; color:#fff; font-weight:700; text-decoration:none; }
     .action-link:hover,.action-link:focus-visible { background:#0b477f; outline:2px solid #145aa5; outline-offset:2px; }
     footer { max-width:760px; margin:24px auto 0; padding-top:14px; border-top:1px solid #d8e1eb; color:#526477; font-size:.88rem; line-height:1.6; }
@@ -68,6 +74,8 @@
     :root[data-theme="dark"] .poll-intro,:root[data-theme="dark"] .poll-frame-wrap,:root[data-theme="dark"] .results { background:#172532; border-color:#34475c; }
     :root[data-theme="dark"] .poll-intro .muted,:root[data-theme="dark"] .results .muted,:root[data-theme="dark"] footer { color:#b8c9dc; }
     :root[data-theme="dark"] .action-link { color:#fff; }
+    :root[data-theme="dark"] .poll-track { background:#304254; }
+    :root[data-theme="dark"] .poll-fill { background:#75abf3; }
     @media(max-width:620px) {
       body { padding:12px 10px 36px; }
       .site-header { min-height:190px; margin:-12px -10px 9px; border-radius:0 0 16px 16px; }
@@ -101,16 +109,18 @@
   <main>
     <section class="poll-intro" aria-labelledby="poll-heading">
       <h2 id="poll-heading">あなたのNo.1は？</h2>
-      <p>当サイト掲載中の29施設から1つ選んで投票できます。回答後に、読者の投票結果をご覧いただけます。</p>
+      <p>当サイト掲載中の29施設から1つ選んで投票できます。投票結果はこのページ下部の横棒グラフで確認できます。</p>
       <p class="muted">Googleフォームを使用します。回答はお一人1回でお願いします。氏名・メールアドレスは尋ねません。投票結果は任意回答者の傾向であり、USJ全来場者の人気順位ではありません。</p>
     </section>
     <div class="poll-frame-wrap">
       <iframe title="あなたのNo.1アトラクション投票フォーム" src="https://docs.google.com/forms/d/e/1FAIpQLSchRG6Up4pDYXdta10fx_4c6ZnOM8PA0d9sKFpkU29I7pCtaQ/viewform?embedded=true" loading="eager" referrerpolicy="strict-origin-when-cross-origin">投票フォームを読み込めませんでした。</iframe>
     </div>
     <section class="results" aria-labelledby="results-heading">
-      <h2 id="results-heading">投票結果</h2>
-      <p>送信後にGoogleフォームの集計グラフを開けます。回答数もあわせてご確認ください。</p>
-      <p><a class="action-link" href="https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics" target="_blank" rel="noopener noreferrer">現在の集計を見る ↗</a></p>
+      <h2 id="results-heading">投票結果（横棒グラフ）</h2>
+      <p id="poll-result-status" class="muted" role="status">集計を読み込み中…</p>
+      <ol id="poll-bars" class="poll-bars" aria-label="アトラクション別の投票数" hidden></ol>
+      <p class="muted">投票のあった施設を票数順に表示します。集計は数分遅れて反映される場合があります。</p>
+      <p><a class="action-link" href="https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics" target="_blank" rel="noopener noreferrer">Googleフォームの集計を見る ↗</a></p>
       <p class="muted">投票ページが表示されない場合は<a href="https://docs.google.com/forms/d/e/1FAIpQLSchRG6Up4pDYXdta10fx_4c6ZnOM8PA0d9sKFpkU29I7pCtaQ/viewform" target="_blank" rel="noopener noreferrer">Googleフォームを別タブで開く</a>こともできます。</p>
     </section>
   </main>
@@ -133,6 +143,42 @@
       applyTheme(themePref);
     });
     darkQuery.addEventListener?.('change', () => { if (themePref === 'auto') applyTheme('auto'); });
+    async function showPollResults() {
+      const status = document.querySelector('#poll-result-status');
+      const list = document.querySelector('#poll-bars');
+      try {
+        const response = await fetch('/api/poll-results');
+        if (!response.ok) throw new Error('集計を取得できません');
+        const data = await response.json();
+        if (!Number.isInteger(data.total) || !Array.isArray(data.results)) throw new Error('集計形式が不正です');
+        status.textContent = `回答 ${data.total}票`;
+        if (!data.total) { status.textContent += '。最初の投票をお待ちしています。'; return; }
+        const max = Math.max(1, ...data.results.map(item => item.votes));
+        for (const item of data.results) {
+          if (typeof item.name !== 'string' || !Number.isInteger(item.votes)) continue;
+          const row = document.createElement('li');
+          const name = document.createElement('span');
+          name.className = 'poll-name';
+          name.textContent = item.name;
+          const votes = document.createElement('strong');
+          votes.className = 'poll-votes';
+          votes.textContent = `${item.votes}票`;
+          const track = document.createElement('span');
+          track.className = 'poll-track';
+          track.setAttribute('aria-label', `${item.name}：${item.votes}票`);
+          const fill = document.createElement('span');
+          fill.className = 'poll-fill';
+          fill.style.width = `${Math.max(0, Math.min(100, item.votes / max * 100))}%`;
+          track.append(fill);
+          row.append(name, votes, track);
+          list.append(row);
+        }
+        list.hidden = !list.children.length;
+      } catch (_) {
+        status.textContent = '横棒グラフを読み込めません。下のGoogleフォーム集計をご確認ください。';
+      }
+    }
+    showPollResults();
   </script>
 </body>
 </html>
