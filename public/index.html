@@ -124,8 +124,10 @@
     .ride-card-name { min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
     .ride-card-current { display: flex; flex-direction: column; align-items: center; justify-self: end; gap: 3px; }
     .ride-card-wait { flex: 0 0 auto; min-width: 72px; padding: 5px; border-radius: 5px; text-align: center; font-weight: 700; }
-    .ride-card-trends { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px 10px; }
-    .ride-card-trend { font-size: .82rem; font-weight: 700; line-height: 1.25; white-space: nowrap; }
+    .ride-card-trends { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 4px; }
+    .ride-card-trend { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0 3px; font-size: .82rem; font-weight: 700; line-height: 1.25; text-align: center; }
+    .ride-card-trend span { white-space: nowrap; }
+    .ride-card-trend:last-child { grid-column: 1 / -1; justify-content: flex-end; }
     .ride-card-action { grid-column: 1 / -1; justify-self: end; padding: 4px 9px; border: 1px solid #7cabdf; border-radius: 20px; background: #e6f1ff; color: #1058a7; font-size: .86rem; font-weight: 700; white-space: nowrap; }
     .ride-card-action-open, .ride-card details[open] .ride-card-action-closed { display: none; }
     .ride-card details[open] .ride-card-action-open { display: inline; }
@@ -3274,7 +3276,11 @@
         ]) {
           const changeLabel = document.createElement('span');
           changeLabel.className = `ride-card-trend ${change.className}`;
-          changeLabel.textContent = `${period} ${change.text}${change.text !== '—' && change.text !== '→' ? '分' : ''}`;
+          const periodLabel = document.createElement('span');
+          periodLabel.textContent = period;
+          const valueLabel = document.createElement('span');
+          valueLabel.textContent = `${change.text}${change.text !== '—' && change.text !== '→' ? '分' : ''}`;
+          changeLabel.append(periodLabel, valueLabel);
           changeLabel.title = change.title;
           changeLabel.setAttribute('role', 'img');
           changeLabel.setAttribute('aria-label', `${period}：${change.title}`);
