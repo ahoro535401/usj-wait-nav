@@ -3076,7 +3076,7 @@
       shareUrl.searchParams.set('utm_source', 'x');
       shareUrl.searchParams.set('utm_medium', 'social');
       shareUrl.searchParams.set('utm_campaign', `share_${contentType}`);
-      return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.href)}`;
+      return `https://x.com/intent/post?text=${encodeURIComponent(`${text}\n${shareUrl.href}`)}`;
     }
     function threadsShareUrl(payload, contentType) {
       const shareUrl = new URL(payload.url);
