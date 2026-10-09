@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>USJの待ち時間・混雑状況｜USJ待ち時間ナビ</title>
-  <meta name="description" content="USJのアトラクション別の現在の待ち時間と20分ごとの履歴を比較。営業時間、ショー開始時刻、イベント情報も確認できる個人運営の非公式サイトです。">
+  <meta name="description" content="USJのアトラクション別の現在の待ち時間と20分ごとの記録を比較。営業時間、ショー開始時刻、休止情報、天気も確認できる個人運営の非公式サイトです。">
   <link rel="canonical" href="https://uniba-waittimes.com/">
   <meta property="og:url" content="https://uniba-waittimes.com/">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"USJ待ち時間ナビ","url":"https://uniba-waittimes.com/","description":"USJの待ち時間・履歴・営業時間・ショー開始時刻を確認できる個人運営の非公式サイト"}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"USJ待ち時間ナビ","url":"https://uniba-waittimes.com/","description":"USJの待ち時間・混雑実績・営業時間・ショー開始時刻を確認できる個人運営の非公式サイト"}</script>
   <meta property="og:site_name" content="USJ待ち時間ナビ">
   <meta property="og:type" content="website">
   <meta property="og:title" content="USJの待ち時間・混雑状況｜USJ待ち時間ナビ">
@@ -163,7 +163,15 @@
     .heatmap-panel h2, .archive-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
     .heatmap-panel p, .archive-panel p { margin: 5px 0 12px; }
     .heatmap-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 12px 0; font-size: .83rem; }
-    .heatmap-legend span { padding: 3px 7px; border-radius: 5px; border: 1px solid #dce4ed; }
+    .heatmap-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 3px 7px; border-radius: 5px; border: 1px solid #dce4ed; }
+    .heatmap-legend span::before { content: ''; width: 10px; height: 10px; flex: none; border-radius: 50%; background: currentColor; }
+    .heatmap-legend .heat-0::before { background: #1a8063; }
+    .heatmap-legend .heat-1::before { background: #459777; }
+    .heatmap-legend .heat-2::before { background: #d49b26; }
+    .heatmap-legend .heat-3::before { background: #bd7024; }
+    .heatmap-legend .heat-4::before { background: #ae4052; }
+    .heatmap-legend .heat-empty::before { background: #7b899a; }
+    .heatmap-legend .heat-unknown::before { background: repeating-linear-gradient(135deg, #748498, #748498 2px, #e6ebf0 2px, #e6ebf0 4px); }
     .heatmap-scroll { max-height: 650px; overflow: auto; border: 1px solid #dce4ed; border-radius: 9px; }
     .heatmap-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: .86rem; }
     .heatmap-table th, .heatmap-table td { border-right: 1px solid #e4e9ef; border-bottom: 1px solid #e4e9ef; padding: 9px 6px; }
@@ -643,6 +651,7 @@
     }
   </style>
   <script src="/analytics.js" defer></script>
+  <script id="night-schedule" type="application/json">{"jaws":[{"start":"2026-09-11","end":"2026-10-09","time":"18:30"},{"start":"2026-10-10","end":"2027-01-31","time":"18:00"}],"jurassic":[{"start":"2026-09-11","end":"2026-10-09","time":"18:30"},{"start":"2026-10-10","end":"2026-11-08","time":"18:00"}]}</script>
 </head>
 <body>
   <header class="site-header">
@@ -651,7 +660,7 @@
       <div class="hero-brand">
         <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
         <span class="unofficial">非公式</span>
-        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="画面の明るさを切り替え（自動・ダーク・ライト）">画面：自動</button>
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="表示を切り替え（自動・ライト・ダーク）">表示：自動（ライト／ダーク）</button>
       </div>
       <div class="hero-copy">
         <h1 data-only="now">USJの待ち時間・混雑状況</h1>
@@ -662,7 +671,7 @@
   </header>
   <div class="sticky-nav">
     <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/map">地図で探す</a><a href="/plan" data-tab="plan">行く前に</a></nav>
-    <nav class="jump-nav" aria-label="ページ内の項目"><a href="#heatmap-title" data-only="now">待ち時間</a><a href="#shows-title" data-only="now">ショー</a><a href="#closures-title" data-only="now">休止</a><a href="#weather-title" data-only="now">天気</a><a href="#archive-title" data-only="plan">カレンダー</a><a href="#shows-title" data-only="plan">ショー</a><a href="#events-title" data-only="plan">イベント</a></nav>
+    <nav class="jump-nav" aria-label="ページ内の項目"><a href="#heatmap-title" data-only="now">待ち時間</a><a href="#shows-title" data-only="now">ショー</a><a href="#closures-title" data-only="now">休止</a><a href="#weather-title" data-only="now">天気</a><a href="#archive-title" data-only="plan">カレンダー</a><a href="#events-title" data-only="plan">イベント</a></nav>
   </div>
   <div class="today-hours" data-only="now" role="status" aria-label="本日の公表営業時間">
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
@@ -695,7 +704,7 @@
     <details id="heatmap-options" class="heatmap-options">
       <summary>絞り込み・並び順・色の見方</summary>
     <div class="ride-filters" aria-label="アトラクション絞り込み">
-      <label>身長の目安 <select id="height-filter"><option value="all">指定なし</option><option value="0">身長制限なし</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
+      <label>身長の目安 <select id="height-filter"><option value="all">すべて表示</option><option value="0">身長制限のないものだけ</option><option value="92">92cm以上</option><option value="102">102cm以上</option><option value="107">107cm以上</option><option value="122">122cm以上</option><option value="132">132cm以上</option></select></label>
       <label class="check-filter"><input id="child-switch-filter" type="checkbox">チャイルドスイッチ対応のみ</label>
       <label class="check-filter"><input id="favorites-filter" type="checkbox">お気に入りのみ</label>
       <fieldset class="tag-filters">
@@ -710,7 +719,7 @@
     <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
     <p class="muted">★でお気に入り登録できます（この端末のブラウザに保存され、閲覧履歴の削除やプライベートブラウズでは消える場合があります）。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
     <div class="heatmap-legend" aria-label="待ち時間の色分け">
-      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止、—＝記録なし</span><span class="heat-unknown">未取得/不明＝現在値を確認できない</span>
+      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止</span><span class="heat-empty">—＝記録なし</span><span class="heat-unknown">未取得／不明</span>
     </div>
     </details>
     <div id="list-state" class="list-state" role="status">
@@ -741,7 +750,7 @@
     </div>
     <div id="mobile-cards" class="mobile-card-list" aria-label="今日の待ち時間カード" hidden></div>
     <div id="public-summary"><!--PUBLIC_SUMMARY--></div>
-    <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は、公式案内では10月9日まで18:30から、10月10日以降は18:00から閉園までの夜間版です。表示する運行状況はデータ提供元の掲載値です。</p>
+    <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は<span id="jaws-night-hours">開催時刻を確認中</span>。<a href="https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/jurassic-park-the-ride-in-the-dark" target="_blank" rel="noopener noreferrer">ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～</a>は<span id="jurassic-night-hours">開催時刻を確認中</span>。開始・運行状況は公式でご確認ください。</p>
   </section>
   <div class="bar" data-only="now">
     <button id="refresh" type="button">表示を更新</button>
@@ -878,8 +887,8 @@
     <p><a href="/vote">No.1アトラクション投票</a> · <a href="/privacy">このサイトについて・プライバシーポリシー</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
     <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。表示値は通常の待ち列の目安で、シングルライダーやエクスプレス・パスの所要時間ではありません。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。</p>
-    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。画面を開いたままでも約5分ごとにデータだけを更新します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。USJ公式サービスではありません。</p>
-    <p class="site-since">制作・運営：USJ待ち時間ナビ（個人運営・非公式）<br>Since Oct. 2026</p>
+    <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。画面を開いたままでも約5分ごとにデータだけを更新します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。</p>
+    <p class="site-since">制作・運営：USJ待ち時間ナビ（個人運営・非公式）<br>2026年10月開設</p>
   </footer>
   <script>
     const PAGE = document.documentElement.dataset.page || (location.pathname === '/plan' ? 'plan' : 'now');
@@ -947,6 +956,8 @@
     const weatherStatus = document.querySelector('#weather-status');
     const weatherAdvice = document.querySelector('#weather-advice');
     const timeFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    const dataFailureText = () => `データを取得できませんでした（${timeFormat.format(new Date())}）。公式アプリでご確認ください。`;
+    const apiRequest = (url, options = {}) => fetch(url, {...options, signal: AbortSignal.timeout(8000)});
     const hourMinuteFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'});
     let currentData = null;
     let historyRequest = 0;
@@ -1050,13 +1061,13 @@
 
     function matchesRide(id) {
       const numericId = Number(id);
-      const height = heightFilter.value;
+      const height = heightFilter?.value || 'all';
       if (height !== 'all') {
         const minimum = HEIGHTS.get(numericId);
         if (minimum === undefined || (height === '0' ? minimum !== 0 : minimum > Number(height))) return false;
       }
-      return (!childSwitchFilter.checked || CHILD_SWITCH.has(numericId)) &&
-        (!favoritesFilter.checked || favorites.has(numericId)) &&
+      return (!childSwitchFilter?.checked || CHILD_SWITCH.has(numericId)) &&
+        (!favoritesFilter?.checked || favorites.has(numericId)) &&
         tagFilterInputs.every(input => !input.checked ||
           RIDE_TAGS.find(tag => tag.key === input.dataset.tagFilter)?.ids.has(numericId));
     }
@@ -1103,14 +1114,14 @@
     async function loadWeather() {
       let jmaForAlert = null;
       try {
-        const response = await fetch('/api/weather');
+        const response = await apiRequest('/api/weather');
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         const jma = data.jma;
         jmaForAlert = jma;
         if (jma) {
           document.querySelector('#jma-forecast').textContent = `気象庁・大阪府の天気予報：${jma.forecast_text || '天気情報なし'}${jma.stale ? '（前回取得値）' : ''}`;
-          document.querySelector('#jma-status').textContent = `大阪観測所 ${timeFormat.format(new Date(jma.observed_at))} JSTの実測値。USJとは異なる地点です。`;
+          document.querySelector('#jma-status').textContent = `大阪観測所 ${timeFormat.format(new Date(jma.observed_at))}時点の実測値。USJとは異なる地点です。`;
           document.querySelector('#jma-temperature').textContent = Number.isFinite(jma.temperature) ? `${jma.temperature.toFixed(1)}℃` : '—';
           document.querySelector('#jma-wind').textContent = Number.isFinite(jma.wind_speed) ? `${jma.wind_speed.toFixed(1)}m/s` : '—';
           document.querySelector('#jma-rain').textContent = Number.isFinite(jma.precipitation_1h) ? `${jma.precipitation_1h.toFixed(1)}mm` : '—';
@@ -1137,8 +1148,8 @@
           : '最大瞬間風速はこの地点の予報に含まれないため、突風は自動判定できません。';
         document.querySelector('#weather-rain').textContent = Number.isFinite(current.precipitation) ? `${current.precipitation.toFixed(1)}mm` : '—';
         document.querySelector('#weather-summary').textContent = `USJ付近：${condition}・平均風速${Number.isFinite(current.wind_speed) ? `${current.wind_speed.toFixed(1)}m/s` : '不明'}${data.stale ? '（前回取得値）' : ''}`;
-        const forecastTime = hourMinuteFormat.format(new Date(current.time));
-        weatherStatus.textContent = `${data.location} · ${forecastTime} JSTの時間別予報${data.stale ? '（前回取得値）' : ''}`;
+        const forecastTime = timeFormat.format(new Date(current.time));
+        weatherStatus.textContent = `${data.location} · ${forecastTime}時点の時間別予報${data.stale ? '（前回取得値）' : ''}`;
         const nextSix = periods.slice(0, 6);
         const averageHigh = nextSix.some(item => Number.isFinite(item.wind_speed) && item.wind_speed >= 10);
         const gustHigh = nextSix.some(item => Number.isFinite(item.wind_gust) && item.wind_gust >= 10);
@@ -1158,8 +1169,8 @@
           high ? '・強い注意' : reasons.length ? '・注意あり' : '・注意なし';
         updateParkAlert(high ? 'high' : reasons.length ? 'caution' : 'normal', reasons, jma);
       } catch (_) {
-        weatherStatus.textContent = '予報を取得できませんでした。';
-        document.querySelector('#weather-summary').textContent = 'USJ付近の予報を取得できませんでした';
+        weatherStatus.textContent = dataFailureText();
+        document.querySelector('#weather-summary').textContent = dataFailureText();
         weatherAdvice.dataset.level = 'normal';
         weatherAdvice.textContent = '屋外ライドの運行状況はUSJ公式アプリでご確認ください。';
         updateParkAlert('normal', [], jmaForAlert);
@@ -1280,7 +1291,7 @@
 
     function dateLabel(day) {
       const date = new Date(`${day}T00:00:00Z`);
-      return `${Number(day.slice(5, 7))}/${Number(day.slice(8))}（${weekdays[date.getUTCDay()]}${holidayDays.has(day) ? '・祝' : ''}）`;
+      return `${formatEventDate(day)}（${weekdays[date.getUTCDay()]}${holidayDays.has(day) ? '・祝' : ''}）`;
     }
 
     function monthShift(month, amount) {
@@ -1305,6 +1316,7 @@
     }
 
     function renderTodayClosures() {
+      if (!todayClosures) return;
       todayClosures.replaceChildren();
       if (!closuresData) return;
       const items = closuresFor(jstToday());
@@ -1324,7 +1336,7 @@
 
     async function loadClosures() {
       try {
-        const response = await fetch('/api/closures', {cache: 'no-store'});
+        const response = await apiRequest('/api/closures', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         if (!Array.isArray(data.closures) || !data.checked_at) throw new Error('休止予定データの形式が不正です');
@@ -1334,7 +1346,7 @@
         if (selectedDate) showSelectedDay(selectedDate);
         else renderCalendar();
       } catch (cause) {
-        closuresStatus.textContent = `休止予定を読み込めません: ${cause.message}${closuresData ? ' · 前回読込分を表示中' : ''}`;
+        if (closuresStatus) closuresStatus.textContent = `${dataFailureText()}${closuresData ? ' 前回取得した予定を表示中です。' : ''}`;
       }
     }
 
@@ -1381,6 +1393,7 @@
     }
 
     function renderCalendar() {
+      if (!calendarGrid) return;
       calendarGrid.replaceChildren();
       const today = jstToday();
       if (!calendarMonth) calendarMonth = today.slice(0, 7);
@@ -1451,7 +1464,7 @@
     async function loadHolidays() {
       if (holidayDays.size) return;
       try {
-        const response = await fetch('/api/holidays');
+        const response = await apiRequest('/api/holidays');
         const data = await response.json();
         if (!response.ok || !data.days?.length) throw new Error(data.error || `HTTP ${response.status}`);
         holidayDays = new Map(data.days.map(item =>
@@ -1487,7 +1500,7 @@
     async function loadPassExclusions() {
       if (passExclusion.url) return;
       try {
-        const response = await fetch('/api/pass-exclusions', {cache: 'no-store'});
+        const response = await apiRequest('/api/pass-exclusions', {cache: 'no-store'});
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (!data.months || typeof data.months !== 'object' || Array.isArray(data.months) ||
@@ -1504,7 +1517,7 @@
     async function loadTicketPrices() {
       if (ticketPrices.url) return;
       try {
-        const response = await fetch('/api/ticket-prices', {cache: 'no-store'});
+        const response = await apiRequest('/api/ticket-prices', {cache: 'no-store'});
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (!/^\d{4}-\d{2}-\d{2}$/.test(data.checked_at) || !data.source_url ||
@@ -1542,39 +1555,49 @@
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.textContent = 'USJ公式の除外日一覧';
-      const checked = passExclusion.checkedAt.replaceAll('-', '/');
+      const checked = formatEventDate(passExclusion.checkedAt);
       note.replaceChildren(mark, `＝${passExclusion.label}の入場除外日です（${checked}確認）。最新の情報は`,
         link, 'でご確認ください。');
       note.classList.add('pass-exclusion-note');
     }
     async function loadSchedule() {
       try {
-        const response = await fetch('/api/schedule', {cache: 'no-store'});
+        const response = await apiRequest('/api/schedule', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         scheduleDays = new Map(data.days.map(item => [item.day, item]));
         if (PAGE === 'plan') renderArchiveCalendar();
-        todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
+        if (todayHoursTime) todayHoursTime.textContent = `${hoursLabel(scheduleDays.get(jstToday()))}${data.error ? '（前回取得した予定）' : ''}`;
         updateParkStateBanner();
         if (selectedDate && !scheduleDays.has(selectedDate) && !closuresFor(selectedDate).length && !passExclusion.url && !ticketPrices.adult.has(selectedDate)) {
           selectedDate = null;
           selectedDay.textContent = 'カレンダーの日付を選ぶと営業時間と休止予定を表示します。';
           selectedDay.hidden = true;
         }
-        const fetched = data.fetched_at ? `${timeFormat.format(new Date(data.fetched_at))} JST` : '未取得';
-        scheduleStatus.textContent = `予定データ取得 ${fetched}${data.error ? ' · 更新に失敗したため前回取得した予定を表示中' : ''}`;
+        const fetched = data.fetched_at ? `${timeFormat.format(new Date(data.fetched_at))}時点` : '未取得';
+        if (scheduleStatus) scheduleStatus.textContent = `予定データ取得 ${fetched}${data.error ? ' · 更新に失敗したため前回取得した予定を表示中' : ''}`;
         if (selectedDate) showSelectedDay(selectedDate);
         else renderCalendar();
       } catch (cause) {
-        todayHoursTime.textContent = scheduleDays.size ? `${hoursLabel(scheduleDays.get(jstToday()))}（前回表示）` : '取得できません';
+        if (todayHoursTime) todayHoursTime.textContent = scheduleDays.size ? `${hoursLabel(scheduleDays.get(jstToday()))}（前回表示）` : dataFailureText();
         updateParkStateBanner();
-        scheduleStatus.textContent = `営業時間を読み込めません: ${cause.message}`;
+        if (scheduleStatus) scheduleStatus.textContent = dataFailureText();
         renderCalendar();
       }
     }
 
     function formatEventDate(day) {
-      return `${day.slice(0, 4)}/${Number(day.slice(5, 7))}/${Number(day.slice(8))}`;
+      return `${day.slice(0, 4)}年${Number(day.slice(5, 7))}月${Number(day.slice(8))}日`;
+    }
+    const nightSchedule = JSON.parse(document.querySelector('#night-schedule')?.textContent || '{}');
+    function renderNightNotes() {
+      const today = jstToday();
+      for (const [kind, id] of [['jaws', 'jaws-night-hours'], ['jurassic', 'jurassic-night-hours']]) {
+        const element = document.getElementById(id);
+        if (!element) continue;
+        const slot = nightSchedule[kind]?.find(item => item.start <= today && today <= item.end);
+        element.textContent = slot ? `${slot.time}〜パーククローズの夜間版` : '現在の開催予定を確認できません';
+      }
     }
 
     function makeEventCard(event) {
@@ -1627,13 +1650,13 @@
 
     async function loadEvents() {
       try {
-        const response = await fetch('/api/events', {cache: 'no-store'});
+        const response = await apiRequest('/api/events', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         eventsData = data;
         renderEvents();
       } catch (cause) {
-        eventsStatus.textContent = `イベント情報を読み込めません: ${cause.message}`;
+        eventsStatus.textContent = dataFailureText();
       }
     }
 
@@ -1934,7 +1957,7 @@
         .filter(slot => Date.parse(slot.start) >= Date.now())
         .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
       const next = data.day === jstToday() && upcoming.length ? ` · 次の開始 ${hourMinuteFormat.format(new Date(upcoming[0].start))} ${upcoming[0].name}` : '';
-      showsStatus.textContent = `${data.day.replaceAll('-', '/')} JST · ${shows.length}件 · ${shows.reduce((sum, show) => sum + show.times.length, 0)}回の開始時刻 · データ確認 ${timeFormat.format(new Date(data.fetched_at))} JST${next}`;
+      showsStatus.textContent = `${formatEventDate(data.day)} · ${shows.length}件 · ${shows.reduce((sum, show) => sum + show.times.length, 0)}回の開始時刻 · データ確認 ${timeFormat.format(new Date(data.fetched_at))}時点${next}`;
     }
 
     async function loadShows() {
@@ -1945,7 +1968,7 @@
       }
       const requestNumber = ++showRequest;
       try {
-        const response = await fetch(`/api/shows?date=${encodeURIComponent(showSelectedDate)}`, {cache: 'no-store'});
+        const response = await apiRequest(`/api/shows?date=${encodeURIComponent(showSelectedDate)}`, {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         if (requestNumber === showRequest) renderShows(data);
@@ -1954,7 +1977,7 @@
         showTimeline.replaceChildren();
         document.querySelector('#show-list')?.replaceChildren();
         showTimeline.removeAttribute('aria-busy');
-        showsStatus.textContent = `ショー時刻を読み込めません: ${cause.message}`;
+        showsStatus.textContent = dataFailureText();
       }
     }
 
@@ -2609,7 +2632,7 @@
       for (const item of targets) archiveDayStats.set(item.day, {loading: true});
       await Promise.all(targets.map(async item => {
         try {
-          const response = await fetch(`/api/archive/day?date=${encodeURIComponent(item.day)}`);
+          const response = await apiRequest(`/api/archive/day?date=${encodeURIComponent(item.day)}`);
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
           archiveDayStats.set(item.day, {average: data.average_wait, snapshots: data.snapshots});
@@ -2769,7 +2792,7 @@
       const first = hourMinuteFormat.format(new Date(data.first_at * 1000));
       const last = hourMinuteFormat.format(new Date(data.last_at * 1000));
       const archiveHoliday = holidayDays.get(data.day);
-      archiveStatus.textContent = `${data.day.replaceAll('-', '/')}${archiveHoliday ? `（${archiveHoliday.label}）` : ''}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
+      archiveStatus.textContent = `${formatEventDate(data.day)}${archiveHoliday ? `（${archiveHoliday.label}）` : ''}の記録（${first}〜${last}）。記録のない時間帯は含みません。`;
       if (passExclusion.days.has(data.day)) archiveStatus.textContent += '（年パス スタンダード除外日）';
       renderArchiveTicketPrice(data.day);
       const weather = weatherInfo(data.weather);
@@ -2868,7 +2891,7 @@
       archiveStatus.textContent = '選択日の記録を読み込み中…';
       archiveShareBar.hidden = true;
       try {
-        const response = await fetch(`/api/archive/day?date=${encodeURIComponent(archiveDate.value)}`, {cache: 'no-store'});
+        const response = await apiRequest(`/api/archive/day?date=${encodeURIComponent(archiveDate.value)}`, {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         if (requestNumber === archiveRequest) renderArchive(data);
@@ -2886,7 +2909,7 @@
       if (archiveListingDay === today && Date.now() - archiveListingAt < 15 * 60 * 1000) return;
       archiveListingDay = today;
       try {
-        const response = await fetch('/api/archive/days', {cache: 'no-store'});
+        const response = await apiRequest('/api/archive/days', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         archiveListingAt = Date.now();
@@ -2896,7 +2919,7 @@
         for (const item of data.days || []) {
           const option = document.createElement('option');
           option.value = item.day;
-          option.textContent = item.day.replaceAll('-', '/');
+          option.textContent = formatEventDate(item.day);
           archiveDate.append(option);
         }
         archiveDate.disabled = !archiveDate.options.length;
@@ -3113,12 +3136,14 @@
         url: `${location.origin}/plan?date=${encodeURIComponent(day)}`,
       };
     }
-    const topShareBar = shareBar(topWaitsPayload);
+    const movementPanel = document.querySelector('.movement-summary');
+    const topShareBar = movementPanel ? shareBar(topWaitsPayload) : {updateLinks() {}, hidden: true};
     topShareBar.hidden = true;
-    document.querySelector('.movement-summary')?.append(topShareBar);
-    const archiveShareBar = shareBar(archiveDayPayload, 'この日を送る', 'archive_day');
+    if (movementPanel) movementPanel.append(topShareBar);
+    const archivePanel = document.querySelector('.archive-summary');
+    const archiveShareBar = archivePanel ? shareBar(archiveDayPayload, 'この日を送る', 'archive_day') : {updateLinks() {}, hidden: true};
     archiveShareBar.hidden = true;
-    document.querySelector('.archive-summary')?.after(archiveShareBar);
+    if (archivePanel) archivePanel.after(archiveShareBar);
 
     const linkedRide = shortRideId || shareParams.get('ride');
     let linkedRideHandled = false;
@@ -3334,13 +3359,12 @@
         row.append(cell);
         heatmapBody.append(row);
       }
-      const day = data.day ? data.day.replaceAll('-', '/') : '今日';
+      const day = data.day ? formatEventDate(data.day) : '今日';
       heatmapStatus.textContent = !currentData.rides.length
         ? `${day} · 現在の待ち時間は未取得`
         : mobileHeatmap.matches
           ? `${day} · ${rides.length}件表示 · 20分ごとに記録`
           : `${day} · ${rides.length}/${currentData.rides.length}件表示 · 現在値は約5分ごとに更新、記録は20分ごと（毎時0・20・40分）`;
-      renderRecentRecords();
       renderListState();
       syncTodayView();
       updateRidesPreview();
@@ -3350,6 +3374,7 @@
     }
 
     function syncTodayView() {
+      if (!todayTable || !mobileCards) return;
       const showCards = todayView === 'cards';
       todayTable.hidden = showCards;
       mobileCards.hidden = !showCards;
@@ -3361,7 +3386,7 @@
     async function loadToday() {
       const requestNumber = ++todayRequest;
       try {
-        const response = await fetch('/api/today', {cache: 'no-store'});
+        const response = await apiRequest('/api/today', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         if (requestNumber === todayRequest) renderToday(data);
@@ -3369,7 +3394,7 @@
         if (requestNumber === todayRequest) {
           heatmapBody.replaceChildren();
           heatmapBody.removeAttribute('aria-busy');
-          heatmapStatus.textContent = `当日の記録を読み込めません: ${cause.message}`;
+          heatmapStatus.textContent = dataFailureText();
         }
       }
     }
@@ -3388,12 +3413,12 @@
       const isWiki = ride.source === 'ThemeParks.wiki';
       const updated = new Date(isWiki ? ride.verified_at : ride.last_updated);
       currentDetail.textContent = Number.isNaN(updated.getTime()) ? '提供元の時刻不明'
-        : `${isWiki ? 'ライブ情報確認' : '提供元更新'} ${timeFormat.format(updated)} JST`;
+        : `${isWiki ? 'ライブ情報確認' : '提供元更新'} ${timeFormat.format(updated)}時点`;
 
       if (open && comparison.previous_open && Number.isFinite(comparison.previous_wait)) {
         const difference = ride.wait_time - comparison.previous_wait;
         previousValue.textContent = `${difference > 0 ? '+' : difference < 0 ? '' : '±'}${difference}分${comparison.previous_estimated ? '※' : ''}`;
-        previousDetail.textContent = `前回 ${comparison.previous_wait}分（${timeFormat.format(new Date(comparison.previous_at * 1000))} JST${comparison.previous_estimated ? '・推定振替' : ''}）`;
+        previousDetail.textContent = `前回 ${comparison.previous_wait}分（${timeFormat.format(new Date(comparison.previous_at * 1000))}時点${comparison.previous_estimated ? '・推定振替' : ''}）`;
       } else {
         previousValue.textContent = '—';
         previousDetail.textContent = comparison.previous_at ? '営業状態が異なるため比較できません' : '次の20分記録から比較できます';
@@ -3491,6 +3516,7 @@
 
     async function refresh() {
       if (button.disabled) return;
+      renderNightNotes();
       loadHolidays();
       if (PAGE === 'plan') loadPassExclusions();
       if (PAGE === 'plan') loadTicketPrices();
@@ -3498,13 +3524,13 @@
       loadClosures();
       if (PAGE === 'plan') loadEvents();
       if (PAGE === 'now') loadWeather();
-      loadShows();
+      if (PAGE === 'now') loadShows();
       if (PAGE === 'plan') loadArchiveDates();
       button.disabled = true;
       error.textContent = '';
       status.textContent = '取得中…';
       try {
-        const response = await fetch('/api/waits', {cache: 'no-store'});
+        const response = await apiRequest('/api/waits', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         const rides = [...data.rides].sort((a, b) => {
@@ -3515,28 +3541,11 @@
         if (PAGE === 'now') renderTopWaits(rides);
         if (PAGE === 'now') loadToday();
         if (archiveData) renderArchive(archiveData);
-        const selected = rideSelect.value;
-        rideSelect.replaceChildren();
-        for (const ride of rides) {
-          const option = document.createElement('option');
-          option.value = String(ride.id);
-          option.textContent = rideName(ride);
-          rideSelect.append(option);
-        }
-        if (rides.some(ride => String(ride.id) === selected)) rideSelect.value = selected;
-        if (PAGE === 'now') updateMetrics();
         const fetched = new Date(data.fetched_at);
         const fetchedText = Number.isNaN(fetched.getTime()) ? '不明' : timeFormat.format(fetched);
         status.textContent = rides.length
           ? `${fetchedText}時点の情報 · 5分ごとに自動更新`
           : '現在の待ち時間を取得できません。次の更新で再試行します。';
-        if (data.history) {
-          const since = data.history.first_at ? `${timeFormat.format(new Date(data.history.first_at * 1000))} JST` : '未記録';
-          const latest = data.history.last_at ? `${timeFormat.format(new Date(data.history.last_at * 1000))} JST` : '未記録';
-          historyStatus.textContent = `20分ごとに記録 · ${data.history.snapshots}回記録 · 最終記録 ${latest} · 記録開始 ${since}`;
-        } else {
-          historyStatus.textContent = '履歴の状態を確認できません';
-        }
         if (!rides.length) {
           error.textContent = '提供元の待ち時間を確認できません。';
         } else if (data.refresh_error) {
@@ -3549,19 +3558,19 @@
           error.textContent += ' 一部アトラクションのライブ情報を確認できません。';
         }
       } catch (cause) {
-        status.textContent = '取得できませんでした';
-        error.textContent = cause.message;
+        status.textContent = dataFailureText();
+        error.textContent = '';
         if (PAGE === 'now' && topWaitsList.hasAttribute('aria-busy')) {
           topWaitsList.replaceChildren();
           topWaitsList.removeAttribute('aria-busy');
           const item = document.createElement('li');
-          item.textContent = '現在値を確認できません。';
+          item.textContent = dataFailureText();
           topWaitsList.append(item);
         }
         if (PAGE === 'now' && heatmapBody.hasAttribute('aria-busy')) {
           heatmapBody.replaceChildren();
           heatmapBody.removeAttribute('aria-busy');
-          heatmapStatus.textContent = '当日の記録を読み込めません。';
+          heatmapStatus.textContent = dataFailureText();
         }
       } finally {
         button.disabled = false;
@@ -3569,7 +3578,7 @@
     }
 
     button.addEventListener('click', refresh);
-    for (const control of [heightFilter, childSwitchFilter, favoritesFilter, ...tagFilterInputs]) control.addEventListener('change', () => {
+    for (const control of [heightFilter, childSwitchFilter, favoritesFilter, ...tagFilterInputs].filter(Boolean)) control.addEventListener('change', () => {
       const filterType = control === heightFilter ? 'height' : control === childSwitchFilter ? 'child_switch'
         : control === favoritesFilter ? 'favorites' : 'tag';
       window.trackSiteEvent?.('filter_apply', {filter_type: filterType});
@@ -3577,7 +3586,7 @@
       if (todayData) renderToday(todayData);
       if (archiveData) renderArchive(archiveData);
     });
-    rideSort.addEventListener('change', () => {
+    rideSort?.addEventListener('change', () => {
       window.trackSiteEvent?.('filter_apply', {filter_type: 'sort'});
       renderListState(); if (todayData) renderToday(todayData);
     });
@@ -3599,8 +3608,8 @@
       heatmapOptions.open = true;
       heatmapOptions.scrollIntoView({block: 'start'});
     });
-    archiveDate.addEventListener('change', () => { archivePage = 0; loadArchiveDay(); });
-    archiveHours.addEventListener('change', () => {
+    archiveDate?.addEventListener('change', () => { archivePage = 0; loadArchiveDay(); });
+    archiveHours?.addEventListener('change', () => {
       archivePage = Number(archiveHours.value) || 0;
       if (archiveData) renderArchive(archiveData);
     });
@@ -3611,9 +3620,8 @@
         if (archiveData) renderArchive(archiveData);
       });
     }
-    monthPrev.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, -1); renderCalendar(); });
-    monthNext.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, 1); renderCalendar(); });
-    rideSelect.addEventListener('change', () => { updateMetrics(); renderRecentRecords(); });
+    monthPrev?.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, -1); renderCalendar(); });
+    monthNext?.addEventListener('click', () => { calendarMonth = monthShift(calendarMonth, 1); renderCalendar(); });
     function setupScrollSpy() {
       const nav = document.querySelector('.jump-nav');
       if (!nav) return;
@@ -3660,7 +3668,7 @@
     const THEME_KEY = 'usj-wait-nav:theme';
     const themeToggle = document.querySelector('#theme-toggle');
     const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const THEME_LABELS = {auto: '画面：自動', dark: '画面：ダーク', light: '画面：ライト'};
+    const THEME_LABELS = {auto: '表示：自動（ライト／ダーク）', dark: '表示：ダーク', light: '表示：ライト'};
     let themePref = document.documentElement.dataset.themePref || 'auto';
     function applyTheme(pref) {
       const dark = pref === 'dark' || (pref === 'auto' && darkQuery.matches);

@@ -782,12 +782,182 @@ async function archiveDay(db, day) {
   };
 }
 
+function omitHtmlBlock(html, marker, endTag) {
+  const start = html.indexOf(marker);
+  if (start < 0) throw new Error(`Missing page block: ${marker}`);
+  const end = html.indexOf(endTag, start);
+  if (end < 0) throw new Error(`Unclosed page block: ${marker}`);
+  return html.slice(0, start) + html.slice(end + endTag.length);
+}
+
+function pageHtml(html, page) {
+  const remove = page === 'plan'
+    ? [
+      ['<div class="today-hours"', '</div>'], ['<div id="park-state"', '</div>'],
+      ['<a id="park-alert"', '</a>'], ['<section class="heatmap-panel"', '</section>'],
+      ['<section class="shows-panel"', '</section>'],
+      ['<section class="closures-panel"', '</section>'], ['<section class="weather-panel"', '</section>'],
+    ]
+    : [
+      ['<section class="archive-panel"', '</section>'],
+      ['<section class="events-panel"', '</section>'],
+    ];
+  // These legacy sections are hidden on both pages and no longer requested by either page.
+  remove.push(['<section class="calendar-panel"', '</section>'],
+    ['<section class="history-panel"', '</section>']);
+  for (const [marker, endTag] of remove) html = omitHtmlBlock(html, marker, endTag);
+  const other = page === 'plan' ? 'now' : 'plan';
+  html = html.replace(new RegExp(`<a href="#[^"]+" data-only="${other}">[^<]+<\\/a>`, 'g'), '');
+  return html;
+}
+
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+const displayTime = value => new Intl.DateTimeFormat('ja-JP', {
+  timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+}).format(new Date(value));
+const unavailableText = () => `データを取得できませんでした（${displayTime(Date.now())}）。公式アプリでご確認ください。`;
+function replaceElementContent(html, id, content) {
+  const expression = new RegExp(`(<([a-z]+)[^>]*\\bid="${id}"[^>]*>)[\\s\\S]*?(<\\/\\2>)`);
+  return html.replace(expression, (_, start, _tag, end) => start + content + end);
+}
+function replaceElementText(html, id, value) {
+  return replaceElementContent(html, id, escapeHtml(value));
+}
+async function staticJson(request, env, path) {
+  const url = new URL(path, request.url);
+  const response = await assetFetch(new Request(url, request), env);
+  if (!response.ok) throw new Error(`Static data ${path}: ${response.status}`);
+  return response.json();
+}
+function rideJapaneseNames(html) {
+  const source = html.match(/const japaneseNames = new Map\(\[([\s\S]*?)\]\);/)?.[1] || '';
+  return new Map([...source.matchAll(/\[(\d+), '([^']+)'\]/g)]
+    .map(([, id, name]) => [Number(id), name]));
+}
+async function renderInitialData(html, page, request, env, rides, fetchedAt, todayRow) {
+  const failure = escapeHtml(unavailableText());
+  if (page === 'now') {
+    const nightPeriods = JSON.parse(html.match(/<script id="night-schedule" type="application\/json">([^<]+)<\/script>/)?.[1] || '{}');
+    for (const [kind, id] of [['jaws', 'jaws-night-hours'], ['jurassic', 'jurassic-night-hours']]) {
+      const slot = nightPeriods[kind]?.find(item => item.start <= jstDay(epoch()) && jstDay(epoch()) <= item.end);
+      html = replaceElementText(html, id, slot ? `${slot.time}〜パーククローズの夜間版` : '現在の開催予定を確認できません');
+    }
+    const hours = todayRow?.status === 'CLOSED' ? '休園日'
+      : todayRow?.opens && todayRow?.closes ? `${todayRow.opens}〜${todayRow.closes}` : unavailableText();
+    html = replaceElementText(html, 'today-hours-time', hours);
+    const names = rideJapaneseNames(html);
+    const fresh = fetchedAt && Date.now() - Date.parse(fetchedAt) <= 15 * 60 * 1000;
+    const ranked = fresh && Array.isArray(rides) ? rides.filter(ride => {
+      const updated = Date.parse(ride.verified_at || ride.last_updated);
+      const age = Date.now() - updated;
+      return ride.is_open && !ride.data_unavailable && Number.isInteger(ride.wait_time) &&
+        Number.isFinite(age) && age >= -2 * 60 * 1000 && age <= 15 * 60 * 1000;
+    }).sort((a, b) => b.wait_time - a.wait_time).slice(0, 5) : [];
+    const list = ranked.length ? ranked.map(ride => `<li><span>${escapeHtml(names.get(Number(ride.id)) || ride.name)}</span><strong>${ride.wait_time}分</strong></li>`).join('')
+      : `<li>${failure}</li>`;
+    html = replaceElementContent(html, 'top-waits-list', list)
+      .replace(/(<ol id="top-waits-list") aria-busy="true"/, '$1');
+    html = replaceElementText(html, 'movement-status', '比較データは画面更新後に表示します。');
+    html = replaceElementText(html, 'heatmap-status', '今日の記録は画面更新後に表示します。');
+    html = replaceElementContent(html, 'heatmap-body', `<tr><td colspan="99">今日の記録は画面更新後に表示します。</td></tr>`);
+    try {
+      const closures = await staticJson(request, env, '/closures.json');
+      const day = jstDay(epoch());
+      const items = closures.closures.filter(item => item.start <= day && (!item.end || day <= item.end));
+      const list = items.length ? items.map(item => `<li>${escapeHtml(item.title)}（${escapeHtml(item.start)}〜${escapeHtml(item.end || item.end_note)}）</li>`).join('')
+        : '<li>確認済みの掲載予定はありません。</li>';
+      html = replaceElementContent(html, 'today-closures', list);
+      html = replaceElementText(html, 'closures-status', `USJ公式ページを${closures.checked_at}に確認 · 今日の掲載 ${items.length}件`);
+    } catch (_) {
+      html = replaceElementContent(html, 'today-closures', `<li>${failure}</li>`);
+      html = replaceElementContent(html, 'closures-status', failure);
+    }
+    try {
+      const raw = await readMeta(env.DB, 'shows_payload');
+      const data = raw ? JSON.parse(raw) : null;
+      const shows = data?.day === jstDay(epoch()) ? data.shows : null;
+      if (!shows?.length) throw new Error('No current shows');
+      const entries = shows.flatMap(show => show.times.map(slot => ({ name: show.name, start: slot.start })))
+        .sort((a, b) => a.start.localeCompare(b.start));
+      html = replaceElementContent(html, 'show-list', `<ul class="initial-show-list">${entries.map(item =>
+        `<li><time>${escapeHtml(displayTime(item.start))}</time> ${escapeHtml(item.name)}</li>`).join('')}</ul>`);
+      html = replaceElementText(html, 'shows-status', `${data.day.replaceAll('-', '/')} · ${shows.length}件 · ${entries.length}回の開始時刻`);
+    } catch (_) {
+      html = replaceElementContent(html, 'show-list', `<p class="muted">${failure}</p>`);
+      html = replaceElementContent(html, 'shows-status', failure);
+    }
+    try {
+      const [weatherRaw, jmaRaw] = await Promise.all([
+        readMeta(env.DB, 'weather_payload'), readMeta(env.DB, 'jma_weather_payload'),
+      ]);
+      const weather = weatherRaw ? JSON.parse(weatherRaw) : null;
+      const jma = jmaRaw ? JSON.parse(jmaRaw) : null;
+      const period = weather?.periods?.find(item => Date.parse(item.time) >= Date.now() - 3600000);
+      if (period && Date.now() - Date.parse(weather.fetched_at) < 3 * 3600000) {
+        const symbol = period.symbol || '';
+        const condition = symbol.includes('thunder') ? '雷雨' : symbol.includes('snow') ? '雪' :
+          symbol.includes('rain') ? '雨' : symbol.includes('partlycloudy') || symbol.includes('fair') ? '晴れ時々曇り' :
+          symbol.includes('cloudy') ? '曇り' : symbol.includes('clear') ? '晴れ' : '予報を確認中';
+        html = replaceElementText(html, 'weather-summary', `USJ付近：${condition}・平均風速${Number.isFinite(period.wind_speed) ? period.wind_speed.toFixed(1) + 'm/s' : '不明'}`);
+        html = replaceElementText(html, 'weather-status', `${weather.location} · ${displayTime(period.time)}時点の時間別予報`);
+        html = replaceElementText(html, 'weather-condition', condition);
+        for (const [id, value, unit] of [
+          ['weather-temperature', period.temperature, '℃'], ['weather-wind', period.wind_speed, 'm/s'],
+          ['weather-rain', period.precipitation, 'mm'], ['weather-gust', period.wind_gust, 'm/s'],
+        ]) html = replaceElementText(html, id, Number.isFinite(value) ? `${value.toFixed(1)}${unit}` : '—');
+      } else {
+        html = replaceElementContent(html, 'weather-summary', failure);
+        html = replaceElementContent(html, 'weather-status', failure);
+      }
+      if (jma && Date.now() - Date.parse(jma.observed_at) < 3 * 3600000) {
+        html = replaceElementText(html, 'jma-forecast', `気象庁・大阪府の天気予報：${jma.forecast_text || '天気情報なし'}`);
+        html = replaceElementText(html, 'jma-status', `大阪観測所 ${displayTime(jma.observed_at)}時点の実測値。USJとは異なる地点です。`);
+        for (const [id, value, unit] of [
+          ['jma-temperature', jma.temperature, '℃'], ['jma-wind', jma.wind_speed, 'm/s'],
+          ['jma-rain', jma.precipitation_1h, 'mm'],
+        ]) html = replaceElementText(html, id, Number.isFinite(value) ? `${value.toFixed(1)}${unit}` : '—');
+      } else {
+        html = replaceElementContent(html, 'jma-forecast', failure);
+        html = replaceElementContent(html, 'jma-status', failure);
+      }
+    } catch (_) {
+      for (const id of ['weather-summary', 'weather-status', 'jma-forecast', 'jma-status'])
+        html = replaceElementContent(html, id, failure);
+    }
+  } else {
+    try {
+      const data = await staticJson(request, env, '/events.json');
+      const today = jstDay(epoch());
+      const groups = { ongoing: [], upcoming: [], undated: [] };
+      for (const item of data.events) {
+        if (item.end && item.end < today) continue;
+        const group = item.start > today ? 'upcoming' : item.end ? 'ongoing' : 'undated';
+        groups[group].push(item);
+      }
+      for (const [group, countId] of [['ongoing', 'ongoing-count'], ['upcoming', 'upcoming-count'], ['undated', 'undated-count']]) {
+        const entries = groups[group];
+        html = replaceElementText(html, countId, `（${entries.length}件）`);
+        html = replaceElementContent(html, `${group}-events`, entries.length ? entries.map(item =>
+          `<article class="event-card"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a><small>${escapeHtml(item.time_note || `${item.start}〜${item.end || '終了日未掲載'}`)}</small></article>`).join('')
+          : '<p class="muted">該当するイベントはありません。</p>');
+      }
+      html = replaceElementText(html, 'events-status', `公式一覧を${data.checked_at}に確認 · 日程は手動更新`);
+    } catch (_) {
+      html = replaceElementContent(html, 'events-status', failure);
+      for (const id of ['ongoing-events', 'upcoming-events', 'undated-events'])
+        html = replaceElementContent(html, id, `<p class="muted">${failure}</p>`);
+    }
+  }
+  return html;
+}
+
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
   if (url.hostname === 'usj-wait-nav.kotaro-7436.workers.dev') {
     url.hostname = 'uniba-waittimes.com';
-    return Response.redirect(url.toString(), 308);
+    return Response.redirect(url.toString(), 301);
   }
   if (url.pathname === '/en' || url.pathname === '/en/') {
     const assetUrl = new URL('/en/index.html', url);
@@ -806,6 +976,7 @@ async function route(request, env) {
     let html = await asset.text();
     let payload = null;
     let fetchedAt = null;
+    let rides = null;
     try {
       [payload, fetchedAt] = await Promise.all([
         readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
@@ -815,7 +986,7 @@ async function route(request, env) {
     }
     let summary = '<p class="muted">最新の待ち時間と保存済み履歴は、このページの表で確認できます。</p>';
     if (payload && fetchedAt && Date.now() - Date.parse(fetchedAt) <= 15 * 60 * 1000) {
-      const rides = JSON.parse(payload);
+      rides = JSON.parse(payload);
       const now = Date.now();
       const confirmed = rides.filter(ride => {
         const updated = Date.parse(ride.verified_at || ride.last_updated);
@@ -827,9 +998,8 @@ async function route(request, env) {
       const unknown = rides.length - confirmed.length;
       const closed = confirmed.length - open.length;
       const max = open.length ? Math.max(...open.map(ride => ride.wait_time)) : null;
-      const time = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })
-        .format(new Date(fetchedAt));
-      summary = `<p class="muted">${time} JST取得：待ち時間を確認できるアトラクション${open.length}件` +
+      const time = displayTime(fetchedAt);
+      summary = `<p class="muted">${time}時点：待ち時間を確認できるアトラクション${open.length}件` +
         `${unknown ? `、現在値を確認できない${unknown}件` : ''}${closed ? `、休止中${closed}件` : ''}` +
         `${max == null ? '' : `。掲載値の最長${max}分`}。アトラクションごとの掲載値はこのページの表で確認できます。</p>`;
     }
@@ -851,6 +1021,7 @@ async function route(request, env) {
     }
     html = html.replace('<!--PUBLIC_SUMMARY-->', summary);
     const page = url.pathname === '/plan' ? 'plan' : 'now';
+    html = await renderInitialData(html, page, request, env, rides, fetchedAt, todayRow);
     html = html.replace('<html lang="ja">', `<html lang="ja" data-page="${page}">`);
     if (shortRidePath) {
       html = html.replace(/<meta property="og:url" content="[^"]*">/,
@@ -859,18 +1030,19 @@ async function route(request, env) {
     html = html.replace(
       page === 'plan' ? /<h1 data-only="now">[\s\S]*?<\/h1>\s*/ : /<h1 data-only="plan">[\s\S]*?<\/h1>\s*/,
       '');
+    html = pageHtml(html, page);
     if (page === 'plan') {
       html = html
         .replace(/<title>[^<]*<\/title>/,
           '<title>USJ混雑カレンダー｜過去の待ち時間実績と天気｜USJ待ち時間ナビ</title>')
         .replace(/<meta name="description" content="[^"]*">/,
-          '<meta name="description" content="USJの過去の待ち時間実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、ショー開始時刻、イベント情報をまとめた個人運営の非公式サイトです。">')
+          '<meta name="description" content="USJの過去の混雑実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、イベント情報をまとめた個人運営の非公式サイトです。">')
         .replace(/(<link rel="canonical" href="[^"]*)\/"/, '$1/plan"')
         .replace(/(<meta property="og:url" content="[^"]*)\/"/, '$1/plan"')
         .replace(/<meta property="og:title" content="[^"]*">/,
           '<meta property="og:title" content="USJ混雑カレンダー｜過去の待ち時間実績と天気｜USJ待ち時間ナビ">')
         .replace(/<meta property="og:description" content="[^"]*">/,
-          '<meta property="og:description" content="USJの過去の待ち時間実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、ショー開始時刻、イベント情報をまとめた個人運営の非公式サイトです。">');
+          '<meta property="og:description" content="USJの過去の混雑実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、イベント情報をまとめた個人運営の非公式サイトです。">');
     }
     return new Response(html, { status: asset.status, headers: {
       'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60',
