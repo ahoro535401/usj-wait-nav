@@ -2860,6 +2860,12 @@
       const fetched = new Date(currentData?.fetched_at || Date.now());
       return timeFormat.format(Number.isNaN(fetched.getTime()) ? new Date() : fetched);
     }
+    function shareTopicLabel() {
+      const fetchedAt = currentData?.fetched_at;
+      if (!fetchedAt || !Number.isFinite(Date.parse(fetchedAt))) return '混雑状況';
+      const dayFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric'});
+      return dayFormat.format(new Date(fetchedAt)) === dayFormat.format(new Date()) ? '今日の混雑状況' : '混雑状況';
+    }
     function lineShareUrl(payload) {
       return `https://line.me/R/share?text=${encodeURIComponent(`${payload.text}\n${payload.url}`)}`;
     }
@@ -2937,6 +2943,7 @@
         return name && wait ? {name, wait} : null;
       }).filter(Boolean);
       const time = shareTimeLabel();
+      const topic = shareTopicLabel();
       const body = items.length
         ? items.map((item, index) => `${index + 1}. ${item.name} ${item.wait}`).join('\n')
         : '現在表示できる待ち時間はありません（営業時間外など）';
@@ -2956,13 +2963,14 @@
         title: 'USJ待ち時間ナビ',
         text: `【USJ待ち時間ナビ】${time}時点の待ち時間（長い順）\n${body}\n※個人運営の非公式サイト`,
         xText: items.length
-          ? `USJ待ち時間ナビ｜${time}（非公式）\n待ち時間が長い${items.length}施設\n${short}\n全施設の待ち時間はこちら👇`
-          : `USJ待ち時間ナビ｜${time}（非公式）\n現在表示できる待ち時間はありません。最新の状況はこちら👇`,
+          ? `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n待ち時間が長い${items.length}施設\n${short}\n全施設の待ち時間はこちら👇\n#USJ #ユニバ`
+          : `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n現在表示できる待ち時間はありません。最新の状況はこちら👇\n#USJ #ユニバ`,
         url: `${location.origin}/`,
       };
     }
     function ridePayload(id, label, waitText) {
       const time = shareTimeLabel();
+      const topic = shareTopicLabel();
       const currentWait = /^\d+分$/.test(waitText) ? Number.parseInt(waitText, 10) : null;
       const fiveMinute = recentTrend(id, currentWait);
       const twentyMinutes = twentyMinuteTrend(id, currentWait, todayData?.snapshots || []);
@@ -2979,7 +2987,7 @@
       return {
         title: label,
         text: `【USJ待ち時間ナビ】${label}の待ち時間：${waitText}（${time}時点・非公式）\n${comparisons}`,
-        xText: `USJ待ち時間ナビ｜${time}（非公式）\n${label}：${xWait}\n${xComparisons ? `${xComparisons}\n` : ''}他の施設も確認👇`,
+        xText: `USJ待ち時間ナビ｜${topic}（${time}・非公式）\n${label}：${xWait}\n${xComparisons ? `${xComparisons}\n` : ''}他の施設も確認👇\n#USJ #ユニバ`,
         url: `${location.origin}/r/${encodeURIComponent(id)}`,
       };
     }
@@ -2995,7 +3003,7 @@
       return {
         title: 'USJ混雑カレンダー',
         text: `【USJ待ち時間ナビ】${day.replaceAll('-', '/')}の待ち時間実績\n${lines.join('\n')}\n※個人運営の非公式サイト`,
-        xText: `USJ待ち時間ナビ｜${day.replaceAll('-', '/')}の混雑実績（非公式）\n平均${archiveAverage.textContent}／混雑ピーク${archivePeak.textContent}\n来園前に過去の待ち時間を確認👇`,
+        xText: `USJ待ち時間ナビ｜${day.replaceAll('-', '/')}の混雑実績（非公式）\n平均${archiveAverage.textContent}／混雑ピーク${archivePeak.textContent}\n来園前に過去の待ち時間を確認👇\n#USJ #ユニバ`,
         url: `${location.origin}/plan?date=${encodeURIComponent(day)}`,
       };
     }
