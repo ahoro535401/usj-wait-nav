@@ -118,58 +118,42 @@ function xDateLabel(day) {
   return `${month}/${date}（${weekday}）`;
 }
 
-function xTwentyMinuteMovement(rides, today, fetchedAt) {
-  const captured = Date.parse(fetchedAt) / 1000;
-  if (!Number.isFinite(captured) || today?.day !== jstDay(captured) ||
-      !Array.isArray(today.snapshots)) return null;
-  const target = captured - 20 * 60;
-  const previous = today.snapshots.filter(snapshot => Number.isFinite(snapshot.captured_at) &&
-    Math.abs(snapshot.captured_at - target) <= 11 * 60)
-    .sort((a, b) => Math.abs(a.captured_at - target) - Math.abs(b.captured_at - target) ||
-      b.captured_at - a.captured_at)[0];
-  if (!previous) return null;
-  const counts = { up: 0, flat: 0, down: 0 };
-  const byId = new Map();
-  for (const ride of rides) {
-    const sample = previous.rides?.[String(ride.id)];
-    if (!ride.is_open || ride.data_unavailable || !isRecent(ride, captured) ||
-        !Number.isInteger(ride.wait_time) || ride.wait_time < 0 ||
-        !sample?.is_open || sample.estimated || !Number.isInteger(sample.wait_minutes) ||
-        sample.wait_minutes < 0 || sample.source !== ride.source) continue;
-    const difference = ride.wait_time - sample.wait_minutes;
-    const direction = Math.abs(difference) < 5 ? 'flat' : difference > 0 ? 'up' : 'down';
-    counts[direction]++;
-    byId.set(ride.id, direction === 'flat' ? '→ほぼ同じ'
-      : `${direction === 'up' ? '↑' : '↓'}${Math.abs(difference)}分`);
-  }
-  return counts.up + counts.flat + counts.down ? { counts, byId } : null;
-}
-
-function xWaitPost(rides, names, fetchedAt, today) {
+function xWaitPost(rides, names, fetchedAt) {
   const captured = Date.parse(fetchedAt) / 1000;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
     Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5) return null;
   const date = xDateLabel(jstDay(captured));
-  const movement = xTwentyMinuteMovement(rides, today, fetchedAt);
-  const lines = ranked.slice(0, 5).map((ride, index) => {
-    const name = (names.get(ride.id) || ride.name || '').trim();
-    const change = movement?.byId.get(ride.id);
-    return `${index + 1}. ${name}：${ride.wait_time}分${change ? `｜約20分前比 ${change}` : ''}`;
-  });
-  const movementLine = movement
-    ? `■約20分前からの動き（比較できた${movement.counts.up + movement.counts.flat + movement.counts.down}施設）\n` +
-      `待ち時間が増加${movement.counts.up}施設／ほぼ同じ${movement.counts.flat}施設／減少${movement.counts.down}施設\n\n`
-    : '';
-  const post = `【USJ待ち時間｜${date} ${hhmm(captured)}時点】非公式\n\n` +
-    `現在の待ち時間が長いアトラクション 上位5施設\n${lines.join('\n')}\n\n` +
-    movementLine +
-    `※通常のスタンバイ列の目安です。休止・未取得の施設は除外しています。\n` +
-    (movement ? `約20分前比は過去の変化であり、今後の予測ではありません。\n` : '') +
-    `待ち時間は変わるため、来場中はUSJ公式アプリでも最新情報をご確認ください。\n\n` +
-    `全施設の待ち時間と地図はこちら↓\n${X_WAIT_URL}\n\n#USJ #ユニバ`;
-  return xWeightedLength(post) <= 24000 ? post : null;
+  const header = `【USJ待ち時間｜${date} ${hhmm(captured)}】非公式\n\n通常待ち列が長い上位5施設`;
+  const footer = `\n\n全施設・更新時刻はこちら↓\n${X_WAIT_URL}\n#USJ #ユニバ`;
+  const aliases = new Map([
+    [12066, 'ミニオン・ライド'], [13005, 'コナン4-D'],
+    [12073, 'ヒッポグリフ'], [12072, 'ミニオン・アイス'],
+    [12065, 'フォービドゥン・ジャーニー'], [7065, 'キティ・カップケーキ'],
+    [7063, 'キティ・リボン'], [7077, 'ハリドリ'],
+    [12070, 'ハリドリ・バックドロップ'], [14918, 'ミニオン・ミッション'],
+    [12068, 'ジョーズ通常'], [17894, 'ジョーズ夜'],
+    [12067, 'ジュラシック通常'], [12061, 'マリオカート'],
+    [14402, 'ドンキーコング'], [12197, 'オリバンダー'],
+    [12091, 'おさるのジョージ'], [12324, '貞子の呪い'],
+    [12083, 'セサミ4-D'], [12084, 'シュレック4-D'],
+    [7214, 'シング'], [14919, 'スヌーピー・フライング'],
+    [12082, 'スペース・ファンタジー'], [7092, 'フライング・ダイナソー'],
+    [12075, 'フライング・スヌーピー'], [12071, 'ヨッシー'],
+    [13925, 'チェンソーマン4-D'], [17893, 'ファクトリー・オブ・フィアー'],
+    [15322, 'ジュラシック夜'],
+  ]);
+  for (const maxName of [Infinity, 13, 10, 8]) {
+    const lines = ranked.slice(0, 5).map((ride, index) => {
+      let name = (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
+      if ([...name].length > maxName) name = [...name].slice(0, maxName).join('') + '…';
+      return `${index + 1}. ${name} ${ride.wait_time}分`;
+    });
+    const post = `${header}\n${lines.join('\n')}${footer}`;
+    if (xWeightedLength(post) <= 280) return post;
+  }
+  return null;
 }
 
 async function maybePostX(env, seconds) {
@@ -186,11 +170,7 @@ async function maybePostX(env, seconds) {
   if (!Array.isArray(rides)) return;
   const response = await assetFetch(new Request('https://uniba-waittimes.com/index.html'), env);
   if (!response.ok) throw new Error('Japanese ride names unavailable');
-  let today = null;
-  try { today = await todayMatrix(env.DB, seconds); } catch (error) {
-    console.warn('X comparison data unavailable', error);
-  }
-  const post = xWaitPost(rides, rideJapaneseNames(await response.text()), fetchedAt, today);
+  const post = xWaitPost(rides, rideJapaneseNames(await response.text()), fetchedAt);
   if (!post) return;
 
   await sendBufferPost(env, seconds, slot, post, fetchedAt);
@@ -223,24 +203,18 @@ async function sendBufferPost(env, seconds, slot, post, capturedAt) {
   }
 }
 
-function xDailyPost(day, data, opening, closing) {
+function xDailyPost(day, data) {
   if (!Number.isFinite(data.average_wait)) return null;
-  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait) && hour.at < closing && hour.at + 3600 > opening)
-    .sort((a, b) => a.at - b.at);
-  const peak = [...hours].sort((a, b) => b.average_wait - a.average_wait)[0];
+  const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const date = xDateLabel(day);
-  const hourly = hours.map(hour =>
-    `${hhmm(hour.at).slice(0, 2)}時台：平均${Math.round(hour.average_wait)}分`).join('\n');
   const post = `【USJ待ち時間ナビ｜${date}の混雑実績】非公式\n\n` +
     `この日の平均待ち時間：${Math.round(data.average_wait)}分\n` +
     `最も混雑した時間帯：${hhmm(peak.at).slice(0, 2)}時台（平均${Math.round(peak.average_wait)}分）\n\n` +
-    `■時間帯別の平均待ち時間\n${hourly}\n\n` +
-    `※20分ごとの保存記録から集計。休止・欠測を除いた通常待ち列の目安です。\n` +
-    `時間帯別は記録が2件以上、対象施設が5施設以上ある時間のみ掲載しています。\n\n` +
-    `この日の詳しい履歴はこちら↓\n${X_DAILY_URL}\n\n#USJ #ユニバ`;
-  return xWeightedLength(post) <= 24000 ? post : null;
+    `※20分ごとの記録を集計。休止・欠測は除外。\n\n` +
+    `この日の履歴はこちら↓\n${X_DAILY_URL}\n\n#USJ #ユニバ`;
+  return xWeightedLength(post) <= 250 ? post : null;
 }
 
 async function maybePostDailyX(env, seconds) {
@@ -259,7 +233,7 @@ async function maybePostDailyX(env, seconds) {
   const data = await archiveDay(env.DB, day);
   if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
       data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
-  const post = xDailyPost(day, data, opening, closing);
+  const post = xDailyPost(day, data);
   if (post) await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post, new Date(data.last_at * 1000).toISOString());
 }
 
@@ -280,7 +254,7 @@ async function maybePostPreviousDayTestX(env, seconds) {
   const data = await archiveDay(env.DB, day);
   if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
       data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
-  const post = xDailyPost(day, data, opening, closing);
+  const post = xDailyPost(day, data);
   if (post) await sendBufferPost(env, seconds, X_PREVIOUS_DAY_TEST_TIME, post,
     new Date(data.last_at * 1000).toISOString());
 }
