@@ -420,6 +420,10 @@
       const x=document.createElement('a');x.className='share-x';x.textContent='Xで共有';
       x.href=`https://x.com/intent/post?text=${encodeURIComponent(xSummary)}&url=${encodeURIComponent(url)}`;
       for(const link of [line,x]){link.target='_blank';link.rel='noopener noreferrer';}
+      line.addEventListener('click',()=>window.trackSiteEvent?.('share_click',
+        {share_channel:'line',content_type:'map_ride',ride_id:ride.id}));
+      x.addEventListener('click',()=>window.trackSiteEvent?.('share_click',
+        {share_channel:'x',content_type:'map_ride',ride_id:ride.id}));
       links.append(line,x);return links;
     }
     function representative(spot){
@@ -458,6 +462,8 @@
       anchor.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${place.lat},${place.lng}`)}&travelmode=walking`;
       anchor.target='_blank';anchor.rel='noopener noreferrer';
       anchor.textContent='徒歩ルートをGoogle マップで開く ↗';
+      anchor.addEventListener('click',()=>window.trackSiteEvent?.('walking_route_open',
+        {place_type:place.type==='RESTAURANT'?'restaurant':'ride'}));
       paragraph.append(anchor);selectionContent.append(paragraph);
     }
     function showSpot(spot){
@@ -521,7 +527,10 @@
         button.append(label);
         button.setAttribute('aria-label',`${spot.name}、${/^\d+分$/.test(value)?`${value}待ち`:value}${trend?`。${trend.detail}`:''}。詳細を表示`);
         button.setAttribute('aria-pressed',String(activeSpot===spot));
-        button.addEventListener('click',()=>{showSpot(spot);renderPins();});
+        button.addEventListener('click',()=>{
+          window.trackSiteEvent?.('map_place_open',{place_type:'ride',ride_id:spotState(spot).ride?.id||spot.ids[0]});
+          showSpot(spot);renderPins();
+        });
         pinLayer.append(button);
       }
     }
@@ -548,8 +557,12 @@
       button.title=spot?`${spot.name}：${display}${trend?`。${trend.detail}`:''}`:`飲食店：${place.name}`;
       button.setAttribute('aria-label',`${button.title}。詳細を表示`);
       button.addEventListener('click',()=>{
-        if(spot) showSpot(spot);
+        if(spot){
+          window.trackSiteEvent?.('map_place_open',{place_type:'ride',ride_id:spotState(spot).ride?.id||spot.ids[0]});
+          showSpot(spot);
+        }
         else{
+          window.trackSiteEvent?.('map_place_open',{place_type:'restaurant'});
           activeSpot=null;selection.hidden=false;selectionContent.replaceChildren();
           const title=document.createElement('h2');title.textContent=place.name;
           const note=document.createElement('p');note.textContent='飲食店の位置は目安です。営業時間・待ち時間は確認できません。';
@@ -644,9 +657,14 @@
         renderPins();renderGeoRides();if(activeSpot)showSpot(activeSpot);
       }catch(error){console.warn('待ち時間を取得できません',error);status.textContent='待ち時間を取得できません。時間をおいて再確認してください。';geoStatus.textContent=status.textContent;}
     }
-    document.querySelector('#geo-view-button').addEventListener('click',()=>switchView('geo'));
-    document.querySelector('#illustration-view-button').addEventListener('click',()=>switchView('illustration'));
+    document.querySelector('#geo-view-button').addEventListener('click',()=>{
+      window.trackSiteEvent?.('view_mode_change',{view_mode:'map_geo'});switchView('geo');
+    });
+    document.querySelector('#illustration-view-button').addEventListener('click',()=>{
+      window.trackSiteEvent?.('view_mode_change',{view_mode:'map_illustration'});switchView('illustration');
+    });
     document.querySelector('#restaurant-toggle').addEventListener('change',()=>{
+      window.trackSiteEvent?.('filter_apply',{filter_type:'restaurants'});
       if(document.querySelector('#restaurant-toggle').checked&&geoMap?.getZoom()<16.7)
         geoMap.easeTo({zoom:17,duration:300});
       else renderRestaurants();
@@ -655,7 +673,11 @@
     document.querySelector('#geo-zoom-in').addEventListener('click',()=>geoMap?.zoomIn());
     document.querySelector('#geo-zoom-out').addEventListener('click',()=>geoMap?.zoomOut());
     document.querySelector('#my-location').addEventListener('click',()=>{
-      if(!navigator.geolocation){locationStatus.textContent='この端末では現在地を取得できません。';return;}
+      window.trackSiteEvent?.('map_location_request');
+      if(!navigator.geolocation){
+        window.trackSiteEvent?.('map_location_failure');
+        locationStatus.textContent='この端末では現在地を取得できません。';return;
+      }
       locationStatus.textContent='現在地を取得中…';
       navigator.geolocation.getCurrentPosition(position=>{
         if(!geoMap)return;
@@ -665,8 +687,12 @@
         dot.setAttribute('aria-label','現在地');
         userMarker=new maplibregl.Marker({element:dot}).setLngLat(coordinate).addTo(geoMap);
         geoMap.flyTo({center:coordinate,zoom:Math.max(geoMap.getZoom(),16.5)});
+        window.trackSiteEvent?.('map_location_success');
         locationStatus.textContent=`現在地を表示中（精度約${Math.round(position.coords.accuracy)}m）`;
-      },error=>{locationStatus.textContent=error.code===1?'位置情報の利用が許可されていません。':'現在地を取得できません。';},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+      },error=>{
+        window.trackSiteEvent?.('map_location_failure');
+        locationStatus.textContent=error.code===1?'位置情報の利用が許可されていません。':'現在地を取得できません。';
+      },{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
     });
     document.querySelector('#zoom-in').addEventListener('click',()=>{const r=viewport.getBoundingClientRect();zoomTo(scale*1.5,r.left+r.width/2,r.top+r.height/2);});
     document.querySelector('#zoom-out').addEventListener('click',()=>{const r=viewport.getBoundingClientRect();zoomTo(scale/1.5,r.left+r.width/2,r.top+r.height/2);});

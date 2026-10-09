@@ -1048,8 +1048,10 @@
 
     function toggleFavorite(id) {
       const numericId = Number(id);
-      if (favorites.has(numericId)) favorites.delete(numericId);
+      const removing = favorites.has(numericId);
+      if (removing) favorites.delete(numericId);
       else favorites.add(numericId);
+      window.trackSiteEvent?.(removing ? 'favorite_remove' : 'favorite_add', {ride_id: numericId});
       try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch (_) {}
       if (todayData) renderToday(todayData);
       if (archiveData) renderArchive(archiveData);
@@ -2432,7 +2434,10 @@
           }
           if (weather) cell.title += `・${weather.short}`;
           cell.setAttribute('aria-label', `${cell.title}。タップでこの日の詳細を表示`);
-          cell.addEventListener('click', () => selectArchiveDay(key));
+          cell.addEventListener('click', () => {
+            window.trackSiteEvent?.('archive_past_select');
+            selectArchiveDay(key);
+          });
         } else if (plan) {
           cell.type = 'button';
           cell.classList.add('is-future');
@@ -2444,6 +2449,7 @@
             (closureCount ? `・休止予定${closureCount}件` : '');
           cell.setAttribute('aria-label', `${cell.title}。タップで詳細を表示`);
           cell.addEventListener('click', () => {
+            window.trackSiteEvent?.('archive_future_select');
             showSelectedDay(key);
             renderArchiveCalendar();
             history.replaceState(null, '', '/plan');
@@ -2653,6 +2659,7 @@
     setArchiveView(savedArchiveView);
     document.querySelectorAll('.archive-view-switch button').forEach(button => {
       button.addEventListener('click', () => {
+        window.trackSiteEvent?.('view_mode_change', {view_mode: `archive_${button.dataset.archiveView}`});
         setArchiveView(button.dataset.archiveView);
         try { localStorage.setItem(ARCHIVE_VIEW_KEY, button.dataset.archiveView); } catch (_) { /* 保存できなくても表示は切り替わる */ }
       });
@@ -2910,7 +2917,7 @@
         showShareToast('コピーできませんでした。「LINEで送る」「Xで送る」をお使いください。');
       }
     }
-    function shareBar(getPayload, label = '送る') {
+    function shareBar(getPayload, label = '送る', contentType = 'top_waits', rideId = null) {
       const bar = document.createElement('div');
       bar.className = 'share-bar';
       const line = document.createElement('a');
@@ -2928,13 +2935,16 @@
         line.href = lineShareUrl(payload);
         x.href = xShareUrl(payload);
       };
-      line.addEventListener('click', updateLinks);
-      x.addEventListener('click', updateLinks);
+      const recordShare = channel => window.trackSiteEvent?.('share_click', {
+        share_channel: channel, content_type: contentType, ride_id: rideId
+      });
+      line.addEventListener('click', () => { updateLinks(); recordShare('line'); });
+      x.addEventListener('click', () => { updateLinks(); recordShare('x'); });
       const more = document.createElement('button');
       more.type = 'button';
       more.className = 'share-more';
       more.textContent = 'その他';
-      more.addEventListener('click', () => shareOrCopy(getPayload()));
+      more.addEventListener('click', () => { recordShare('other'); shareOrCopy(getPayload()); });
       updateLinks();
       bar.updateLinks = updateLinks;
       bar.append(line, x, more);
@@ -3014,7 +3024,7 @@
     const topShareBar = shareBar(topWaitsPayload);
     topShareBar.hidden = true;
     document.querySelector('.top-waits')?.append(topShareBar);
-    const archiveShareBar = shareBar(archiveDayPayload, 'この日を送る');
+    const archiveShareBar = shareBar(archiveDayPayload, 'この日を送る', 'archive_day');
     archiveShareBar.hidden = true;
     document.querySelector('.archive-summary')?.after(archiveShareBar);
 
@@ -3142,6 +3152,9 @@
         details.dataset.rideId = String(ride.id);
         details.open = openCardIds.has(String(ride.id));
         const summary = document.createElement('summary');
+        summary.addEventListener('click', () => {
+          if (!details.open) window.trackSiteEvent?.('ride_detail_open', {ride_id: ride.id});
+        });
         const name = document.createElement('span');
         name.className = 'ride-card-name';
         name.textContent = label;
@@ -3203,7 +3216,7 @@
           record.append(timeLabel, value);
           history.append(record);
         } else history.append(document.createTextNode('この時間帯の記録はありません。'));
-        history.append(shareBar(() => ridePayload(ride.id, label, wait.textContent)));
+        history.append(shareBar(() => ridePayload(ride.id, label, wait.textContent), '送る', 'ride', ride.id));
         details.append(summary, history);
         card.append(favoriteButton(ride.id, label), details);
         mobileCards.append(card);
@@ -3456,11 +3469,17 @@
 
     button.addEventListener('click', refresh);
     for (const control of [heightFilter, childSwitchFilter, favoritesFilter, ...tagFilterInputs]) control.addEventListener('change', () => {
+      const filterType = control === heightFilter ? 'height' : control === childSwitchFilter ? 'child_switch'
+        : control === favoritesFilter ? 'favorites' : 'tag';
+      window.trackSiteEvent?.('filter_apply', {filter_type: filterType});
       renderListState();
       if (todayData) renderToday(todayData);
       if (archiveData) renderArchive(archiveData);
     });
-    rideSort.addEventListener('change', () => { renderListState(); if (todayData) renderToday(todayData); });
+    rideSort.addEventListener('change', () => {
+      window.trackSiteEvent?.('filter_apply', {filter_type: 'sort'});
+      renderListState(); if (todayData) renderToday(todayData);
+    });
     const TODAY_VIEW_KEY = 'usj-wait-nav:mobile-view';
     try {
       const savedView = localStorage.getItem(TODAY_VIEW_KEY);
@@ -3468,6 +3487,7 @@
     } catch (_) { /* 保存できない環境では画面幅に応じた既定値を使う */ }
     for (const control of todayViewButtons) control.addEventListener('click', () => {
       todayView = control.dataset.todayView;
+      window.trackSiteEvent?.('view_mode_change', {view_mode: todayView === 'table' ? 'today_heatmap' : 'today_cards'});
       try { localStorage.setItem(TODAY_VIEW_KEY, todayView); } catch (_) { /* 保存できなくても表示は切り替わる */ }
       syncTodayView();
       linkedRideHandled = false;
@@ -3530,6 +3550,7 @@
     }
     showViewToggle?.addEventListener('click', () => {
       showView = showView === 'list' ? 'timeline' : 'list';
+      window.trackSiteEvent?.('view_mode_change', {view_mode: `show_${showView}`});
       try { localStorage.setItem(SHOW_VIEW_KEY, showView); } catch (_) { /* 何もしない */ }
       applyShowView();
     });

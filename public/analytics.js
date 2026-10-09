@@ -5,6 +5,21 @@
   const storageKey = 'usj-wait-nav:analytics-consent';
   const english = document.documentElement.lang === 'en';
   let started = false;
+  // Only named product actions and non-personal, bounded values may leave the browser.
+  const events = new Set([
+    'favorite_add', 'favorite_remove', 'ride_detail_open', 'view_mode_change',
+    'filter_apply', 'archive_past_select', 'archive_future_select',
+    'map_place_open', 'map_location_request', 'map_location_success',
+    'map_location_failure', 'walking_route_open', 'share_click'
+  ]);
+  const values = {
+    view_mode: new Set(['today_cards', 'today_heatmap', 'archive_chart', 'archive_table',
+      'show_list', 'show_timeline', 'map_geo', 'map_illustration']),
+    filter_type: new Set(['height', 'child_switch', 'favorites', 'tag', 'sort', 'restaurants']),
+    place_type: new Set(['ride', 'restaurant']),
+    share_channel: new Set(['line', 'x', 'other']),
+    content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride'])
+  };
 
   function readChoice() {
     try { return localStorage.getItem(storageKey); } catch (_) { return null; }
@@ -33,6 +48,17 @@
     script.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(measurementId);
     document.head.appendChild(script);
   }
+
+  window.trackSiteEvent = (name, parameters = {}) => {
+    if (!started || readChoice() !== 'granted' || !events.has(name)) return;
+    const safe = {};
+    if (/^[1-9]\d{0,7}$/.test(String(parameters.ride_id ?? '')))
+      safe.ride_id = String(parameters.ride_id);
+    for (const [key, choices] of Object.entries(values)) {
+      if (choices.has(parameters[key])) safe[key] = parameters[key];
+    }
+    window.gtag('event', name, safe);
+  };
 
   function removeBanner() {
     document.getElementById('analytics-consent')?.remove();
