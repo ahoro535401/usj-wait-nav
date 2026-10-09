@@ -1,6 +1,6 @@
 {
   "name": "USJ待ち時間ナビ",
-  "short_name": "待ち時間ナビ",
+  "short_name": "USJ待ち時間ナビ",
   "description": "USJの待ち時間と過去の混雑実績を確認できる個人運営の非公式サイト",
   "id": "/",
   "start_url": "/",
