@@ -707,6 +707,11 @@
   </div>
   <a id="park-alert" class="park-alert" href="#weather-title" data-only="now" hidden></a>
   <main>
+  <div class="bar" data-only="now">
+    <button id="refresh" type="button">待ち時間を更新</button>
+    <span id="status" role="status"></span>
+    <span id="error" role="alert"></span>
+  </div>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間</h2>
     <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。カードでは5分・20分・1時間前との変化を見られます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
@@ -776,11 +781,6 @@
     <div id="public-summary"><!--PUBLIC_SUMMARY--></div>
     <p class="muted">色は待ち時間の長さを示します。<a href="https://www.usj.co.jp/web/ja/jp/25th-anniversary-discover-u/power-up-attractions#hash-id-gdspowerupattractionsarticledetail009discoveruver-gdsarticledetailleft" target="_blank" rel="noopener noreferrer">ジョーズ ～レッド・アラート～</a>は<span id="jaws-night-hours">開催時刻を確認中</span>。<a href="https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/jurassic-park-the-ride-in-the-dark" target="_blank" rel="noopener noreferrer">ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～</a>は<span id="jurassic-night-hours">開催時刻を確認中</span>。開始・運行状況は公式でご確認ください。</p>
   </section>
-  <div class="bar" data-only="now">
-    <button id="refresh" type="button">表示を更新</button>
-    <span id="status" role="status"></span>
-    <span id="error" role="alert"></span>
-  </div>
   <section class="archive-panel" data-only="plan" aria-labelledby="archive-title">
     <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
     <p class="muted">過去の日付をタップするとその日の混雑実績と公表営業時間、今日以降の日付をタップすると開園・閉園時刻と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>

@@ -76,6 +76,8 @@
     .geo-options input { width:20px; height:20px; }
     .geo-options button { min-height:44px; border:1px solid #a8bdd3; border-radius:8px; background:#f5f9fd; color:#164b86; cursor:pointer; font-weight:700; }
     .geo-options button:hover,.geo-options button:focus-visible { outline:2px solid #145aa5; outline-offset:1px; }
+    .waits-refresh { min-width:9rem; }
+    .geo-options button:disabled,.toolbar button:disabled { opacity:.65; cursor:wait; }
     .geo-options .geo-zoom { min-width:44px; padding:7px; font-size:1.25rem; line-height:1; }
     #geo-reset { padding:7px 10px; }
     #location-status:not(:empty) { flex-basis:100%; font-size:.78rem; }
@@ -207,7 +209,7 @@
     <section class="map-shell" aria-label="アトラクションの地図">
       <div class="view-switch" role="group" aria-label="地図の種類"><button type="button" id="geo-view-button" aria-pressed="true">地図と現在地</button><button type="button" id="illustration-view-button" aria-pressed="false">イラスト地図</button></div>
       <div id="geo-view">
-        <div class="geo-options" role="group" aria-label="地図の操作"><button type="button" id="my-location" aria-label="GPSで現在地を表示" aria-describedby="location-status">📍 GPS 現在地</button><label><input id="restaurant-toggle" type="checkbox">飲食店も表示</label><button type="button" id="geo-reset">全体・南上</button><button type="button" id="geo-zoom-in" class="geo-zoom" aria-label="地図を拡大">＋</button><button type="button" id="geo-zoom-out" class="geo-zoom" aria-label="地図を縮小">－</button><span id="location-status" role="status"></span></div>
+        <div class="geo-options" role="group" aria-label="地図の操作"><button type="button" id="my-location" aria-label="GPSで現在地を表示" aria-describedby="location-status">📍 GPS 現在地</button><button type="button" class="waits-refresh">↻ 待ち時間を更新</button><label><input id="restaurant-toggle" type="checkbox">飲食店も表示</label><button type="button" id="geo-reset">全体・南上</button><button type="button" id="geo-zoom-in" class="geo-zoom" aria-label="地図を拡大">＋</button><button type="button" id="geo-zoom-out" class="geo-zoom" aria-label="地図を縮小">－</button><span id="location-status" role="status"></span></div>
         <p id="geo-status" class="notes" role="status">待ち時間を読み込み中…</p>
         <p class="map-attribution">全体表示では主な施設を表示します。拡大すると全23施設と飲食店の位置を確認できます。</p>
         <div class="geo-map-wrap"><div id="geo-map" aria-label="USJ付近の地図。アトラクションの待ち時間をピンで表示"></div></div>
@@ -215,7 +217,7 @@
         <p class="map-attribution">地図：<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> / <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>。施設位置：<a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a>。施設の位置は目安で、入口や通行可能な経路を示すものではありません。</p>
       </div>
       <div id="illustration-view" hidden><div class="toolbar" role="group" aria-label="イラスト地図の操作">
-        <button type="button" id="zoom-in" aria-label="地図を拡大">＋ 拡大</button><button type="button" id="zoom-out" aria-label="地図を縮小">－ 縮小</button><button type="button" id="zoom-reset">全体を見る</button><span id="zoom-level">100%</span><span id="map-status" role="status">待ち時間を読み込み中…</span>
+        <button type="button" id="zoom-in" aria-label="地図を拡大">＋ 拡大</button><button type="button" id="zoom-out" aria-label="地図を縮小">－ 縮小</button><button type="button" id="zoom-reset">全体を見る</button><button type="button" class="waits-refresh">↻ 待ち時間を更新</button><span id="zoom-level">100%</span><span id="map-status" role="status">待ち時間を読み込み中…</span>
       </div>
       <div id="map-viewport" class="map-viewport" data-zoom="overview" aria-label="USJの地図。ドラッグで移動、ピンチまたはボタンで拡大できます">
         <div id="map-stage" class="map-stage"><img src="/park-map.jpg" alt="運営者制作のUSJエリア地図" draggable="false"><div id="pin-layer" class="pin-layer"></div><div id="area-pins" class="area-pins"></div></div>
@@ -344,6 +346,8 @@
     const selectionContent=document.querySelector('#selection-content');
     const status=document.querySelector('#map-status');
     const geoStatus=document.querySelector('#geo-status');
+    const waitsRefreshButtons=[...document.querySelectorAll('.waits-refresh')];
+    let waitsLoading=false;
     const locationStatus=document.querySelector('#location-status');
     const spotGeoKeys=[
       'hollywood_dream_the_ride','space_fantasy_the_ride','chainsawman_the_chaos_4D_2026',
@@ -681,6 +685,9 @@
       entrance.setAttribute('aria-hidden','true');areaLayer.append(entrance);
     }
     async function loadWaits(){
+      if(waitsLoading)return;
+      waitsLoading=true;
+      for(const button of waitsRefreshButtons){button.disabled=true;button.textContent='更新中…';}
       try{
         const [response,todayResponse]=await Promise.all([
           fetch('/api/waits',{cache:'no-store'}),
@@ -696,11 +703,16 @@
         fetchedAt=data.fetched_at;
         previousWaits=data.previous||null;
         const time=fetchedAt?new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'}).format(new Date(fetchedAt)):'時刻不明';
-        status.textContent=`待ち時間 ${time}時点 · 5分ごとに画面更新`;
+        status.textContent=`待ち時間 ${time}時点 · 5分ごとに画面更新${data.refresh_error?' · 最新の取得に失敗したため前回の値を表示中':''}`;
         geoStatus.textContent=status.textContent;
         renderPins();renderGeoRides();if(activeSpot)showSpot(activeSpot);
-      }catch(error){console.warn('待ち時間を取得できません',error);status.textContent='待ち時間を取得できません。時間をおいて再確認してください。';geoStatus.textContent=status.textContent;}
+      }catch(error){console.warn('待ち時間を取得できません',error);status.textContent=rides.size?'最新データを取得できません。直前の表示が残っています。':'待ち時間を取得できません。時間をおいて再確認してください。';geoStatus.textContent=status.textContent;}
+      finally{
+        waitsLoading=false;
+        for(const button of waitsRefreshButtons){button.disabled=false;button.textContent='↻ 待ち時間を更新';}
+      }
     }
+    for(const button of waitsRefreshButtons)button.addEventListener('click',loadWaits);
     document.querySelector('#geo-view-button').addEventListener('click',()=>{
       window.trackSiteEvent?.('view_mode_change',{view_mode:'map_geo'});switchView('geo');
     });
