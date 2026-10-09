@@ -73,7 +73,7 @@ Cloudflareアカウントで実行する場合は `wrangler.jsonc` のD1デー�
 
 ## 運営
 
-広告は現在未設定です。アクセス解析にはCloudflare Web AnalyticsとGA4を利用し、GA4のタグは閲覧者が許可した場合にだけ読み込みます。GA4の測定IDは `G-9DC2RDYPXX` です。お問い合わせは [GitHub Issues](https://github.com/ahoro535401/usj-wait-nav/issues) へ。プライバシーポリシーは公開サイトの `/privacy` を参照してください。
+広告は現在未設定です。アクセス解析にはCloudflare Web AnalyticsとGA4を利用し、GA4のタグは閲覧者が許可した場合にだけ読み込みます。GA4の測定IDは `G-9DC2RDYPXX` です。サイトへのお問い合わせは [運営X（@uniba_waitnavi）のDM](https://twitter.com/messages/compose?recipient_id=2108525655323459586) へ。プライバシーポリシーは公開サイトの `/privacy` を参照してください。
 
 GA4の指標定義、サイト固有イベント、解釈上の注意は [ANALYTICS.md](ANALYTICS.md) に記載しています。
 
