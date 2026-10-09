@@ -27,6 +27,8 @@ const X_POST_TIMES = ['09:30', '12:00', '15:00', '17:00', '19:00'];
 const X_EVENING_FIRST_DAY = '2026-10-09';
 const X_EVENING_LAST_DAY = '2026-11-03';
 const X_DAILY_POST_TIME = '22:30';
+const X_PREVIOUS_DAY_TEST_DATE = '2026-10-10';
+const X_PREVIOUS_DAY_TEST_TIME = '05:30';
 const X_POST_WINDOW_SECONDS = 15 * 60;
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
@@ -225,6 +227,28 @@ async function maybePostDailyX(env, seconds) {
       data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
   const post = xDailyPost(day, data);
   if (post) await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post, new Date(data.last_at * 1000).toISOString());
+}
+
+// 10/9の混雑実績を翌朝に1回だけ配信し、Bufferの認証復旧も確認する。
+async function maybePostPreviousDayTestX(env, seconds) {
+  if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
+      jstDay(seconds) !== X_PREVIOUS_DAY_TEST_DATE) return;
+  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
+  const start = 5 * 3600 + 30 * 60;
+  if (now < start || now >= start + X_POST_WINDOW_SECONDS) return;
+
+  const day = '2026-10-09';
+  const opening = Date.parse(`${day}T08:00:00+09:00`) / 1000;
+  const closing = Date.parse(`${day}T22:00:00+09:00`) / 1000;
+  const coverage = await env.DB.prepare('SELECT COUNT(*) AS count FROM snapshots WHERE captured_at>=? AND captured_at<?')
+    .bind(opening, closing).first();
+  if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
+  const data = await archiveDay(env.DB, day);
+  if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
+      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
+  const post = xDailyPost(day, data)?.replace('今日の履歴はこちら', '10/9の履歴はこちら');
+  if (post) await sendBufferPost(env, seconds, X_PREVIOUS_DAY_TEST_TIME, post,
+    new Date(data.last_at * 1000).toISOString());
 }
 function parsePollAnalytics(html) {
   const marker = 'var ANALYTICS_LOAD_DATA_ = ';
@@ -785,6 +809,7 @@ async function scheduled(event, env) {
   }
   // 閉園後の実績投稿は収集時間外でも実行する。営業時間と記録量が不足すれば見送る。
   await maybePostDailyX(env, seconds);
+  await maybePostPreviousDayTestX(env, seconds);
   if (!(await inCollectionWindow(env.DB, seconds))) {
     // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
     const saved = await readMeta(env.DB, 'shows_payload');
