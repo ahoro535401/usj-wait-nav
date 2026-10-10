@@ -2924,7 +2924,7 @@
       renderArchivePublishedHours(data.day);
       if (passExclusion.days.has(data.day)) archiveStatus.textContent += '（年パス スタンダード除外日）';
       renderArchiveTicketPrice(data.day);
-      const weather = weatherInfo(data.weather);
+      const weather = weatherInfo(data.weather || archiveCalendarDays.find(item => item.day === data.day)?.weather);
       document.querySelector('#archive-weather').textContent = weather
         ? `天気（気象庁アメダス大阪の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
         : '天気：この日の記録はありません。';
