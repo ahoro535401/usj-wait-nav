@@ -7,12 +7,13 @@
     "directory": "./public",
     "binding": "ASSETS",
     "html_handling": "none",
-    "run_worker_first": ["/", "/en", "/en/*", "/plan", "/map", "/map-locations.json", "/privacy", "/sitemap.xml", "/api/*", "/x-card/*"]
+    "run_worker_first": ["/", "/en", "/en/*", "/liff", "/liff/*", "/plan", "/map", "/map-locations.json", "/privacy", "/sitemap.xml", "/api/*", "/x-card/*"]
   },
   "triggers": {
     "crons": ["*/5 * * * *", "2,22,42 * * * *"]
   },
   "vars": {
+    "LIFF_APP_ID": "2011965864-hCyp1wQP",
     "BUFFER_X_CHANNEL_ID": "6ac8e0a16a5c39ccb660d868",
     "BUFFER_EN_X_CHANNEL_ID": "6aca1c216a5c39ccb67025f6",
     "X_AUTOPOST_ENABLED": "true",

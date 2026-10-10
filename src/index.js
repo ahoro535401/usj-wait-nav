@@ -1866,6 +1866,27 @@ function changedBodyResponse(body, original) {
   return new Response(body, { status: original.status, statusText: original.statusText, headers });
 }
 
+const LIFF_PAGE = /^\/liff(?:\/(plan|map|vote|privacy|install|r\/[1-9]\d{0,7}))?\/?$/;
+
+function liffPageHtml(html, liffId) {
+  // Keep the public site's canonical/share URLs, but keep in-app navigation below the LIFF endpoint.
+  html = html.replace(/\bhref="\/(plan|map|vote|privacy|install)?([?#][^"]*)?"/g,
+    (_, page = '', suffix = '') => `href="/liff/${page}${suffix}"`);
+  html = html.replace('anchor.href=`/r/', 'anchor.href=`/liff/r/')
+    .replace("history.replaceState(null, '', '/plan');", "history.replaceState(null, '', '/liff/plan');")
+    .replace('location.pathname.match(/^\\/r\\/', 'location.pathname.match(/^\\/liff\\/r\\/');
+  // The primary LIFF redirect can contain credentials. Do not load GA on LIFF pages.
+  html = html.replace(/<script src="\/analytics\.js" defer><\/script>/g, '');
+  const bootstrap = liffId
+    ? `<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>` +
+      `<script>window.usjLiffReady = liff.init({liffId:${JSON.stringify(liffId)}})` +
+      `.catch(error => console.warn('LIFF initialization failed', error));</script>`
+    : '';
+  return html.replace('<meta charset="utf-8">',
+    '<meta charset="utf-8"><meta name="robots" content="noindex, nofollow">')
+    .replace('</body>', `${bootstrap}</body>`);
+}
+
 async function route(request, env) {
   const url = new URL(request.url);
   const englishPublic = env.EN_PUBLIC_ENABLED === 'true' &&
@@ -1874,6 +1895,25 @@ async function route(request, env) {
   if (url.hostname === 'usj-wait-nav.kotaro-7436.workers.dev') {
     url.hostname = 'uniba-waittimes.com';
     return Response.redirect(url.toString(), 301);
+  }
+  const liffPage = LIFF_PAGE.exec(url.pathname);
+  if (liffPage) {
+    const publicUrl = new URL(liffPage[1] ? `/${liffPage[1]}` : '/', url);
+    publicUrl.search = url.search;
+    const page = await route(new Request(publicUrl, request), env);
+    if (!page.ok) return page;
+    const headers = new Headers(page.headers);
+    headers.delete('Content-Length');
+    headers.set('Content-Type', 'text/html; charset=utf-8');
+    headers.set('Cache-Control', 'no-store');
+    headers.set('X-Robots-Tag', 'noindex, nofollow');
+    headers.set('Referrer-Policy', 'no-referrer');
+    // Cloudflare Web Analytics auto-injects a script on the main site. Block it here
+    // so the LIFF primary redirect URL cannot be included in a page-view beacon.
+    headers.set('Content-Security-Policy',
+      "script-src 'self' 'unsafe-inline' https://static.line-scdn.net https://cdn.jsdelivr.net");
+    if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
+    return new Response(liffPageHtml(await page.text(), env.LIFF_APP_ID), { status: 200, headers });
   }
   if (url.pathname === '/en/x' || /^\/en\/x\/day\/20\d\d-\d\d-\d\d$/.test(url.pathname)) {
     if (typeof EMBEDDED_ASSETS === 'undefined' || !Object.hasOwn(EMBEDDED_ASSETS, '/en/index.html'))
