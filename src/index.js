@@ -255,7 +255,7 @@ const xCardKey = (day, slot) => `xcard_${day}_${slot.replace(':', '')}`;
 const xCardUrl = (day, slot) =>
   `https://uniba-waittimes.com/x-card/${day}/${slot.replace(':', '')}.png`;
 
-function xCardPayload(rides, names, fetchedAt, previous) {
+function xCardPayload(rides, names, fetchedAt, previous, post) {
   const captured = Date.parse(fetchedAt) / 1000;
   if (!Number.isFinite(captured)) return null;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
@@ -268,8 +268,11 @@ function xCardPayload(rides, names, fetchedAt, previous) {
         !Number.isInteger(before.wait_minutes)) return null;
     return { ride, difference: ride.wait_time - before.wait_minutes };
   }).filter(Boolean);
-  const focus = changes.filter(item => item.difference <= -10 || item.difference >= 15)
+  const changed = changes.filter(item => item.difference <= -10 || item.difference >= 15)
     .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
+  const headline = post?.split('\n')[0] || '';
+  const focus = changed && headline.includes(`約20分前より${Math.abs(changed.difference)}分${changed.difference < 0 ? '短縮' : '増加'}`)
+    ? changed : null;
   const title = focus ?
     `${xCardClip(xCardName(focus.ride, names), 11)}が20分前より${Math.abs(focus.difference)}分${focus.difference < 0 ? '短縮' : '増加'}` :
     '現在の待ち時間 上位3施設';
@@ -404,7 +407,7 @@ async function maybePostX(env, seconds) {
   if (!post) return;
   let imageUrl = X_POST_IMAGE;
   let imageAlt = null;
-  const card = xCardPayload(rides, names, fetchedAt, previous);
+  const card = xCardPayload(rides, names, fetchedAt, previous, post);
   if (card && env.IMAGES) {
     try {
       const preview = await renderXCard(env, card);
