@@ -1,6 +1,7 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const base = fileURLToPath(new URL('.', import.meta.url));
 // 位置データの生JSONを公開リポジトリへ再配布しない。未生成時だけAPIから作成する。
@@ -31,7 +32,9 @@ for (const [route, name] of Object.entries(files)) {
   assets[route] = await readFile(join(base, 'public', name), 'utf8');
 }
 if (process.env.INCLUDE_EN === '1') {
-  assets['/en/index.html'] = await readFile(join(base, 'preview', 'en', 'index.html'), 'utf8');
+  const showVersion = createHash('sha256').update(assets['/show-translations.json']).digest('hex').slice(0, 12);
+  assets['/en/index.html'] = (await readFile(join(base, 'preview', 'en', 'index.html'), 'utf8'))
+    .replace('SHOW_TRANSLATIONS_VERSION', showVersion);
   assets['/en/equal.js'] = await readFile(join(base, 'preview', 'en', 'equal.js'), 'utf8');
   assets['/en/manifest.webmanifest'] = await readFile(join(base, 'preview', 'en', 'manifest.webmanifest'), 'utf8');
   const showTranslations = JSON.parse(assets['/show-translations.json']);
