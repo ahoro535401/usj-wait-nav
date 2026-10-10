@@ -8,7 +8,6 @@ try { await readFile(join(base, 'public', 'map-locations.json')); }
 catch { await import('./scripts/sync-map-locations.mjs'); }
 const files = {
   '/index.html': 'index.html',
-  '/en/index.html': 'en/index.html',
   '/map.html': 'map.html',
   '/vote.html': 'vote.html',
   '/map-locations.json': 'map-locations.json',
@@ -24,11 +23,15 @@ const files = {
   '/manifest.webmanifest': 'manifest.webmanifest',
   '/fallback.json': 'fallback.json',
 };
-// The English page is an unpublished prototype. Include it only for local review.
-if (process.env.INCLUDE_EN !== '1') delete files['/en/index.html'];
+// The English prototype lives outside public/ and is bundled only for local review.
 const assets = {};
 for (const [route, name] of Object.entries(files)) {
   assets[route] = await readFile(join(base, 'public', name), 'utf8');
+}
+if (process.env.INCLUDE_EN === '1') {
+  assets['/en/index.html'] = await readFile(join(base, 'preview', 'en', 'index.html'), 'utf8');
+  assets['/en/equal.js'] = await readFile(join(base, 'preview', 'en', 'equal.js'), 'utf8');
+  assets['/en/manifest.webmanifest'] = await readFile(join(base, 'preview', 'en', 'manifest.webmanifest'), 'utf8');
 }
 // The API deployment path uses embedded assets when no ASSETS binding is present.
 // Binary files must be base64 encoded instead of being read as UTF-8 text.
@@ -51,9 +54,12 @@ const binaryFiles = {
   '/icon-512.jpg': 'icon-512.jpg',
   '/icon-maskable-512.jpg': 'icon-maskable-512.jpg',
 };
+if (process.env.INCLUDE_EN === '1') {
+  binaryFiles['/en-x-card-base.png'] = 'x-card-base.png';
+}
 const binaryAssets = {};
 for (const [route, name] of Object.entries(binaryFiles)) {
-  binaryAssets[route] = (await readFile(join(base, 'public', name))).toString('base64');
+  binaryAssets[route] = (await readFile(join(base, route.startsWith('/en-') ? 'preview/en' : 'public', name))).toString('base64');
 }
 const preamble = `const EMBEDDED_ASSETS = ${JSON.stringify(assets)};\n` +
 `const FALLBACK_DATA = JSON.parse(EMBEDDED_ASSETS['/fallback.json']);\n` +

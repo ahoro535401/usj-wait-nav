@@ -18,7 +18,8 @@
     filter_type: new Set(['height', 'child_switch', 'favorites', 'tag', 'sort', 'restaurants']),
     place_type: new Set(['ride', 'restaurant']),
     share_channel: new Set(['line', 'x', 'threads', 'other', 'copy']),
-    content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride', 'poll', 'site'])
+    content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride', 'poll', 'site',
+      'en_today', 'en_map', 'en_plan', 'en_vote'])
   };
 
   function readChoice() {
@@ -83,7 +84,7 @@
     banner.setAttribute('role', 'region');
     banner.setAttribute('aria-label', english ? 'Analytics preference' : 'アクセス解析の設定');
     banner.innerHTML = english
-      ? '<p>Help improve this unofficial site with Google Analytics. Google tracking starts only if you allow it. <a href="/privacy">Privacy policy (Japanese)</a></p><div class="actions"><button type="button" class="allow">Allow analytics</button><button type="button" class="deny">Do not allow</button></div>'
+      ? '<p>Help improve this unofficial site with Google Analytics. Google tracking starts only if you allow it. <a href="/en/privacy">Privacy policy</a></p><div class="actions"><button type="button" class="allow">Allow analytics</button><button type="button" class="deny">Do not allow</button></div>'
       : '<p>サイト改善のためGoogle アナリティクスを使用します。許可するまでGoogleへの解析通信は行いません。<a href="/privacy">詳しく見る</a></p><div class="actions"><button type="button" class="allow">解析を許可</button><button type="button" class="deny">許可しない</button></div>';
     banner.querySelector('.allow').addEventListener('click', () => {
       saveChoice('granted');

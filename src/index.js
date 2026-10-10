@@ -14,8 +14,42 @@ const ARCHIVE_START_DAY = '2026-10-05';
 const WEATHER_CHECK_SECONDS = 15 * 60;
 const HOLIDAY_CSV_URL = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv';
 const HOLIDAY_JSON_URL = 'https://holidays-jp.github.io/api/v1/date.json';
-const POLL_ANALYTICS_URL = 'https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics';
+const POLL_ANALYTICS_URLS = {
+  ja: 'https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics',
+  en: 'https://docs.google.com/forms/d/1PLE99NvoUNX8jAG8MBGu-Swh788WYkT2fHB6Y15s9kU/viewanalytics',
+};
 const POLL_QUESTION_ID = 893336371;
+const POLL_ENGLISH_TO_JAPANESE = new Map([
+  ['Mario Kart: Koopa’s Challenge', 'マリオカート ～クッパの挑戦状～™'],
+  ['Mine Cart Madness', 'ドンキーコングのクレイジー・トロッコ™'],
+  ['Harry Potter and the Forbidden Journey', 'ハリー・ポッター・アンド・ザ・フォービドゥン・ジャーニー™'],
+  ['Despicable Me Minion Mayhem', 'ミニオン・ハチャメチャ・ライド'],
+  ['Detective Conan 4-D Live Show', '名探偵コナン 4-D ライブ・ショー ～星空の宝石（ジュエル）～'],
+  ['Flight of the Hippogriff', 'フライト・オブ・ザ・ヒッポグリフ™'],
+  ['Freeze Ray Sliders', 'ミニオン・ハチャメチャ・アイス'],
+  ['Hello Kitty’s Cupcake Dream', 'ハローキティのカップケーキ・ドリーム'],
+  ['Hello Kitty’s Ribbon Collection', 'ハローキティのリボン・コレクション'],
+  ['Hollywood Dream: The Ride', 'ハリウッド・ドリーム・ザ・ライド'],
+  ['Hollywood Dream: The Ride – Backdrop', 'ハリウッド・ドリーム・ザ・ライド ～バックドロップ～'],
+  ['Villain-Con Minion Blast', 'ミニオン・ハチャメチャ・ミッション ～大悪党への道～'],
+  ['Jaws', 'ジョーズ'],
+  ['Jaws: Red Alert', 'ジョーズ ～レッド・アラート～'],
+  ['Jurassic Park: The Ride', 'ジュラシック・パーク・ザ・ライド'],
+  ['Ollivanders', 'オリバンダーの店™'],
+  ['Playing with Curious George', 'プレイング・ウィズおさるのジョージ™'],
+  ['Sadako’s Curse: Dark Horror Ride', '貞子の呪い ～ダーク・ホラー・ライド～'],
+  ['Sesame Street 4-D Movie Magic', 'セサミストリート 4-D ムービーマジック™'],
+  ['Shrek 4-D Adventure', 'シュレック 4-D アドベンチャー'],
+  ['Sing on Tour', 'シング・オン・ツアー'],
+  ['Snoopy’s Flying Ace Adventure', 'スヌーピーのフライング・エース・アドベンチャー'],
+  ['Space Fantasy: The Ride', 'スペース・ファンタジー・ザ・ライド'],
+  ['The Flying Dinosaur', 'ザ・フライング・ダイナソー'],
+  ['The Flying Snoopy', 'フライング・スヌーピー'],
+  ['Yoshi’s Adventure', 'ヨッシー・アドベンチャー™'],
+  ['Chainsaw Man: The Chaos 4-D', 'チェンソーマン・ザ・カオス 4-D'],
+  ['Factory of Fear: Zombie Tour', 'ファクトリー・オブ・フィアー ～絶望のゾンビ・ツアー～'],
+  ['Jurassic Park: The Ride in the Dark', 'ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～'],
+]);
 const HOLIDAY_FROM = '2025-01-01';
 const HOLIDAY_REFRESH_MS = 7 * 86400 * 1000;
 const HOLIDAY_RETRY_MS = 6 * 3600 * 1000;
@@ -92,6 +126,35 @@ const X_POLL_REPLIES = [
   '迷ったら「また体験したい」と思う施設を選んでみてください。結果も同じページで公開しています。',
   '絶叫系でも、物語を楽しむ施設でも。あなた自身のNo.1を1つ選んでください。',
 ];
+// English trial remains disabled until the English pages and channel are published.
+const EN_X_WAIT_URL = 'https://uniba-waittimes.com/en/x';
+const EN_X_DAILY_URL = day => `https://uniba-waittimes.com/en/x/day/${day}`;
+const EN_X_POST_TIMES = ['09:00', '13:00', '17:00'];
+const EN_X_HASHTAGS = '#UniversalStudiosJapan #USJWaitTimes #OsakaTravel';
+const EN_X_RIDE_NAMES = new Map([
+  [13925, 'Chainsaw Man: The Chaos 4-D'],
+  [17893, 'Factory of Fear: Zombie Tour'],
+  [17912, "Frieren: Beyond Journey’s End Story Ride"],
+]);
+const EN_X_CARD_NAMES = new Map([
+  [14402, 'Mine Cart Madness'], [12061, 'Mario Kart'], [12071, "Yoshi's Adventure"],
+  [7077, 'Hollywood Dream'], [12070, 'Hollywood Dream: Backdrop'],
+  [7092, 'The Flying Dinosaur'], [12068, 'JAWS'], [17894, 'JAWS: Red Alert'],
+  [12067, 'Jurassic Park Ride'], [15322, 'Jurassic Park: Dark'],
+  [12065, 'Forbidden Journey'], [12073, 'Flight of the Hippogriff'],
+]);
+const EN_X_CARD_FOCUS_NAMES = new Map([
+  [14402, 'Donkey Kong'], [12061, 'Mario Kart'], [12070, 'Backdrop'],
+  [7077, 'Hollywood Dream'], [7092, 'Flying Dinosaur'], [12065, 'Harry Potter'],
+]);
+const englishRideName = ride => EN_X_RIDE_NAMES.get(Number(ride?.id)) ||
+  (ride?.name && !/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(ride.name)
+    ? ride.name.replace(/™/g, '').trim() : null);
+const englishCardName = ride => {
+  const value = (EN_X_CARD_NAMES.get(Number(ride?.id)) || englishRideName(ride) || 'Attraction')
+    .replace(/[‘’]/g, "'").replace(/[–—]/g, '-').replace(/…/g, '...');
+  return value.length > 28 ? `${value.slice(0, 25)}...` : value;
+};
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
 const COLLECTION_TRAIL_SECONDS = 30 * 60;
@@ -142,7 +205,16 @@ const readMeta = async (db, key) => (await db.prepare('SELECT value FROM app_met
 const writeMeta = (db, key, value) => db.prepare(
   'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE value <> excluded.value'
 ).bind(key, value).run();
-const assetFetch = (request, env) => env.ASSETS ? env.ASSETS.fetch(request) : embeddedFetch(request);
+const assetFetch = async (request, env) => {
+  if (env.ASSETS) {
+    const response = await env.ASSETS.fetch(request);
+    const path = new URL(request.url).pathname;
+    if (response.ok || typeof EMBEDDED_ASSETS === 'undefined' ||
+        !Object.hasOwn(EMBEDDED_ASSETS, path) &&
+        (typeof EMBEDDED_BINARY_ASSETS === 'undefined' || !Object.hasOwn(EMBEDDED_BINARY_ASSETS, path))) return response;
+  }
+  return embeddedFetch(request);
+};
 
 // 同じ枠を再送しない。投稿が失敗した場合も自動再試行せず、記録を見て判断する。
 function dueXPost(seconds) {
@@ -287,7 +359,7 @@ function xCardPayload(rides, names, fetchedAt, previous, post) {
 async function renderXCard(env, card) {
   if (!env.IMAGES || !card || !Array.isArray(card.rows) || card.rows.length !== 3)
     return new Response('Image rendering unavailable', { status: 503 });
-  const base = await assetFetch(new Request('https://uniba-waittimes.com/x-card-base.png'), env);
+  const base = await assetFetch(new Request(`https://uniba-waittimes.com/${card.language === 'en' ? 'en-x-card-base.png' : 'x-card-base.png'}`), env);
   if (!base.ok || !base.body) return new Response('Base image unavailable', { status: 503 });
   let image = env.IMAGES.input(base.body);
   const add = (value, left, top, size, color = '#ffffff') => {
@@ -297,9 +369,12 @@ async function renderXCard(env, card) {
   };
   add(xCardClip(card.label, 24), 655, 46, 26, '#d9e7f2');
   add(xCardClip(card.title, 28), 79, 154, 47);
+  if (card.language === 'en') add(card.subtitle || 'Standard standby estimates', 82, 221, 23, '#c9e2f6');
   card.rows.forEach((row, index) => {
-    add(xCardClip(row.name, 15), 146, 291 + 102 * index, 40);
-    add(`${Math.max(0, Math.min(999, Number(row.wait) || 0))}分`, 946, 290 + 102 * index, 46, '#ffcc82');
+    add(xCardClip(row.name, card.language === 'en' ? 28 : 15), 146, 291 + 102 * index,
+      card.language === 'en' ? 36 : 40);
+    add(`${Math.max(0, Math.min(999, Number(row.wait) || 0))}${card.language === 'en' ? ' min' : '分'}`,
+      card.language === 'en' ? 914 : 946, 290 + 102 * index, card.language === 'en' ? 42 : 46, '#ffcc82');
   });
   return (await image.output({ format: 'image/png' })).response({
     headers: { 'Cache-Control': 'public, max-age=2592000, immutable',
@@ -427,8 +502,8 @@ async function maybePostX(env, seconds) {
 }
 
 async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null,
-    imageUrl = X_POST_IMAGE, imageAlt = null) {
-  const key = `buffer_x_${jstDay(seconds)}_${slot.replace(':', '')}`;
+    imageUrl = X_POST_IMAGE, imageAlt = null, options = {}) {
+  const key = `${options.keyPrefix || 'buffer_x'}_${jstDay(seconds)}_${slot.replace(':', '')}`;
   const claimed = await env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
     .bind(key, JSON.stringify({ status: 'sending', captured_at: capturedAt })).run();
   if (!claimed.meta?.changes) return;
@@ -438,7 +513,7 @@ async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null
     const assets = [{ image: { url: imageUrl,
       ...(imageAlt ? { metadata: { altText: imageAlt } } : {}) } }];
     const baseInput = {
-      text: post, channelId: env.BUFFER_X_CHANNEL_ID, schedulingType: 'automatic', mode: 'shareNow',
+      text: post, channelId: options.channelId || env.BUFFER_X_CHANNEL_ID, schedulingType: 'automatic', mode: 'shareNow',
       assets,
     };
     const threadInput = reply ? {
@@ -561,6 +636,233 @@ async function maybePostDailyX(env, seconds) {
     new Date(data.last_at * 1000).toISOString(), xDailyReply(data), imageUrl, imageAlt);
 }
 
+function englishXEnabled(env) {
+  return env.EN_PUBLIC_ENABLED === 'true' && env.EN_X_AUTOPOST_ENABLED === 'true' && !!env.BUFFER_API_KEY &&
+    !!env.BUFFER_EN_X_CHANNEL_ID && typeof EMBEDDED_ASSETS !== 'undefined' &&
+    Object.hasOwn(EMBEDDED_ASSETS, '/en/index.html');
+}
+
+function englishXDate(day) {
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(`${day}T00:00:00Z`).getUTCDay()];
+  return `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))} (${weekday})`;
+}
+
+function dueEnglishXPost(seconds) {
+  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
+  return EN_X_POST_TIMES.find(time => {
+    const [hour, minute] = time.split(':').map(Number);
+    const start = hour * 3600 + minute * 60;
+    return now >= start && now < start + X_POST_WINDOW_SECONDS;
+  }) || null;
+}
+
+function englishXFocus(ranked, previous) {
+  const changes = ranked.slice(0, 5).map(ride => {
+    const before = previous?.rides?.[String(ride.id)];
+    if (!before || before.is_open !== 1 || before.source !== ride.source ||
+        !Number.isInteger(before.wait_minutes) || !englishRideName(ride)) return null;
+    return { ride, difference: ride.wait_time - before.wait_minutes };
+  }).filter(Boolean);
+  return changes.filter(item => item.difference <= -10 || item.difference >= 15)
+    .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0] || null;
+}
+
+function englishXFocusText(focus) {
+  if (!focus) return null;
+  return `${xCardClip(englishRideName(focus.ride), 17)}: ${Math.abs(focus.difference)} min ` +
+    `${focus.difference < 0 ? 'shorter' : 'longer'} vs ~20 min ago`;
+}
+
+function englishXCardPayload(rides, fetchedAt, previous, post) {
+  const captured = Date.parse(fetchedAt) / 1000;
+  if (!Number.isFinite(captured)) return null;
+  const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+    Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
+    .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
+  if (ranked.length < 5 || ranked.slice(0, 3).some(ride => !englishRideName(ride))) return null;
+  const focus = englishXFocus(ranked, previous);
+  const focusText = englishXFocusText(focus);
+  const highlight = focusText && post.includes(focusText) ?
+    `${xCardClip(EN_X_CARD_FOCUS_NAMES.get(focus.ride.id) || englishCardName(focus.ride), 12)}: ` +
+    `${Math.abs(focus.difference)} min ${focus.difference < 0 ? 'shorter' : 'longer'}` : null;
+  return {
+    language: 'en', captured_at: fetchedAt,
+    label: `${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`,
+    title: highlight || 'Longest standby waits',
+    subtitle: highlight ? 'Compared with ~20 min earlier' : 'Standard standby estimates',
+    rows: ranked.slice(0, 3).map(ride => ({ name: englishCardName(ride), wait: ride.wait_time })),
+  };
+}
+
+function englishXPost(rides, fetchedAt, previous = null) {
+  const captured = Date.parse(fetchedAt) / 1000;
+  const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+    Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
+    .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
+  if (ranked.length < 5 || ranked.slice(0, 5).some(ride => !englishRideName(ride))) return null;
+  const date = `USJ waits | ${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`;
+  const focusText = englishXFocusText(englishXFocus(ranked, previous));
+  const headers = [
+    ...(focusText ? [`${date}\n${focusText} ↓`] : []),
+    `${date}\nLive standby estimates and the park map ↓`,
+  ];
+  const lines = ranked.slice(0, 5).map((ride, index) => {
+    const name = xCardClip(englishRideName(ride), 23);
+    return `${index + 1}. ${name} ${ride.wait_time} min`;
+  });
+  for (const header of headers) {
+    if (header.length + 1 + EN_X_WAIT_URL.length > 140) continue;
+    for (const count of [5, 4, 3]) {
+      const post = `${header}\n${EN_X_WAIT_URL}\n\nLongest waits now\n${lines.slice(0, count).join('\n')}\n\n${EN_X_HASHTAGS}`;
+      if (xWeightedLength(post) <= 280) return post;
+    }
+  }
+  return null;
+}
+
+function englishXReply(rides, fetchedAt, previous, slot, post = '') {
+  const captured = Date.parse(fetchedAt) / 1000;
+  const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+    Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
+    .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
+  const shown = Math.max(0, ...[...post.matchAll(/^(\d+)\. /gm)].map(match => Number(match[1])));
+  const more = ranked.slice(shown || 5, 8).filter(ride => englishRideName(ride))
+    .map((ride, index) => `${index + (shown || 5) + 1}. ${xCardClip(englishRideName(ride), 23)} ${ride.wait_time} min`);
+  const counts = { longer: 0, same: 0, shorter: 0 };
+  for (const ride of ranked) {
+    const before = previous?.rides?.[String(ride.id)];
+    if (!before || before.is_open !== 1 || before.source !== ride.source ||
+        !Number.isInteger(before.wait_minutes)) continue;
+    const difference = ride.wait_time - before.wait_minutes;
+    counts[difference > 0 ? 'longer' : difference < 0 ? 'shorter' : 'same']++;
+  }
+  const compared = counts.longer + counts.same + counts.shorter;
+  const trend = compared >= 5 ? `Vs ~20 min ago (${compared} rides): ${counts.longer} longer, ${counts.same} unchanged, ${counts.shorter} shorter.` : null;
+  const question = slot === '13:00' ? 'Which ride are you heading to? Share what you see at the park.' : null;
+  for (const count of [3, 2, 1, 0]) {
+    const reply = [
+      ...(count ? ['More standby waits:', ...more.slice(0, count)] : []),
+      ...(trend ? ['', trend] : []),
+      'Standard standby estimates; past changes are not a forecast.',
+      ...(question ? ['', question] : []),
+    ].join('\n');
+    if (xWeightedLength(reply) <= 280) return reply;
+  }
+  return null;
+}
+
+const englishXOptions = env => ({ keyPrefix: 'buffer_en_x', channelId: env.BUFFER_EN_X_CHANNEL_ID });
+const englishXCardKey = (day, slot) => `xcard_en_${day}_${slot.replace(':', '')}`;
+const englishXCardUrl = (day, slot) =>
+  `https://uniba-waittimes.com/en/x-card/${day}/${slot.replace(':', '')}.png`;
+
+async function englishXImage(env, seconds, slot, card) {
+  if (!card || !env.IMAGES) return { url: 'https://uniba-waittimes.com/og-photo.jpg', alt: null };
+  try {
+    const preview = await renderXCard(env, card);
+    const bytes = preview.ok && preview.headers.get('Content-Type')?.startsWith('image/png') ?
+      (await preview.arrayBuffer()).byteLength : 0;
+    if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid English card: ${preview.status}, ${bytes} bytes`);
+    await writeMeta(env.DB, englishXCardKey(jstDay(seconds), slot), JSON.stringify(card));
+    return { url: englishXCardUrl(jstDay(seconds), slot),
+      alt: `${card.label}. ${card.title}. ${card.rows.map(row => `${row.name}: ${row.wait} min`).join('; ')}.` };
+  } catch (error) {
+    console.error('English X card unavailable; using photo', error);
+    return { url: 'https://uniba-waittimes.com/og-photo.jpg', alt: null };
+  }
+}
+
+async function maybePostEnglishX(env, seconds) {
+  if (!englishXEnabled(env)) return;
+  const slot = dueEnglishXPost(seconds);
+  if (!slot) return;
+  const [raw, fetchedAt] = await Promise.all([
+    readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
+  ]);
+  const captured = Date.parse(fetchedAt) / 1000;
+  if (!raw || !Number.isFinite(captured) || seconds - captured < -120 || seconds - captured > 10 * 60) return;
+  let rides;
+  try { rides = JSON.parse(raw); } catch (_) { return; }
+  if (!Array.isArray(rides)) return;
+  const previousRow = await env.DB.prepare(
+    'SELECT slot FROM snapshots WHERE captured_at BETWEEN ? AND ? ORDER BY ABS(captured_at - ?) LIMIT 1')
+    .bind(captured - 31 * 60, captured - 9 * 60, captured - 20 * 60).first();
+  const previous = previousRow ? { rides: Object.fromEntries((await env.DB.prepare(
+    'SELECT ride_id,wait_minutes,is_open,source FROM ride_samples WHERE slot=?').bind(previousRow.slot).all()).results
+    .map(row => [String(row.ride_id), row])) } : null;
+  const post = englishXPost(rides, fetchedAt, previous);
+  if (!post) return;
+  const card = englishXCardPayload(rides, fetchedAt, previous, post);
+  const image = await englishXImage(env, seconds, slot, card);
+  await sendBufferPost(env, seconds, slot, post, fetchedAt,
+    englishXReply(rides, fetchedAt, previous, slot, post), image.url, image.alt, englishXOptions(env));
+}
+
+function englishXDailyPost(day, data) {
+  if (!Number.isFinite(data.average_wait)) return null;
+  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait));
+  const peak = [...hours].sort((a, b) => b.average_wait - a.average_wait)[0];
+  if (!peak) return null;
+  const post = `USJ crowd recap | ${englishXDate(day)}\nBusiest hour: ${hhmm(peak.at).slice(0, 2)}:00 (${Math.round(peak.average_wait)} min average) ↓\n` +
+    `${EN_X_DAILY_URL(day)}\n\nDaily average standby wait: ${Math.round(data.average_wait)} min. ` +
+    `Compare 20-minute records on the calendar. Closed and missing waits excluded.\n\n${EN_X_HASHTAGS}`;
+  return xWeightedLength(post) <= 280 ? post : null;
+}
+
+function englishXDailyReply(data) {
+  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait));
+  if (hours.length < 2) return null;
+  const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
+  const quiet = ranked[0];
+  const peak = ranked[ranked.length - 1];
+  return `More from this day: the quietest recorded hour was ${hhmm(quiet.at).slice(0, 2)}:00 ` +
+    `(${Math.round(quiet.average_wait)} min average), ${Math.round(peak.average_wait - quiet.average_wait)} min ` +
+    `below the busiest hour. These are historical hourly averages, not a forecast.`;
+}
+
+function dueEnglishDailyXPost(seconds) {
+  const [hour, minute] = X_DAILY_POST_TIME.split(':').map(Number);
+  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
+  const start = hour * 3600 + minute * 60;
+  return now >= start && now < start + X_POST_WINDOW_SECONDS;
+}
+
+async function maybePostEnglishDailyX(env, seconds) {
+  if (!englishXEnabled(env) || !dueEnglishDailyXPost(seconds)) return;
+  const day = jstDay(seconds);
+  const schedule = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?').bind(day).first();
+  if (schedule?.status !== 'OPERATING' || !schedule.opens || !schedule.closes) return;
+  const opening = Date.parse(`${day}T${schedule.opens}:00+09:00`) / 1000;
+  const closing = Date.parse(`${day}T${schedule.closes}:00+09:00`) / 1000;
+  if (!Number.isFinite(opening) || !Number.isFinite(closing) || closing <= opening ||
+      seconds < closing + 20 * 60) return;
+  const coverage = await env.DB.prepare('SELECT COUNT(*) AS count FROM snapshots WHERE captured_at>=? AND captured_at<?')
+    .bind(opening, closing).first();
+  if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
+  const data = await archiveDay(env.DB, day);
+  if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
+      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
+  const post = englishXDailyPost(day, data);
+  if (!post) return;
+  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait)).sort((a, b) => a.average_wait - b.average_wait);
+  const card = {
+    language: 'en', captured_at: new Date(data.last_at * 1000).toISOString(),
+    label: `${englishXDate(day)} recap`, title: 'Daily crowd recap',
+    subtitle: 'Historical hourly averages',
+    rows: [
+      { name: 'Daily average', wait: Math.round(data.average_wait) },
+      { name: `Busiest: ${hhmm(hours.at(-1).at).slice(0, 2)}:00`, wait: Math.round(hours.at(-1).average_wait) },
+      { name: `Quietest: ${hhmm(hours[0].at).slice(0, 2)}:00`, wait: Math.round(hours[0].average_wait) },
+    ],
+  };
+  const image = await englishXImage(env, seconds, X_DAILY_POST_TIME, card);
+  await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post,
+    new Date(data.last_at * 1000).toISOString(), englishXDailyReply(data), image.url, image.alt, englishXOptions(env));
+}
+
 // 10/9の混雑実績を翌朝に1回だけ配信し、Bufferの認証復旧も確認する。
 async function maybePostPreviousDayTestX(env, seconds) {
   if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
@@ -601,13 +903,27 @@ function parsePollAnalytics(html) {
   return { total: reportedTotal, results: counts, fetched_at: new Date().toISOString() };
 }
 async function getPollResults() {
-  const response = await fetch(POLL_ANALYTICS_URL, {
-    headers: { Accept: 'text/html', 'Accept-Language': 'ja-JP,ja;q=0.9' },
-  });
-  if (!response.ok) throw new Error(`Google Forms summary HTTP ${response.status}`);
-  const html = await response.text();
-  if (html.length > 300000) throw new Error('Google Forms summary too large');
-  return parsePollAnalytics(html);
+  const summaries = await Promise.allSettled(Object.entries(POLL_ANALYTICS_URLS).map(async ([language, url]) => {
+    const response = await fetch(url, {
+      headers: { Accept: 'text/html', 'Accept-Language': language === 'en' ? 'en-US,en;q=0.9' : 'ja-JP,ja;q=0.9' },
+    });
+    if (!response.ok) throw new Error(`Google Forms ${language} summary HTTP ${response.status}`);
+    const html = await response.text();
+    if (html.length > 300000) throw new Error(`Google Forms ${language} summary too large`);
+    return { language, ...parsePollAnalytics(html) };
+  }));
+  const available = summaries.filter(item => item.status === 'fulfilled').map(item => item.value);
+  if (!available.length) throw new Error('Both Google Forms summaries are unavailable');
+  for (const item of summaries) if (item.status === 'rejected') console.warn('Poll summary unavailable', item.reason);
+  const merged = new Map();
+  for (const summary of available) for (const row of summary.results) {
+    const name = summary.language === 'en' ? (POLL_ENGLISH_TO_JAPANESE.get(row.name) || row.name) : row.name;
+    merged.set(name, (merged.get(name) || 0) + row.votes);
+  }
+  const results = [...merged].map(([name, votes]) => ({ name, votes }));
+  results.sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name, 'ja'));
+  return { total: available.reduce((sum, item) => sum + item.total, 0), results,
+    partial: available.length !== summaries.length, fetched_at: new Date().toISOString() };
 }
 function parseMapLocations(raw) {
   const children = Array.isArray(raw.children) ? raw.children : [];
@@ -1112,6 +1428,10 @@ async function scheduled(event, env) {
       .bind(cutoff).run();
     await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'xcard_%' AND key < ?")
       .bind(`xcard_${jstDay(seconds - 35 * 86400)}`).run();
+    await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'buffer_en_x_%' AND key < ?")
+      .bind(`buffer_en_x_${jstDay(seconds - 30 * 86400)}`).run();
+    await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'xcard_en_%' AND key < ?")
+      .bind(`xcard_en_${jstDay(seconds - 35 * 86400)}`).run();
   }
   const scheduleFetchedAt = Date.parse(await readMeta(env.DB, 'schedule_fetched_at'));
   if (!Number.isFinite(scheduleFetchedAt) || Date.now() - scheduleFetchedAt > 6 * 3600 * 1000) {
@@ -1151,6 +1471,7 @@ async function scheduled(event, env) {
   await maybePostDailyX(env, seconds);
   await maybePostPreviousDayTestX(env, seconds);
   await maybePostPollX(env, seconds);
+  await maybePostEnglishDailyX(env, seconds).catch(error => console.error('English recap skipped', error));
   if (!(await inCollectionWindow(env.DB, seconds))) {
     // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
     const saved = await readMeta(env.DB, 'shows_payload');
@@ -1181,7 +1502,10 @@ async function scheduled(event, env) {
   }
   const collected = await refreshLive(env, seconds, save);
   if (save && !collected) throw new Error('定時の待ち時間取得に失敗しました');
-  if (collected) await maybePostX(env, seconds);
+  if (collected) {
+    await maybePostX(env, seconds);
+    await maybePostEnglishX(env, seconds).catch(error => console.error('English live post skipped', error));
+  }
 }
 
 async function history(db, rideId, days) {
@@ -1486,12 +1810,58 @@ async function renderInitialData(html, page, request, env, rides, fetchedAt, tod
   return html;
 }
 
+const ENGLISH_PAGES = { '/': '/en/', '/plan': '/en/plan', '/map': '/en/map',
+  '/vote': '/en/vote', '/install': '/en/install', '/privacy': '/en/privacy' };
+
+function languageAlternates(jaPath, enPath) {
+  const origin = 'https://uniba-waittimes.com';
+  return `<link rel="alternate" hreflang="ja" href="${origin}${jaPath}">` +
+    `<link rel="alternate" hreflang="en" href="${origin}${enPath}">`;
+}
+
+function addLanguageAlternates(html, jaPath, englishPublic) {
+  return englishPublic && ENGLISH_PAGES[jaPath]
+    ? html.replace('</head>', `${languageAlternates(jaPath, ENGLISH_PAGES[jaPath])}</head>`)
+    : html;
+}
+
+function changedBodyResponse(body, original) {
+  const headers = new Headers(original.headers);
+  headers.delete('Content-Length');
+  return new Response(body, { status: original.status, statusText: original.statusText, headers });
+}
+
 async function route(request, env) {
   const url = new URL(request.url);
+  const englishPublic = env.EN_PUBLIC_ENABLED === 'true' &&
+    typeof EMBEDDED_ASSETS !== 'undefined' && Object.hasOwn(EMBEDDED_ASSETS, '/en/index.html');
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
   if (url.hostname === 'usj-wait-nav.kotaro-7436.workers.dev') {
     url.hostname = 'uniba-waittimes.com';
     return Response.redirect(url.toString(), 301);
+  }
+  if (url.pathname === '/en/x' || /^\/en\/x\/day\/20\d\d-\d\d-\d\d$/.test(url.pathname)) {
+    if (typeof EMBEDDED_ASSETS === 'undefined' || !Object.hasOwn(EMBEDDED_ASSETS, '/en/index.html'))
+      return new Response('Not found', { status: 404 });
+    const match = /^\/en\/x\/day\/(20\d\d-\d\d-\d\d)$/.exec(url.pathname);
+    const destination = new URL(match ? '/en/plan' : '/en/', url);
+    if (match) destination.searchParams.set('date', match[1]);
+    destination.searchParams.set('utm_source', 'x');
+    destination.searchParams.set('utm_medium', 'social');
+    destination.searchParams.set('utm_campaign', match ? 'daily_recap_en' : 'live_waits_en');
+    return new Response(null, { status: 302, headers: {
+      Location: destination.href, 'Cache-Control': 'public, max-age=300', 'X-Robots-Tag': 'noindex',
+    } });
+  }
+  const englishCardPath = /^\/en\/x-card\/(20\d\d-\d\d-\d\d)\/(\d{4})\.png$/.exec(url.pathname);
+  if (englishCardPath) {
+    const [day, time] = englishCardPath.slice(1);
+    const stored = await readMeta(env.DB, `xcard_en_${day}_${time}`);
+    if (!stored) return new Response('Not found', { status: 404 });
+    let card;
+    try { card = JSON.parse(stored); } catch (_) { return new Response('Invalid card', { status: 500 }); }
+    if (card.language !== 'en') return new Response('Invalid card', { status: 500 });
+    return renderXCard(env, card);
   }
   const xCardPath = /^\/x-card\/(20\d\d-\d\d-\d\d)\/(\d{4})\.png$/.exec(url.pathname);
   if (xCardPath) {
@@ -1502,14 +1872,60 @@ async function route(request, env) {
     try { card = JSON.parse(stored); } catch (_) { return new Response('Invalid card', { status: 500 }); }
     return renderXCard(env, card);
   }
-  if (url.pathname === '/en' || url.pathname === '/en/') {
+  if (/^\/en(?:\/(?:plan|map|vote|install|privacy))?\/?$/.test(url.pathname)) {
     const assetUrl = new URL('/en/index.html', url);
     const asset = await assetFetch(new Request(assetUrl, request), env);
+    if (!asset.ok) return asset;
+    let locations = null;
+    try { locations = await readMeta(env.DB, 'map_locations_payload'); }
+    catch (error) { console.warn('English preview map locations unavailable; using bundled snapshot', error); }
+    if (!locations) {
+      if (typeof EMBEDDED_ASSETS !== 'undefined') locations = EMBEDDED_ASSETS['/map-locations.json'];
+      else {
+        const fallback = await assetFetch(new Request(new URL('/map-locations.json', url), request), env);
+        if (fallback.ok) locations = await fallback.text();
+      }
+    }
+    const safeLocations = (locations || '{"locations":[]}').replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026');
+    const socialByPage = {
+      map: ['Find USJ attractions on the map', 'Explore USJ attraction wait times, restaurants and optional GPS on an English map.'],
+      plan: ['Plan your USJ visit', 'Explore past wait times, park hours and the crowd calendar before visiting USJ.'],
+      vote: ['Vote for your favorite USJ attraction', 'Choose your No. 1 attraction and explore reader results.'],
+      install: ['Add USJ Wait Times Guide to your home screen', 'Open USJ wait times quickly from your phone.'],
+      privacy: ['About USJ Wait Times Guide', 'Learn how this independent site displays park information and handles usage data.'],
+    };
+    const enPage = url.pathname.replace(/^\/en\/?/, '').replace(/\/$/, '');
+    const [socialTitle, socialDescription] = socialByPage[enPage] ||
+      ['USJ wait times in English', 'Check current USJ standby waits, recent changes, show times and weather.'];
+    const jaPath = enPage ? `/${enPage}` : '/';
+    const enPath = ENGLISH_PAGES[jaPath] || '/en/';
+    const canonical = `https://uniba-waittimes.com${enPath}`;
+    const socialMeta = `<meta property="og:type" content="website"><meta property="og:locale" content="en_US">` +
+      `<meta property="og:site_name" content="USJ Wait Times Guide">` +
+      `<meta property="og:title" content="${socialTitle}">` +
+      `<meta property="og:description" content="${socialDescription}">` +
+      `<meta property="og:url" content="${canonical}">` +
+      `<meta property="og:image" content="https://uniba-waittimes.com/og-photo.jpg">` +
+      `<meta name="twitter:card" content="summary_large_image">`;
+    let html = (await asset.text()).replace('<!--MAP_LOCATIONS-->', safeLocations)
+      .replace('<!--EN_SOCIAL_META-->', socialMeta);
+    if (englishPublic) {
+      html = html.replace('<meta name="robots" content="noindex, nofollow">',
+          '<meta name="robots" content="index, follow">')
+        .replace(/<title>[^<]*<\/title>/, `<title>${socialTitle} | USJ Wait Times Guide</title>`)
+        .replace(/<meta name="description" content="[^"]*">/,
+          `<meta name="description" content="${socialDescription}">`)
+        .replace('</head>', `<link rel="canonical" href="${canonical}">` +
+          languageAlternates(jaPath, enPath) + '</head>');
+    }
     const headers = new Headers(asset.headers);
+    headers.delete('Content-Length');
     headers.set('Content-Type', 'text/html; charset=utf-8');
-    headers.set('X-Robots-Tag', 'noindex, nofollow');
+    if (englishPublic) headers.delete('X-Robots-Tag');
+    else headers.set('X-Robots-Tag', 'noindex, nofollow');
     headers.set('Cache-Control', 'public, max-age=60');
-    return new Response(asset.body, { status: asset.status, headers });
+    return new Response(html, { status: asset.status, headers });
   }
   const shortRidePath = /^\/r\/([1-9]\d{0,7})$/.exec(url.pathname);
   if (url.pathname === '/' || url.pathname === '/plan' || shortRidePath) {
@@ -1587,6 +2003,7 @@ async function route(request, env) {
         .replace(/<meta property="og:description" content="[^"]*">/,
           '<meta property="og:description" content="USJの過去の混雑実績をカレンダーで確認。日別・アトラクション別の待ち時間、気象庁の天気実績、営業時間、イベント情報をまとめた個人運営の非公式サイトです。">');
     }
+    html = addLanguageAlternates(html, page === 'plan' ? '/plan' : '/', englishPublic);
     return new Response(html, { status: asset.status, headers: {
       'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60',
       'X-Content-Type-Options': 'nosniff',
@@ -1594,15 +2011,18 @@ async function route(request, env) {
   }
   if (url.pathname === '/privacy') {
     url.pathname = '/privacy.html';
-    return assetFetch(new Request(url, request), env);
+    const response = await assetFetch(new Request(url, request), env);
+    return englishPublic && response.ok ? changedBodyResponse(addLanguageAlternates(await response.text(), '/privacy', true), response) : response;
   }
   if (url.pathname === '/install') {
     url.pathname = '/install.html';
-    return assetFetch(new Request(url, request), env);
+    const response = await assetFetch(new Request(url, request), env);
+    return englishPublic && response.ok ? changedBodyResponse(addLanguageAlternates(await response.text(), '/install', true), response) : response;
   }
   if (url.pathname === '/vote') {
     url.pathname = '/vote.html';
-    return assetFetch(new Request(url, request), env);
+    const response = await assetFetch(new Request(url, request), env);
+    return englishPublic && response.ok ? changedBodyResponse(addLanguageAlternates(await response.text(), '/vote', true), response) : response;
   }
   // 位置データの一括配信は行わず、地図ページの表示にのみ使用する。
   if (url.pathname === '/map-locations.json') return new Response('Not found', { status: 404 });
@@ -1622,13 +2042,20 @@ async function route(request, env) {
     }
     const safe = (locations || '{"locations":[]}').replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
       .replace(/&/g, '\\u0026');
-    const html = (await response.text()).replace('<!--MAP_LOCATIONS-->', safe);
+    const html = addLanguageAlternates((await response.text()).replace('<!--MAP_LOCATIONS-->', safe), '/map', englishPublic);
     return new Response(html, { status: 200, headers: {
       'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300',
       'X-Content-Type-Options': 'nosniff',
     } });
   }
-  if (url.pathname === '/sitemap.xml') return embeddedFetch(request);
+  if (url.pathname === '/sitemap.xml') {
+    const response = await assetFetch(request, env);
+    if (!englishPublic || !response.ok) return response;
+    const englishUrls = Object.values(ENGLISH_PAGES)
+      .map(path => `  <url><loc>https://uniba-waittimes.com${path}</loc></url>`).join('\n');
+    const xml = (await response.text()).replace('</urlset>', `${englishUrls}\n</urlset>`);
+    return changedBodyResponse(xml, response);
+  }
   if (url.pathname === '/api/poll-results') {
     try { return json(await getPollResults()); }
     catch (error) {

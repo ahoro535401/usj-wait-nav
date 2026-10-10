@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#10243a">
+  <meta name="apple-mobile-web-app-title" content="USJ Wait Times Guide">
+  <link rel="manifest" href="/en/manifest.webmanifest">
+  <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <title>USJ Wait Times Guide | English Preview</title>
+  <meta name="description" content="Unofficial English preview of current USJ wait times, past records, show starts, park hours and weather.">
+  <!--EN_SOCIAL_META-->
+  <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.15.0/dist/maplibre-gl.css" rel="stylesheet">
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172b40;background:#f2f6fb;line-height:1.5}
+    *{box-sizing:border-box}body{margin:0}a{color:#1463a5}button,select{font:inherit}button,select{min-height:44px}button{cursor:pointer}[hidden]{display:none!important}
+    .hero{position:relative;min-height:235px;color:#fff;background:#10243a;overflow:hidden}.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 46%}.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,23,41,.94),rgba(7,23,41,.68) 58%,rgba(7,23,41,.16))}.hero-content{position:relative;z-index:1;max-width:1100px;margin:auto;padding:24px 18px}.brand{font-weight:800;font-size:1.15rem}.brand span{display:inline-block;background:#1964aa;padding:4px 8px;border-radius:5px;margin-right:5px}.badge{display:inline-block;padding:2px 8px;border-radius:99px;background:#e8eef8;color:#172b40;font-size:.75rem;font-weight:700;margin-left:9px}.hero h1{font-size:clamp(1.9rem,5vw,3.1rem);line-height:1.15;max-width:660px;margin:26px 0 8px}.hero p{max-width:710px;margin:0;color:#eef4ff}
+    .nav{position:sticky;top:0;z-index:10;background:#f5f8fc;border-bottom:1px solid #cddbec;padding:8px max(12px,calc((100vw - 1100px)/2));display:flex;gap:6px;overflow-x:auto}.nav a{display:block;white-space:nowrap;text-decoration:none;font-weight:700;padding:10px 14px;border-radius:9px;color:#255b8d}.nav a.active,.nav a:hover{background:#1765ac;color:white}
+    main{max-width:1100px;margin:auto;padding:15px 14px 50px}.notice{background:#e8f2ff;border-left:4px solid #2771bb;border-radius:8px;padding:10px 13px;margin-bottom:15px}.notice strong{display:block}section{background:#fff;border:1px solid #d7e1ed;border-radius:15px;padding:19px;margin:16px 0;box-shadow:0 2px 8px #0f2e5110;scroll-margin-top:82px}h2{font-size:1.35rem;margin:0 0 8px}h3{font-size:1.08rem}.muted{color:#4c6075}.small{font-size:.85rem}.status{min-height:1.5em}.summary{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.stat{border:1px solid #d4e0ee;border-radius:10px;background:#f4f8fd;padding:8px 12px;min-width:140px}.stat strong{display:block;font-size:1.15rem}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin:12px 0}.controls label{display:grid;gap:3px;font-weight:650}.controls select,.controls input{border:1px solid #9fb5cb;border-radius:8px;background:#fff;padding:8px 10px}.segmented{display:inline-flex;border:1px solid #a3bdd7;padding:3px;border-radius:10px}.segmented button{border:0;background:transparent;padding:7px 13px;border-radius:7px;color:#215983;font-weight:700}.segmented button[aria-pressed="true"]{background:#1765ac;color:#fff}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:9px}.ride{position:relative;border:1px solid #d4e0ed;border-radius:12px;overflow:hidden;background:#fff}.ride summary{display:flex;gap:8px;align-items:center;min-height:86px;padding:10px 10px 10px 59px;cursor:pointer;list-style:none}.ride summary::-webkit-details-marker{display:none}.ride summary:hover{background:#f5f9ff}.ride .name{flex:1;min-width:0;font-weight:700}.ride .name small{display:block;color:#536779;font-size:.76rem;font-weight:500}.wait{display:inline-block;min-width:75px;padding:7px 8px;text-align:center;border-radius:8px;font-weight:800;white-space:nowrap}.low{background:#d8f2e8;color:#07553d}.mid{background:#fff0c7;color:#765100}.high{background:#ffdbb1;color:#824600}.very-high{background:#f9d2d5;color:#8b1d2b}.unknown{background:#e7ebf0;color:#3c526a}.fav{position:absolute;left:8px;top:18px;z-index:1;border:0;background:none;font-size:1.5rem;color:#57768f;width:44px;height:44px;padding:0}.fav[aria-pressed="true"]{color:#ca8500}.ride-details{padding:0 12px 12px;border-top:1px solid #dce7f1}.trend{display:flex;align-items:end;gap:2px;height:100px;border-bottom:1px solid #aabbd0;margin:15px 2px 5px}.trend i{display:block;background:#67a6dd;flex:1;min-width:2px;max-width:14px;border-radius:3px 3px 0 0}.trend i:last-child{background:#1a5b9d}.delta{font-size:.8rem;color:#355572}.table-wrap{overflow:auto;max-height:70vh}.table{border-collapse:separate;border-spacing:0;font-size:.85rem}.table th,.table td{padding:8px;border-right:1px solid #d6e1ec;border-bottom:1px solid #d6e1ec;white-space:nowrap;text-align:center}.table th:first-child,.table td:first-child{position:sticky;left:0;background:#fff;z-index:1;min-width:170px;text-align:left}.table thead th{position:sticky;top:0;background:#e8f1fc;z-index:2}.table thead th:first-child{z-index:3;background:#e8f1fc}.hour-bars{display:grid;gap:8px}.hour-row{display:grid;grid-template-columns:55px 1fr 58px;gap:7px;align-items:center}.hour-track{background:#edf2f8;height:16px;border-radius:9px;overflow:hidden}.hour-track span{display:block;height:100%;background:#5aab88}.date-pills{display:flex;gap:6px;overflow-x:auto;padding:5px 0}.date-pills button{border:1px solid #9db9d6;background:#fff;color:#215983;border-radius:9px;padding:6px 12px;white-space:nowrap;font-weight:700}.date-pills button[aria-pressed="true"]{background:#1765ac;color:#fff}.show-list,.simple-list{padding-left:20px}.show-list li,.simple-list li{padding:7px 0;border-bottom:1px solid #e4edf5}.show-list strong{display:block}.calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.day{min-width:0;border:1px solid #d5e2f0;border-radius:9px;padding:8px;background:#f7faff}.day.today{border-color:#1765ac}.day strong,.day small{display:block}.day small{font-size:.72rem;color:#365e83}.footer{background:#10243a;color:#e5effa;padding:24px 14px}.footer div{max-width:1100px;margin:auto}.footer a{color:#bfdbfa}details.notes{border:1px solid #d8e4f0;border-radius:9px;padding:8px 12px;margin-top:10px}details.notes summary{cursor:pointer;font-weight:700;min-height:32px}.loading{color:#52697d}.error{color:#a32e31}.sr{position:absolute;clip:rect(0,0,0,0);width:1px;height:1px;overflow:hidden}
+    @media(max-width:620px){.hero{min-height:210px}.hero-content{padding:18px 15px}.hero h1{margin-top:27px}.cards{display:block}.ride{margin:7px 0}.ride summary{min-height:75px}.nav{padding:7px 8px}section{padding:14px}.calendar-days{gap:3px}.day{padding:4px}.day small{font-size:.62rem}.stat{flex:1}}
+    .quick-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.quick-nav a{display:block;padding:10px 14px;border-radius:9px;background:#e8f2ff;font-weight:700;text-decoration:none}.action{border:1px solid #a3bdd7;border-radius:9px;background:#f5f9ff;color:#215983;padding:8px 12px;font-weight:700}.action:disabled{opacity:.55}.delta-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:8px 0}.delta-grid span{font-size:.82rem;border-radius:6px;background:#f3f7fb;padding:4px 5px}.delta-grid b{display:block}.map-controls{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0}.map-controls label{display:flex;gap:5px;align-items:center}.map-controls input{width:20px;height:20px}.geo-map{height:min(75vh,720px);min-height:420px;border:1px solid #cddbec;border-radius:12px;overflow:hidden}.geo-pin{font:700 12px system-ui;background:#fff;color:#153c60;border:2px solid #fff;border-radius:8px;padding:5px 7px;box-shadow:0 2px 8px #0008;white-space:nowrap}.geo-pin.low{background:#087c60;color:#fff}.geo-pin.mid,.geo-pin.high{background:#a45d12;color:#fff}.geo-pin.very-high{background:#a02a3b;color:#fff}.geo-pin.unknown{background:#43586e;color:#fff}.geo-pin.restaurant{background:#66428d;color:#fff}.geo-pin:focus-visible{outline:3px solid #1463a5}.map-detail{background:#f3f8fe;border:1px solid #cddbec;border-radius:9px;padding:10px;margin-top:8px}.map-detail h3{margin:0 0 4px}.map-detail p{margin:4px 0}.share-links{display:flex;gap:7px;flex-wrap:wrap}.share-links a,.share-links button{display:inline-block;padding:9px 14px;border-radius:999px;text-decoration:none;border:1px solid #aec2d7;background:#f3f8ff;color:#194f7b;font-weight:700}.share-links .line{background:#06c755;color:#fff;border-color:#06c755}.share-links .x{background:#10151d;color:#fff;border-color:#10151d}.share-links .threads{background:#303030;color:#fff;border-color:#303030}@media(max-width:620px){.geo-map{min-height:65vh}.delta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.map-controls{position:sticky;top:55px;z-index:5;background:#fff;padding:6px;border:1px solid #d5e2f0;border-radius:8px}}
+    .month-nav{display:flex;gap:8px;align-items:center;justify-content:center;margin:10px 0}.month-nav strong{min-width:170px;text-align:center}.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.month-grid>span{text-align:center;font-size:.78rem;font-weight:700;color:#50677e}.month-grid button{min-width:0;min-height:72px;text-align:left;border:1px solid #d3e0ec;border-radius:7px;background:#f8fbff;padding:4px;color:#173b60}.month-grid button[aria-pressed="true"]{outline:2px solid #1765ac}.month-grid button:disabled{color:#8998a6;background:#f4f5f7}.month-grid button small{display:block;font-size:.68rem;line-height:1.2}.month-grid button .recorded{color:#087c60;font-weight:700}.plan-day-info{padding:8px 12px;border-radius:8px;background:#e8f2ff;margin:10px 0}@media(max-width:620px){.month-grid{gap:2px}.month-grid button{padding:2px;min-height:65px;font-size:.82rem}.month-grid button small{font-size:.6rem}}
+    .share-links .facebook{background:#1877f2;color:#fff;border-color:#1877f2}
+    .controls label{min-width:0;max-width:100%}
+    .controls select,.controls input{min-width:0;max-width:100%;width:100%}
+  </style>
+  <script src="/analytics.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.15.0/dist/maplibre-gl.js" defer></script>
+  <script src="/en/equal.js" defer></script>
+</head>
+<body>
+  <header class="hero"><img src="/og-photo.jpg" width="1280" height="720" alt="The Universal globe at Universal Studios Japan, photographed by the site owner"><div class="hero-content"><div class="brand"><span>USJ</span> Wait Times Guide <b class="badge">Unofficial · Preview</b></div><h1>Wait times at Universal Studios Japan</h1><p>Current attraction waits and past crowd records in one place. Data comes from public providers and is not a measurement of your actual time in line.</p></div></header>
+  <nav class="nav" aria-label="Main navigation"><a href="/en/" data-nav="today">Today at the park</a><a href="/en/map" data-nav="map">Explore the map</a><a href="/en/plan" data-nav="plan">Plan your visit</a><a href="/en/vote" data-nav="vote">Vote</a><a href="/" id="japanese-link">日本語</a></nav>
+  <main>
+    <div class="notice"><strong>English preview</strong>This page uses the same wait time records and APIs as the Japanese site. Times are Japan Standard Time (JST). Always confirm operations in the <a href="https://www.usj.co.jp/web/en/us" target="_blank" rel="noopener noreferrer">official USJ app or site</a>.</div>
+    <section id="today"><h2>Today's wait times</h2><p id="today-status" class="muted status loading" role="status">Loading the latest data…</p><button id="refresh-waits" class="action" type="button">↻ Refresh wait times</button><div class="summary"><div class="stat">Park hours<strong id="today-hours">Checking…</strong></div><div class="stat">Attractions with waits<strong id="open-count">—</strong></div><div class="stat">Longest listed wait<strong id="max-wait">—</strong></div></div><p class="muted small">Waits update about every five minutes. Comparisons show the change from 5 minutes, 20 minutes and one hour ago, using available records. ↑ longer, ↓ shorter, → little change; — means no reliable comparison.</p><div class="controls"><label>Sort by <select id="sort"><option value="wait">Longest wait</option><option value="short">Shortest wait</option><option value="name">Name</option></select></label><label>Show <select id="filter"><option value="all">All attractions</option><option value="favorites">Favorites only</option><option value="open">Open with a wait</option></select></label><div class="segmented" role="group" aria-label="Display mode"><button id="cards-button" type="button" aria-pressed="true">Cards</button><button id="table-button" type="button" aria-pressed="false">Timeline</button></div></div><div id="ride-cards" class="cards"></div><div id="ride-table-wrap" class="table-wrap" hidden><table class="table"><thead id="ride-head"></thead><tbody id="ride-body"></tbody></table></div><details class="notes"><summary>About these figures</summary><p>These are provider-listed estimates for the regular standby line, not single rider or Express Pass. "Closed" is the provider's operational status; "Unknown" means a current value could not be verified. Colors represent the length of the wait, not a whole-park crowd score. Some provider updates may arrive late.</p></details></section>
+    <section id="map"><h2>Explore the park map</h2><p class="muted">Find attraction waits and restaurant locations. The map faces south by default.</p><div class="map-controls"><button id="map-location" class="action" type="button">📍 Show my location</button><button id="map-reset" class="action" type="button">Show whole park · south up</button><button id="map-refresh" class="action" type="button">↻ Refresh waits</button><label><input id="map-restaurants" type="checkbox"> Show restaurants</label></div><p id="map-status" class="muted" role="status">Loading the map…</p><div id="geo-map" class="geo-map" role="region" aria-label="Interactive map of Universal Studios Japan"></div><div id="map-detail" class="map-detail" hidden></div><p class="muted small">Map: <a href="https://openfreemap.org/">OpenFreeMap</a> / <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>. Attraction and restaurant positions: ThemeParks.wiki. Locations are approximate; the pins do not identify entrances or accessible walking routes. GPS works only after you allow browser location access and is not sent to this site's server.</p></section>
+    <section id="history"><h2>Plan your visit: crowd calendar</h2><p class="muted">Choose a past day for recorded crowd levels or a future day for published park hours. Wait records began on October 5, 2026. Times are JST.</p><div class="month-nav"><button id="month-prev" class="action" type="button" aria-label="Previous month">‹</button><strong id="month-label"></strong><button id="month-next" class="action" type="button" aria-label="Next month">›</button></div><div id="month-grid" class="month-grid" aria-label="Crowd calendar"></div><p id="plan-day-info" class="plan-day-info" role="status"></p><div id="past-record"><div class="controls"><label>Recorded date <select id="archive-date"><option value="">Loading dates…</option></select></label></div><p id="archive-status" class="muted status" role="status"></p><div class="summary"><div class="stat">Daily average<strong id="archive-average">—</strong></div><div class="stat">Records saved<strong id="archive-count">—</strong></div></div><h3>Average by hour</h3><div id="hour-bars" class="hour-bars"></div><h3>Attraction averages by hour</h3><div id="archive-wrap" class="table-wrap"><table class="table"><thead id="archive-head"></thead><tbody id="archive-body"></tbody></table></div><details class="notes"><summary>About the archive</summary><p>Hourly values are rounded to the nearest minute from available open-attraction records. A missing record or closure is not counted as a zero-minute wait. Past data can be incomplete.</p></details></div></section>
+    <section id="shows"><h2>Show start times</h2><div id="show-dates" class="date-pills" role="group" aria-label="Choose a show date"></div><p id="show-status" class="muted status" role="status">Loading show times…</p><ul id="show-list" class="show-list"></ul><p class="muted small">Times are show starts, not performance durations. Schedules can change or be canceled. Check the <a href="https://www.usj.co.jp/web/en/us/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">official daily schedule</a>.</p></section>
+    <section id="hours"><h2>Upcoming park hours</h2><p id="schedule-status" class="muted status" role="status">Loading park hours…</p><div id="calendar-days" class="calendar-days"></div><p class="muted small">Published hours can change. <a href="https://www.usj.co.jp/web/en/us/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">Check official park hours</a> before your visit.</p></section>
+    <section id="weather"><h2>Weather near USJ</h2><p id="weather-status" class="muted status" role="status">Loading weather…</p><div id="weather-values" class="summary"></div><details class="notes"><summary>Weather sources and wind note</summary><p>JMA observations are from Osaka Observatory, not from inside USJ. The hourly forecast near the park is supplied by MET Norway. An average wind speed of 7 m/s or more calls for caution with outdoor rides; 10 m/s or more calls for stronger caution. These are this site's guidance, not USJ operating rules or a prediction of closure.</p></details></section>
+    <section id="more"><h2>Other information</h2><p><a href="/vote">Favorite attraction poll (Japanese)</a></p><details class="notes"><summary>Scheduled attraction closures</summary><p id="closure-status">Loading…</p><ul id="closure-list" class="simple-list"></ul></details><details class="notes"><summary>Events</summary><p id="event-status">Loading…</p><ul id="event-list" class="simple-list"></ul></details></section>
+    <section class="follow-x" aria-label="Follow this site on X"><h2>Follow updates on X</h2><p>Our X account posts wait times and daily crowd summaries in Japanese.</p><p><a href="https://x.com/uniba_waitnavi" data-follow-x target="_blank" rel="noopener noreferrer">Follow @uniba_waitnavi on X ↗</a></p></section>
+  </main>
+  <footer class="footer"><div><strong>USJ Wait Times Guide · Unofficial</strong><p>Independently operated. Not affiliated with Universal Studios Japan. Wait data: <a href="https://queue-times.com/">Queue-Times</a> and <a href="https://www.themeparks.wiki/">ThemeParks.wiki</a>. Weather: <a href="https://www.jma.go.jp/jma/index.html">Japan Meteorological Agency</a> and <a href="https://www.met.no/en">MET Norway</a>. <a href="/privacy">Privacy policy (Japanese)</a>.</p></div></footer>
+  <script id="map-locations" type="application/json"><!--MAP_LOCATIONS--></script>
+  <script>
+  (() => {
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const jst = new Intl.DateTimeFormat('en-US', {timeZone:'Asia/Tokyo',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+    const dayFmt = new Intl.DateTimeFormat('en-US', {timeZone:'Asia/Tokyo',month:'short',day:'numeric',weekday:'short'});
+    const hourFmt = new Intl.DateTimeFormat('en-US', {timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false});
+    const today = () => window.__EN_PREVIEW_DATE__ || new Date(Date.now()+32400000).toISOString().slice(0,10);
+    const addDays = (day,n) => new Date(Date.parse(day+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
+    const dateLabel = day => dayFmt.format(new Date(day+'T00:00:00+09:00'));
+    const el = (tag,className,text) => { const x=document.createElement(tag); if(className)x.className=className; if(text!=null)x.textContent=text; return x; };
+    const get = async path => { const response=await fetch(path); const body=await response.json(); if(!response.ok)throw new Error(body.error||`HTTP ${response.status}`); return body; };
+    const waitClass = n => n>=90?'very-high':n>=60?'high':n>=40?'mid':'low';
+    const isFresh = ride => { const stamp=Date.parse(ride?.verified_at||ride?.last_updated); const age=(window.__EN_PREVIEW_TIME__||Date.now())-stamp; return Number.isFinite(stamp)&&age>=-120000&&age<=900000; };
+    const waitLabel = ride => !ride||ride.data_unavailable||!isFresh(ride)?'Unknown':ride.is_open&&Number.isInteger(ride.wait_time)?`${ride.wait_time} min`:'Closed';
+    const available = ride => !!ride&&!ride.data_unavailable&&isFresh(ride)&&ride.is_open&&Number.isInteger(ride.wait_time);
+    const waitBadge = ride => el('span','wait '+(available(ride)?waitClass(ride.wait_time):'unknown'),waitLabel(ride));
+    const showNames = new Map(Object.entries({
+      'ミニオン・ベロウィーン・グリーティング':'Minions Belloween Greeting','ゾンビ・デ・ダンス':'ZOMBIE de DANCE','アルティメット・ブルース・バッシュ ～音楽の色～':'The Ultimate Blues Bash','スヌーピー・フォト・オポチュニティ':'Snoopy Photo Opportunity','ホグズミード・マジカル・クリーチャーズ・ミート':'Meet the Hogsmeade Magical Creatures','ストリート・ゾンビ':'STREET ZOMBIES','ウォーターワールド':'WaterWorld','プレイバック・ゾンビ・デ・ダンス ～ハロウィーン・ホラー・ナイト 15周年～':'Playback ZOMBIE de DANCE: Halloween Horror Nights 15th Anniversary','フロッグ・クワイア':'Frog Choir','NO LIMIT! パレード ～Discover U!!! バージョン～':'NO LIMIT! Parade: Discover U!!! Version','ユニバーサル・ワンダーランド ～レッツ・スマイル・トゥギャザー！～':"Universal Wonderland: Let's Smile Together!",'ウィキッド ～オズの魔女たち～':'Wicked: The Witches of Oz','ヒッポグリフ・マジカル・レッスン':'Hippogriff Magical Lesson','ユニバーサル・モンスター・ライブ・ロックンロール・ショー':'Universal Monsters Live: Rock and Roll Show','パワー・オブ・ロック ～ユー・ロック！～':'The Power of Rock: U Rock!','ジュラシック・パーク・ダイナソー・ミート ＆ グリート':'Jurassic Park Dinosaur Meet & Greet','クロミ・ライブ ～ Discover Me Discover U!!! ～':'Kuromi Live: Discover Me, Discover U!!!','ワンピース・プレミアショー 2026':'ONE PIECE PREMIER SHOW 2026','Discover U!!! タイム':'Discover U!!! Time','トライウィザード・スピリット・ラリー':'Triwizard Spirit Rally','ハロウィーン・ホラー・ナイト・アカデミー ～絶叫の15年～':'Halloween Horror Nights Academy: 15 Years of Screams'}));
+    const closureNames = new Map(Object.entries({'セサミストリート 4-D ムービーマジック™':'Sesame Street 4-D Movie Magic™','シュレック 4-D アドベンチャー':'Shrek’s 4-D Adventure','スペース・ファンタジー・ザ・ライド':'Space Fantasy - The Ride','ウォーターワールド':'WaterWorld'}));
+    const eventNames = new Map(Object.entries({'25周年“Discover U!!!” ユニバーサル・スタジオ・ジャパン':'25th Anniversary “Discover U!!!” Universal Studios Japan','NO LIMIT! カウントダウン 2027 ～Discover U!!!～':'NO LIMIT! COUNTDOWN 2027 ～Discover U!!!～','『ウィキッド 永遠の約束』セレブレーション':'Wicked: For Good Celebration','ハロウィーン・ホラー・ナイト':'HALLOWEEN HORROR NIGHTS','ユニバーサル・エクストリーム・オータム ～Discover U!!!～':'Universal Extreme Autumn: Discover U!!!','ユニバーサル・ホリデー・ワンダーズ ～Discover U!!!～':'Universal Holiday Wonders ～Discover U!!!～','ワンピース・プレミア・サマー 2026':'ONE PIECE PREMIER SUMMER 2026','葬送のフリーレン ストーリー・ウォーク ～追憶の旅～':'Frieren: Beyond Journey’s End Story Walk — Echoes of Adventure','美少女戦士セーラームーン・ザ・ミラクル 4-D ～ムーン・パレス編 デラックス～':'Pretty Guardian Sailor Moon: The Miracle 4-D — Moon Palace Edition Deluxe','薬屋のひとりごと':'The Apothecary Diaries'}));
+    const rideNames = new Map([
+      [13925, 'Chainsaw Man: The Chaos 4-D'],
+      [17893, 'Factory of Fear: Zombie Tour'],
+      [17912, "Frieren: Beyond Journey's End × Story Ride -- Carriage Beneath the Bird Monster"],
+    ]);
+    const nameOf = ride => rideNames.get(Number(ride?.id)) ||
+      (ride?.name && !/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(ride.name)
+        ? ride.name.trim() : `Attraction ${ride?.id||''}`);
+    let live=null,history=null,archiveData=null,favorites=new Set(),view='cards',showRequest=0,archiveRequest=0;
+    try{favorites=new Set(JSON.parse(localStorage.getItem('usj-wait-nav-favorites-v1')||'[]').map(Number));}catch{}
+    function nearestHistory(rideId,target,tolerance){if(!history?.snapshots)return null;let best=null,gap=Infinity;for(const snapshot of history.snapshots){const item=snapshot.rides?.[String(rideId)];if(!item?.is_open||!Number.isFinite(item.wait_minutes))continue;const distance=Math.abs(snapshot.captured_at-target);if(distance<gap){best={...item,at:snapshot.captured_at};gap=distance;}}return gap<=tolerance?best:null;}
+    function change(ride,minutes){
+      if(!available(ride)||!live?.fetched_at)return '—';
+      const current=Date.parse(live.fetched_at)/1000;
+      if(minutes===5){
+        const prior=live.previous, priorRide=prior?.rides?.find(item=>Number(item.id)===Number(ride.id));
+        const stamp=Date.parse(prior?.fetched_at)/1000;
+        if(!priorRide||!available(priorRide)||!Number.isFinite(stamp)||current-stamp<180||current-stamp>480)return '—';
+        const diff=ride.wait_time-priorRide.wait_time;
+        return `${diff>=5?'↑':diff<=-5?'↓':'→'} ${Math.abs(diff)} min`;
+      }
+      const prior=nearestHistory(ride.id,current-minutes*60,minutes===60?660:660);
+      if(!prior)return '—';
+      const diff=ride.wait_time-prior.wait_minutes;
+      return `${diff>=5?'↑':diff<=-5?'↓':'→'} ${Math.abs(diff)} min`;
+    }
+    function sortedRides(){if(!live?.rides)return[];const filter=$('filter').value,sort=$('sort').value;return live.rides.filter(r=>filter==='favorites'?favorites.has(Number(r.id)):filter==='open'?available(r):true).sort((a,b)=>{const fav=Number(favorites.has(Number(b.id)))-Number(favorites.has(Number(a.id)));if(fav)return fav;if(sort==='name')return nameOf(a).localeCompare(nameOf(b),'en');const aw=available(a)?a.wait_time:sort==='short'?99999:-1,bw=available(b)?b.wait_time:sort==='short'?99999:-1;return sort==='short'?aw-bw:bw-aw||nameOf(a).localeCompare(nameOf(b),'en');});}
+    function renderRides(){
+      const rides=sortedRides();
+      const openIds=new Set([...$('ride-cards').querySelectorAll('details[open]')].map(d=>d.dataset.id));
+      $('ride-cards').replaceChildren();$('ride-head').replaceChildren();$('ride-body').replaceChildren();
+      if(!rides.length){$('ride-cards').append(el('p','muted','No attractions match this filter.'));return;}
+      const allSnapshots=(history?.snapshots||[]).slice().reverse();
+      const recent=allSnapshots.slice(-18);
+      const head=el('tr');
+      head.append(el('th',null,'Attraction'),el('th',null,'Now'),el('th',null,'5 min ago'),el('th',null,'20 min ago'),el('th',null,'1 hour ago'));
+      for(const snap of allSnapshots)head.append(el('th',null,jst.format(new Date(snap.captured_at*1000)).split(', ').at(-1)));
+      $('ride-head').append(head);
+      for(const ride of rides){
+        const card=el('div','ride'),disclosure=el('details');
+        disclosure.dataset.id=ride.id;disclosure.open=openIds.has(String(ride.id));
+        const summary=el('summary');
+        const star=el('button','fav',favorites.has(Number(ride.id))?'★':'☆');
+        star.type='button';star.setAttribute('aria-label',`${favorites.has(Number(ride.id))?'Remove from':'Add to'} favorites: ${nameOf(ride)}`);
+        star.setAttribute('aria-pressed',String(favorites.has(Number(ride.id))));
+        star.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const id=Number(ride.id);favorites.has(id)?favorites.delete(id):favorites.add(id);try{localStorage.setItem('usj-wait-nav-favorites-v1',JSON.stringify([...favorites]));}catch{}renderRides();});
+        const name=el('span','name',nameOf(ride));name.append(el('small',null,'Tap for chart and recent records ▾'));
+        summary.append(name,waitBadge(ride));disclosure.append(summary);card.append(disclosure,star);
+        const comparisons=el('div','delta-grid');
+        for(const [minutes,label] of [[5,'5 min ago'],[20,'20 min ago'],[60,'1 hour ago']]){
+          const cell=el('span');cell.append(el('b',null,label),document.createTextNode(change(ride,minutes)));comparisons.append(cell);
+        }
+        card.append(comparisons);
+        const detail=el('div','ride-details');
+        const bars=el('div','trend');bars.setAttribute('role','img');bars.setAttribute('aria-label','Wait time trend today');
+        const points=recent.map(s=>{const sample=s.rides?.[String(ride.id)];return sample?.is_open?sample.wait_minutes:null;}).filter(Number.isFinite);
+        const max=Math.max(30,ride.wait_time||0,...points);
+        for(const snap of recent){const sample=snap.rides?.[String(ride.id)];const value=sample?.is_open?sample.wait_minutes:null;const bar=el('i');bar.style.height=Number.isFinite(value)?`${Math.max(3,value/max*100)}%`:'2px';bar.style.opacity=Number.isFinite(value)?'1':'.18';bar.title=`${jst.format(new Date(snap.captured_at*1000))}: ${Number.isFinite(value)?value+' min':'no record'}`;bars.append(bar);}
+        detail.append(bars,el('p','small muted',`Latest record: ${recent.length?jst.format(new Date(recent.at(-1).captured_at*1000))+' JST':'none yet'}`));
+        disclosure.append(detail);$('ride-cards').append(card);
+        const row=el('tr');row.append(el('td',null,nameOf(ride)),el('td',available(ride)?waitClass(ride.wait_time):'unknown',waitLabel(ride)));
+        for(const minutes of [5,20,60])row.append(el('td',null,change(ride,minutes)));
+        for(const snap of allSnapshots){const sample=snap.rides?.[String(ride.id)];const v=sample?.is_open&&Number.isFinite(sample.wait_minutes)?sample.wait_minutes:null;row.append(el('td',v===null?'unknown':waitClass(v),v===null?(sample?'Closed':'—'):String(v)));}
+        $('ride-body').append(row);
+      }
+    }
+    async function loadLive(){try{live=await get('/api/waits');const good=(live.rides||[]).filter(available);const checked=live.fetched_at&&Number.isFinite(Date.parse(live.fetched_at))?jst.format(new Date(live.fetched_at))+' JST':'unavailable';$('today-status').textContent=live.stale||!live.rides?.length?'Current wait times unavailable. Please try again later.':`Provider data checked ${checked} · updates approximately every 5 minutes${live.refresh_error?' · latest refresh failed':''}`;$('open-count').textContent=`${good.length} / ${(live.rides||[]).length}`;$('max-wait').textContent=good.length?`${Math.max(...good.map(r=>r.wait_time))} min`:'—';renderRides();renderMapPins();if(archiveData)renderArchive(archiveData);}catch(error){$('today-status').textContent=`Wait times unavailable: ${error.message}`;$('today-status').classList.add('error');}}
+    async function loadToday(){try{history=await get('/api/today');if(live){renderRides();renderMapPins();}}catch{history=null;}window.dispatchEvent(new Event('en:history-updated'));}
+    function renderArchive(data){$('archive-average').textContent=Number.isFinite(data.average_wait)?`${Math.round(data.average_wait)} min`:'—';$('archive-count').textContent=String(data.snapshots||0);$('archive-status').textContent=`${dateLabel(data.day)} · ${data.snapshots||0} saved records · ${data.weather?'weather available':'weather unavailable'}`;const hours=data.hours||[],max=Math.max(1,...hours.map(h=>h.average_wait||0));$('hour-bars').replaceChildren();for(const h of hours){const row=el('div','hour-row');row.append(el('span',null,hourFmt.format(new Date(h.at*1000))));const track=el('div','hour-track');const fill=el('span');fill.style.width=`${(h.average_wait||0)/max*100}%`;track.append(fill);row.append(track,el('strong',null,Number.isFinite(h.average_wait)?`${Math.round(h.average_wait)} min`:'—'));$('hour-bars').append(row);}const ids=[...new Set(hours.flatMap(h=>Object.keys(h.rides||{})))];const names=new Map((live?.rides||[]).map(r=>[String(r.id),nameOf(r)]));ids.sort((a,b)=>{const avg=id=>{const n=hours.map(h=>h.rides?.[id]?.average_wait).filter(Number.isFinite);return n.length?n.reduce((x,y)=>x+y,0)/n.length:-1;};return avg(b)-avg(a);});const head=el('tr');head.append(el('th',null,'Attraction'));for(const h of hours)head.append(el('th',null,hourFmt.format(new Date(h.at*1000))));$('archive-head').replaceChildren(head);$('archive-body').replaceChildren();for(const id of ids){const row=el('tr');row.append(el('td',null,names.get(id)||`Attraction ${id}`));for(const h of hours){const v=h.rides?.[id]?.average_wait;row.append(el('td',Number.isFinite(v)?waitClass(v):'unknown',Number.isFinite(v)?String(Math.round(v)):h.rides?.[id]?.closed_samples?'Closed':'—'));}$('archive-body').append(row);}}
+    async function loadArchiveDates(){try{const data=await get('/api/archive/days');const days=data.days||[];recordedDays=new Set(days.map(item=>item.day));$('archive-date').replaceChildren();if(!days.length){$('archive-date').append(new Option('No saved dates',''));$('archive-status').textContent='No past records are available yet.';renderCalendar();return;}for(const item of days)$('archive-date').append(new Option(dateLabel(item.day),item.day));renderCalendar();if(recordedDays.has(selectedDay))await loadArchiveDay(selectedDay);}catch(error){$('archive-status').textContent=`Archive unavailable: ${error.message}`;}}
+    async function loadArchiveDay(day){if(!day)return;const request=++archiveRequest;$('archive-status').textContent='Loading day…';try{const data=await get('/api/archive/day?date='+encodeURIComponent(day));if(request!==archiveRequest)return;archiveData=data;renderArchive(data);}catch(error){if(request===archiveRequest)$('archive-status').textContent=`Day unavailable: ${error.message}`;}}
+    async function loadShows(day){const request=++showRequest;$('show-status').textContent='Loading show times…';$('show-list').replaceChildren();try{const data=await get('/api/shows?date='+encodeURIComponent(day));if(request!==showRequest)return;const shows=(data.shows||[]).filter(s=>Array.isArray(s.times)&&s.times.length);if(!shows.length){$('show-status').textContent='Show start times are unavailable for this date. Please check the official daily schedule.';return;}$('show-status').textContent=`${dateLabel(day)} · ${shows.length} ${shows.length===1?'show':'shows'} · start times only`;for(const show of shows){const li=el('li');const title=el('strong',null,showNames.get(show.name)||show.name);li.append(title,el('span',null,show.times.map(v=>typeof v==='string'?v:new Date(v.start||v).toLocaleTimeString('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'})).join(' · ')));$('show-list').append(li);}}catch(error){if(request===showRequest)$('show-status').textContent=`Show times unavailable: ${error.message}`;}}
+    function setupShowDays(){const day=today();$('show-dates').replaceChildren();for(let i=0;i<7;i++){const d=addDays(day,i),button=el('button',null,i===0?'Today':dateLabel(d));button.type='button';button.setAttribute('aria-pressed',String(i===0));button.addEventListener('click',()=>{for(const other of $('show-dates').children)other.setAttribute('aria-pressed',String(other===button));loadShows(d);});$('show-dates').append(button);}loadShows(day);}
+    let scheduleDays=new Map(),recordedDays=new Set(),selectedDay=today(),shownMonth=today().slice(0,7);
+    const monthLabel=month=>new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(month+'-01T00:00:00Z'));
+    const monthMove=(month,offset)=>{const date=new Date(month+'-01T00:00:00Z');date.setUTCMonth(date.getUTCMonth()+offset);return date.toISOString().slice(0,7);};
+    function selectPlanDay(day){
+      selectedDay=day;renderCalendar();
+      const item=scheduleDays.get(day),hours=item?.status==='CLOSED'?'Closed':item?.opens&&item?.closes?`${item.opens}–${item.closes}`:'Not published';
+      $('plan-day-info').textContent=`${dateLabel(day)} · Park hours: ${hours}${recordedDays.has(day)?' · Past wait records available':''}`;
+      $('past-record').hidden=!recordedDays.has(day);
+      if(recordedDays.has(day)){$('archive-date').value=day;loadArchiveDay(day);}
+    }
+    function renderCalendar(){
+      $('month-label').textContent=monthLabel(shownMonth);
+      const lastMonth=[...scheduleDays.keys()].sort().at(-1)?.slice(0,7)||shownMonth;
+      $('month-prev').disabled=shownMonth<='2026-10';$('month-next').disabled=shownMonth>=lastMonth;
+      const grid=$('month-grid');grid.replaceChildren();
+      for(const day of ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'])grid.append(el('span',null,day));
+      const first=new Date(shownMonth+'-01T00:00:00Z'),count=new Date(first.getUTCFullYear(),first.getUTCMonth()+1,0).getDate();
+      for(let i=0;i<first.getUTCDay();i++)grid.append(el('span'));
+      for(let n=1;n<=count;n++){
+        const day=`${shownMonth}-${String(n).padStart(2,'0')}`,hours=scheduleDays.get(day),recorded=recordedDays.has(day);
+        const button=el('button',null,String(n));button.type='button';button.dataset.day=day;button.disabled=!hours&&!recorded;
+        button.setAttribute('aria-pressed',String(day===selectedDay));
+        button.setAttribute('aria-label',`${dateLabel(day)}; ${hours?.opens&&hours?.closes?hours.opens+' to '+hours.closes:'hours unavailable'}${recorded?'; wait records available':''}`);
+        const line=el('small',recorded?'recorded':'',recorded?'Past waits':hours?.status==='CLOSED'?'Closed':hours?.opens&&hours?.closes?`${hours.opens}–${hours.closes}`:'');
+        button.append(line);button.addEventListener('click',()=>selectPlanDay(day));grid.append(button);
+      }
+      const chosen=scheduleDays.get(selectedDay);
+      $('plan-day-info').textContent=`${dateLabel(selectedDay)} · Park hours: ${chosen?.status==='CLOSED'?'Closed':chosen?.opens&&chosen?.closes?`${chosen.opens}–${chosen.closes}`:'Not published'}${recordedDays.has(selectedDay)?' · Past wait records available':''}`;
+      $('past-record').hidden=!recordedDays.has(selectedDay);
+    }
+    $('month-prev').addEventListener('click',()=>{shownMonth=monthMove(shownMonth,-1);renderCalendar();});
+    $('month-next').addEventListener('click',()=>{shownMonth=monthMove(shownMonth,1);renderCalendar();});
+    async function loadSchedule(){try{const data=await get('/api/schedule');scheduleDays=new Map((data.days||[]).map(item=>[item.day,item]));const current=scheduleDays.get(today());$('today-hours').textContent=current?.status==='CLOSED'?'Closed':current?.opens&&current?.closes?`${current.opens}–${current.closes}`:'Not published';$('schedule-status').textContent=data.error?'Showing the last available schedule.':'Published park hours (JST).';$('calendar-days').replaceChildren();for(let i=0;i<14;i++){const date=addDays(today(),i),item=scheduleDays.get(date),box=el('div','day'+(i===0?' today':''));box.append(el('strong',null,dateLabel(date)));box.append(el('small',null,item?.status==='CLOSED'?'Closed':item?.opens&&item?.closes?`${item.opens}–${item.closes}`:'Not published'));$('calendar-days').append(box);}renderCalendar();}catch(error){$('today-hours').textContent='Unavailable';$('schedule-status').textContent=`Park hours unavailable: ${error.message}`;renderCalendar();}}
+    async function loadWeather(){try{const data=await get('/api/weather'),current=data.periods?.[0]||data.current||null;$('weather-status').textContent=current?'Forecast near USJ. Weather may change.':'Weather forecast is unavailable.';$('weather-values').replaceChildren();if(current){for(const [label,value] of [['Temperature',current.temperature],['Average wind',current.wind_speed],['Hourly rain',current.precipitation]]){const box=el('div','stat',label);box.append(el('strong',null,Number.isFinite(value)?`${value.toFixed(1)}${label==='Temperature'?'°C':label==='Average wind'?' m/s':' mm'}`:'—'));$('weather-values').append(box);}}}catch(error){$('weather-status').textContent=`Weather unavailable: ${error.message}`;}}
+    async function loadExtras(){try{const data=await get('/api/closures');$('closure-status').textContent='Scheduled closures from the official listing. Check the source for updates.';const rides=new Map((live?.rides||[]).map(r=>[Number(r.id),nameOf(r)]));for(const item of (data.closures||[]).slice(0,15))$('closure-list').append(el('li',null,`${closureNames.get(item.title)||rides.get(Number(item.queue_times_id))||item.title}${item.end?' · through '+dateLabel(item.end):''}`));}catch(error){$('closure-status').textContent=`Closures unavailable: ${error.message}`;}try{const data=await get('/api/events');$('event-status').textContent='Event dates may change. Some official detail links open Japanese pages.';for(const item of (data.events||[]).slice(0,12)){const li=el('li');const a=el('a',null,eventNames.get(item.title)||item.title);a.href=item.url||data.source_url||'#';a.target='_blank';a.rel='noopener noreferrer';li.append(a,el('span',null,item.start?' · '+dateLabel(item.start):''));$('event-list').append(li);}}catch(error){$('event-status').textContent=`Events unavailable: ${error.message}`;}}
+    const mapPayload=(()=>{try{return JSON.parse($('map-locations').textContent);}catch{return {locations:[]};}})();
+    const mapPlaces=Array.isArray(mapPayload.locations)?mapPayload.locations:[];
+    const placeByKey=new Map(mapPlaces.filter(p=>p.type==='ATTRACTION').map(p=>[p.key.split('.').at(-1),p]));
+    const mapRides=[
+      [7077,'hollywood_dream_the_ride'],[12082,'space_fantasy_the_ride'],[13925,'chainsawman_the_chaos_4D_2026'],
+      [7214,'sing_on_tour'],[12091,'playing_with_curious_george'],[17893,'factory_of_fear_zombie_tour_2026'],
+      [13005,'conan_4d_live_show'],[12066,'despicable_me_minion_mayhem'],[12072,'freeze_ray_sliders'],
+      [14918,'illuminations_villain_con_minion_blast'],[7092,'the_flying_dinosaur'],[12067,'jurassic_park_the_ride'],
+      [12068,'jaws'],[7065,'hello_kittys_cupcake_dream'],[7063,'hello_kittys_ribbon_collection'],
+      [14919,'snoopys_adventure'],[12075,'the_flying_snoopy'],[12065,'harry_potter_forbidden_journey'],
+      [12073,'flight_of_the_hippogriff'],[12197,'ollivanders'],[12061,'mario_kart_koopas_challenge'],
+      [12071,'yoshis_adventure'],[14402,'donkey_kong_country_ride']
+    ];
+    const mapOverview=new Set([7077,12066,7092,12068,12065,12061]);
+    const mapVariants=new Map([[7077,[7077,12070,17912]],[12082,[12082,12324]],[13925,[12083,12084,13925]],[12067,[12067,15322]],[12068,[12068,17894]]]);
+    let geoMap=null,geoPins=[],restaurantPins=[],locationPin=null;
+    function selectMapPlace(place,ride){
+      const box=$('map-detail');box.replaceChildren();box.hidden=false;
+      box.append(el('h3',null,ride?nameOf(ride):place.name));
+      box.append(el('p',null,place.type==='RESTAURANT'?'Restaurant location. Opening hours and waits are unavailable.':`Current standby wait: ${waitLabel(ride)}`));
+      if(ride)box.append(el('p',null,`20 min ago: ${change(ride,20)}`));
+      const link=el('a',null,'Open walking directions in Google Maps ↗');
+      link.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${place.lat},${place.lng}`)}&travelmode=walking`;
+      link.target='_blank';link.rel='noopener noreferrer';box.append(link);
+      box.scrollIntoView({block:'nearest'});
+    }
+    function mapPin(place,ride){
+      const trend=ride?change(ride,20):'—';
+      const arrow=trend==='—'?'':` ${trend[0]}`;
+      const button=el('button','geo-pin '+(place.type==='RESTAURANT'?'restaurant':available(ride)?waitClass(ride.wait_time):'unknown'),place.type==='RESTAURANT'?'🍽':waitLabel(ride)+arrow);
+      button.type='button';button.title=place.type==='RESTAURANT'?place.name:`${ride?nameOf(ride):place.name}: ${waitLabel(ride)}${trend==='—'?'':'; compared with 20 min ago: '+trend}`;
+      button.setAttribute('aria-label',button.title+'; show details');
+      button.addEventListener('click',()=>selectMapPlace(place,ride));
+      return new maplibregl.Marker({element:button,anchor:'bottom'}).setLngLat([place.lng,place.lat]).addTo(geoMap);
+    }
+    function renderMapPins(){
+      if(!geoMap)return;
+      for(const pin of geoPins)pin.remove();geoPins=[];
+      const overview=geoMap.getZoom()<16.7;
+      const rides=new Map((live?.rides||[]).map(ride=>[Number(ride.id),ride]));
+      for(const [id,key] of mapRides){
+        if(overview&&!mapOverview.has(id))continue;
+        const place=placeByKey.get(key);if(!place)continue;
+        const ids=mapVariants.get(id)||[id];
+        const ride=ids.map(variant=>rides.get(variant)).find(available)||(ids.length===1?rides.get(id):null);
+        geoPins.push(mapPin(place,ride));
+      }
+      renderRestaurants();
+    }
+    function renderRestaurants(){
+      if(!geoMap)return;
+      for(const pin of restaurantPins)pin.remove();restaurantPins=[];
+      if(!$('map-restaurants').checked||geoMap.getZoom()<16.7)return;
+      for(const place of mapPlaces.filter(p=>p.type==='RESTAURANT'))restaurantPins.push(mapPin(place,null));
+    }
+    function resetMap(){if(!geoMap)return;geoMap.stop();geoMap.jumpTo({bearing:180,pitch:0});geoMap.fitBounds([[135.4293,34.6628],[135.4368,34.6694]],{padding:18,maxZoom:16.6,bearing:180,duration:0});}
+    function initMap(){
+      if(!window.maplibregl||!mapPlaces.length){$('map-status').textContent='The map is unavailable. Please try again later.';return;}
+      try{
+        geoMap=new maplibregl.Map({container:'geo-map',style:'https://tiles.openfreemap.org/styles/liberty',center:[135.43305,34.6661],zoom:15.2,bearing:180,pitch:0,dragRotate:false,minZoom:13,maxZoom:19});
+        geoMap.touchZoomRotate.disableRotation();
+        geoMap.on('zoomend',renderMapPins);
+        geoMap.on('load',()=>{$('map-status').textContent='Select a pin for details. Zoom in to see every attraction and restaurant.';renderMapPins();});
+        resetMap();renderMapPins();
+      }catch(error){$('map-status').textContent=`The map could not load: ${error.message}`;}
+    }
+    $('map-restaurants').addEventListener('change',renderRestaurants);
+    $('map-reset').addEventListener('click',resetMap);
+    $('map-location').addEventListener('click',()=>{
+      if(!navigator.geolocation){$('map-status').textContent='This browser does not support location access.';return;}
+      $('map-status').textContent='Getting your location…';
+      navigator.geolocation.getCurrentPosition(position=>{
+        if(!geoMap)return;
+        const point=[position.coords.longitude,position.coords.latitude];
+        if(locationPin)locationPin.remove();
+        const dot=el('span',null,'●');dot.style.cssText='color:#1379dc;font-size:32px;text-shadow:0 0 0 3px #fff,0 2px 7px #0009';
+        locationPin=new maplibregl.Marker({element:dot}).setLngLat(point).addTo(geoMap);
+        geoMap.flyTo({center:point,zoom:17,bearing:180});
+        $('map-status').textContent=`Location shown (accuracy about ${Math.round(position.coords.accuracy)} m).`;
+      },error=>{$('map-status').textContent=error.code===1?'Location permission was denied.':'Could not get your location. Please try again.';},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+    });
+    if (window.__EN_PREVIEW_PAGE__==='map' || /^\/en\/map\/?$/.test(location.pathname)) window.addEventListener('load',initMap,{once:true});
+    async function refreshWaits(button){button.disabled=true;try{await Promise.allSettled([loadLive(),loadToday()]);}finally{button.disabled=false;}}
+    $('refresh-waits').addEventListener('click',()=>refreshWaits($('refresh-waits')));
+    $('map-refresh').addEventListener('click',()=>refreshWaits($('map-refresh')));
+    $('sort').addEventListener('change',renderRides);$('filter').addEventListener('change',renderRides);$('archive-date').addEventListener('change',e=>{selectedDay=e.target.value;shownMonth=selectedDay.slice(0,7);selectPlanDay(selectedDay);});for(const [mode,id] of [['cards','cards-button'],['table','table-button']])$(id).addEventListener('click',()=>{view=mode;$('ride-cards').hidden=mode!=='cards';$('ride-table-wrap').hidden=mode!=='table';$('cards-button').setAttribute('aria-pressed',String(mode==='cards'));$('table-button').setAttribute('aria-pressed',String(mode==='table'));});
+    window.enApp = {get live(){return live;},get history(){return history;},get archiveData(){return archiveData;},get selectedDay(){return selectedDay;},get scheduleDays(){return scheduleDays;},get recordedDays(){return recordedDays;},get favorites(){return favorites;},get geoMap(){return geoMap;},renderRides,renderArchive,selectPlanDay,change,available,nameOf,waitClass,dateLabel,hourFmt,refreshWaits,showNames,eventNames,closureNames};
+    const englishPage=window.__EN_PREVIEW_PAGE__||location.pathname.replace(/\/$/,'').split('/')[2]||'today';
+    let displayedDay=today();
+    if(englishPage==='today'){
+      Promise.allSettled([loadLive(),loadToday(),loadSchedule(),loadWeather(),loadExtras()]);setupShowDays();
+      setInterval(()=>{if(today()!==displayedDay){displayedDay=today();setupShowDays();loadSchedule();}loadLive();loadToday();},5*60*1000);
+    }else if(englishPage==='map'){
+      Promise.allSettled([loadLive(),loadToday()]);
+      setInterval(()=>{loadLive();loadToday();},5*60*1000);
+    }else if(englishPage==='plan'){
+      Promise.allSettled([loadLive(),loadSchedule(),loadArchiveDates(),loadExtras()]);setupShowDays();
+    }
+  })();
+  </script>
+</body>
+</html>
