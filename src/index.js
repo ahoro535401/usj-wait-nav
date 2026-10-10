@@ -175,6 +175,44 @@ function xWaitPost(rides, names, fetchedAt, previous = null) {
   return null;
 }
 
+function xWaitReply(rides, names, fetchedAt, previous) {
+  const captured = Date.parse(fetchedAt) / 1000;
+  if (!Number.isFinite(captured)) return null;
+  const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+    Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
+    .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
+  const moreRides = ranked.slice(5, 8).map((ride, index) => {
+    let name = (names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
+    if ([...name].length > 18) name = [...name].slice(0, 18).join('') + '…';
+    return `${index + 6}. ${name} ${ride.wait_time}分`;
+  });
+  const counts = { up: 0, flat: 0, down: 0 };
+  if (previous?.rides) {
+    for (const ride of ranked) {
+      const before = previous.rides[String(ride.id)];
+      if (!before || before.is_open !== 1 || before.source !== ride.source ||
+          !Number.isInteger(before.wait_minutes)) continue;
+      const difference = ride.wait_time - before.wait_minutes;
+      counts[difference > 0 ? 'up' : difference < 0 ? 'down' : 'flat']++;
+    }
+  }
+  const comparable = counts.up + counts.flat + counts.down;
+  const trend = comparable >= 5 ?
+    `約20分前比（${comparable}施設）：待ち時間が長くなった${counts.up}・変化なし${counts.flat}・短くなった${counts.down}。` : null;
+  if (!moreRides.length && !trend) return null;
+  for (const count of [3, 2, 1, 0]) {
+    const lines = moreRides.slice(0, count);
+    if (!lines.length && !trend) continue;
+    const reply = [
+      ...(lines.length ? ['【上位5以外の待ち時間】', ...lines] : []),
+      ...(trend ? ['', trend] : []),
+      '通常待ち列の取得値です。',
+    ].join('\n');
+    if (xWeightedLength(reply) <= 280) return reply;
+  }
+  return null;
+}
+
 async function maybePostX(env, seconds) {
   if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID) return;
   const slot = dueXPost(seconds);
@@ -194,13 +232,14 @@ async function maybePostX(env, seconds) {
   const previous = snapshot ? { rides: Object.fromEntries((await env.DB.prepare(
     'SELECT ride_id,wait_minutes,is_open,source FROM ride_samples WHERE slot=?').bind(snapshot.slot).all()).results
     .map(row => [String(row.ride_id), row])) } : null;
-  const post = xWaitPost(rides, rideJapaneseNames(await response.text()), fetchedAt, previous);
+  const names = rideJapaneseNames(await response.text());
+  const post = xWaitPost(rides, names, fetchedAt, previous);
   if (!post) return;
 
-  await sendBufferPost(env, seconds, slot, post, fetchedAt);
+  await sendBufferPost(env, seconds, slot, post, fetchedAt, xWaitReply(rides, names, fetchedAt, previous));
 }
 
-async function sendBufferPost(env, seconds, slot, post, capturedAt) {
+async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null) {
   const key = `buffer_x_${jstDay(seconds)}_${slot.replace(':', '')}`;
   const claimed = await env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
     .bind(key, JSON.stringify({ status: 'sending', captured_at: capturedAt })).run();
@@ -208,20 +247,42 @@ async function sendBufferPost(env, seconds, slot, post, capturedAt) {
   try {
     const mutation = 'mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ' +
       '... on PostActionSuccess { post { id status } } ... on MutationError { message } } }';
-    const result = await fetch('https://api.buffer.com', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.BUFFER_API_KEY}` },
-      body: JSON.stringify({ query: mutation, variables: { input: {
-        text: post, channelId: env.BUFFER_X_CHANNEL_ID, schedulingType: 'automatic', mode: 'shareNow',
-        assets: [{ image: { url: X_POST_IMAGE } }],
-      } } }),
-      signal: AbortSignal.timeout(10000),
-    });
-    const body = await result.json();
-    const created = body?.data?.createPost?.post;
-    if (!result.ok || body.errors?.length || !created?.id)
-      throw new Error(`Buffer post failed: HTTP ${result.status}; ${body?.data?.createPost?.message || body.errors?.[0]?.message || 'unknown'}`);
-    await writeMeta(env.DB, key, JSON.stringify({ status: 'accepted', post_id: created.id, captured_at: capturedAt }));
+    const assets = [{ image: { url: X_POST_IMAGE } }];
+    const baseInput = {
+      text: post, channelId: env.BUFFER_X_CHANNEL_ID, schedulingType: 'automatic', mode: 'shareNow',
+      assets,
+    };
+    const threadInput = reply ? {
+      ...baseInput,
+      metadata: { twitter: { thread: [{ text: post, assets }, { text: reply, assets: [] }] } },
+    } : baseInput;
+    const submit = async input => {
+      const response = await fetch('https://api.buffer.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.BUFFER_API_KEY}` },
+        body: JSON.stringify({ query: mutation, variables: { input } }),
+        signal: AbortSignal.timeout(10000),
+      });
+      return { response, body: await response.json() };
+    };
+    let sent = await submit(threadInput);
+    let fallbackReason = null;
+    const accepted = result => result.response.ok && !result.body.errors?.length &&
+      result.body?.data?.createPost?.post?.id;
+    if (reply && !accepted(sent) && (sent.response.status === 400 || sent.response.status === 422 ||
+        sent.response.ok && (sent.body.errors?.length || sent.body?.data?.createPost?.message))) {
+      fallbackReason = sent.body?.data?.createPost?.message || sent.body.errors?.[0]?.message ||
+        `HTTP ${sent.response.status}`;
+      sent = await submit(baseInput);
+    }
+    const created = sent.body?.data?.createPost?.post;
+    if (!accepted(sent))
+      throw new Error(`Buffer post failed: HTTP ${sent.response.status}; ${sent.body?.data?.createPost?.message || sent.body.errors?.[0]?.message || 'unknown'}`);
+    await writeMeta(env.DB, key, JSON.stringify({
+      status: 'accepted', post_id: created.id, captured_at: capturedAt,
+      thread: reply ? fallbackReason ? 'fallback_single' : 'accepted' : 'not_requested',
+      ...(fallbackReason ? { thread_error: String(fallbackReason).slice(0, 200) } : {}),
+    }));
   } catch (error) {
     await writeMeta(env.DB, key, JSON.stringify({ status: 'failed', message: String(error).slice(0, 400), captured_at: capturedAt }));
     console.error('Buffer X post failed', error);
@@ -242,6 +303,18 @@ function xDailyPost(day, data) {
   return xWeightedLength(post) <= 250 ? post : null;
 }
 
+function xDailyReply(data) {
+  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait));
+  if (hours.length < 2) return null;
+  const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
+  const quiet = ranked[0];
+  const peak = ranked[ranked.length - 1];
+  const gap = Math.round(peak.average_wait - quiet.average_wait);
+  const reply = `【補足｜時間帯の差】\n比較的空いていたのは${hhmm(quiet.at).slice(0, 2)}時台（平均${Math.round(quiet.average_wait)}分）。混雑ピークとの差は${gap}分でした。\n1時間平均の過去実績です。`;
+  return xWeightedLength(reply) <= 280 ? reply : null;
+}
+
 async function maybePostDailyX(env, seconds) {
   if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
       !dueDailyXPost(seconds)) return;
@@ -259,7 +332,8 @@ async function maybePostDailyX(env, seconds) {
   if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
       data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
   const post = xDailyPost(day, data);
-  if (post) await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post, new Date(data.last_at * 1000).toISOString());
+  if (post) await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post,
+    new Date(data.last_at * 1000).toISOString(), xDailyReply(data));
 }
 
 // 10/9の混雑実績を翌朝に1回だけ配信し、Bufferの認証復旧も確認する。
