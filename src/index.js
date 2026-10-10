@@ -125,7 +125,7 @@ function xWaitPost(rides, names, fetchedAt) {
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5) return null;
   const date = xDateLabel(jstDay(captured));
-  const header = `【USJ待ち時間｜${date} ${hhmm(captured)}】非公式\n全施設・地図→${X_WAIT_URL}\n\n通常待ち列が長い上位5施設`;
+  const header = `USJの待ち時間・地図・増減がひと目で分かる👇\n${X_WAIT_URL}\n\n【${date} ${hhmm(captured)}｜非公式】通常待ち列｜上位5施設`;
   const footer = `\n\n#USJ #ユニバ`;
   const aliases = new Map([
     [12066, 'ミニオン・ライド'], [13005, 'コナン4-D'],
