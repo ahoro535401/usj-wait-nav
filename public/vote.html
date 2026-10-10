@@ -79,6 +79,8 @@
     .poll-share-feedback { margin:8px 0 0 !important; font-size:.85rem; }
     .poll-share-feedback[hidden] { display:none; }
     .action-link { display:inline-flex; min-height:44px; align-items:center; justify-content:center; padding:8px 15px; border-radius:9px; background:#1058a7; color:#fff; font-weight:700; text-decoration:none; }
+    .result-source-links { display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; }
+    .result-source-links .action-link { max-width:100%; text-align:center; }
     .action-link:hover,.action-link:focus-visible { background:#0b477f; outline:2px solid #145aa5; outline-offset:2px; }
     .x-follow-panel { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:12px 0; padding:14px; border:1px solid #d8e1eb; border-radius:12px; background:#fff; }
     .x-follow-panel strong { display:block; }
@@ -155,7 +157,7 @@
       <p id="poll-result-status" class="muted" role="status">集計を読み込み中…</p>
       <ol id="poll-bars" class="poll-bars" aria-label="アトラクション別の投票数" hidden></ol>
       <p class="muted">日本語版と英語版の票数を合算し、投票のあった施設を票数順に表示します。集計は数分遅れて反映される場合があります。</p>
-      <p><a class="action-link" href="https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics" target="_blank" rel="noopener noreferrer">日本語フォームの集計を見る ↗</a>　<a class="action-link" href="https://docs.google.com/forms/d/1PLE99NvoUNX8jAG8MBGu-Swh788WYkT2fHB6Y15s9kU/viewanalytics" target="_blank" rel="noopener noreferrer">英語フォームの集計を見る ↗</a></p>
+      <div class="result-source-links"><a class="action-link" href="https://docs.google.com/forms/d/15RgNtu9O4eMpfgPXoXkdi6csUVwMcVHcEpYANl0ty00/viewanalytics" target="_blank" rel="noopener noreferrer">日本語フォームの集計を見る ↗</a><a class="action-link" href="https://docs.google.com/forms/d/1PLE99NvoUNX8jAG8MBGu-Swh788WYkT2fHB6Y15s9kU/viewanalytics" target="_blank" rel="noopener noreferrer">英語フォームの集計を見る ↗</a></div>
       <p class="muted">投票ページが表示されない場合は<a href="https://docs.google.com/forms/d/e/1FAIpQLSchRG6Up4pDYXdta10fx_4c6ZnOM8PA0d9sKFpkU29I7pCtaQ/viewform" target="_blank" rel="noopener noreferrer">Googleフォームを別タブで開く</a>こともできます。</p>
       <div class="poll-share" data-poll-share>
         <p class="poll-share-title">結果を見たら、友だちにも投票をシェア</p>
