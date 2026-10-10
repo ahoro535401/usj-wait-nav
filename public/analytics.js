@@ -3,6 +3,7 @@
 
   const measurementId = 'G-9DC2RDYPXX';
   const storageKey = 'usj-wait-nav:analytics-consent';
+  const operatorKey = 'usj-wait-nav:analytics-operator';
   const english = document.documentElement.lang === 'en';
   let started = false;
   // Only named product actions and non-personal, bounded values may leave the browser.
@@ -30,6 +31,10 @@
     try { localStorage.setItem(storageKey, value); } catch (_) { /* Consent lasts for this page only. */ }
   }
 
+  function isOperatorBrowser() {
+    try { return localStorage.getItem(operatorKey) === '1'; } catch (_) { return false; }
+  }
+
   function startAnalytics() {
     if (started || !/^G-[A-Z0-9]+$/.test(measurementId)) return;
     started = true;
@@ -43,7 +48,10 @@
     });
     window.gtag('consent', 'update', { analytics_storage: 'granted' });
     window.gtag('js', new Date());
-    window.gtag('config', measurementId);
+    // A coarse browser role makes owner testing distinguishable without an ID or location.
+    window.gtag('config', measurementId, {
+      user_properties: { site_role: isOperatorBrowser() ? 'operator' : 'visitor' }
+    });
     const script = document.createElement('script');
     script.async = true;
     script.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(measurementId);

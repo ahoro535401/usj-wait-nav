@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>運営者端末の解析設定｜USJ待ち時間ナビ</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color:#172332;background:#f4f7fa}
+    body{max-width:680px;margin:0 auto;padding:24px 16px;line-height:1.7}
+    main{background:#fff;border:1px solid #dce4ed;border-radius:14px;padding:clamp(20px,5vw,36px)}
+    h1{font-size:1.5rem;line-height:1.4;margin:0 0 16px}
+    p{margin:0 0 15px}
+    .status{padding:12px 16px;border-radius:8px;background:#eef5ff;border:1px solid #b8cfeb;font-weight:700}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+    button{min-height:44px;padding:9px 16px;border:1px solid #1058a7;border-radius:8px;background:#1058a7;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+    button.secondary{background:#fff;color:#1058a7}
+    a{color:#1058a7}
+    small{display:block;color:#526477}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>運営者端末の解析設定</h1>
+    <p>このブラウザーの今後のアクセスを、GA4で「運営者端末」と「一般閲覧」に分けるための設定です。設定はこのブラウザー内にだけ保存され、ほかの端末・ブラウザーには引き継がれません。</p>
+    <p id="status" class="status" role="status">設定を確認しています…</p>
+    <div class="actions">
+      <button type="button" id="mark">このブラウザーを運営者端末にする</button>
+      <button type="button" id="unmark" class="secondary">運営者設定を解除する</button>
+    </div>
+    <p id="consent"></p>
+    <p>区分が送信されるのは、このブラウザーでGA4の解析を許可している場合だけです。過去のアクセスは区分し直せません。Cloudflare Web Analyticsの集計からは除外されません。</p>
+    <p><a href="/privacy">GA4の同意設定を確認する</a> · <a href="/">サイトを開く</a> · <a href="/en/">英語版を開く</a></p>
+    <small>このページにはGA4タグを読み込みません。公開サイトの案内からはリンクしていません。</small>
+  </main>
+  <script>
+    (() => {
+      const operatorKey = 'usj-wait-nav:analytics-operator';
+      const consentKey = 'usj-wait-nav:analytics-consent';
+      const status = document.getElementById('status');
+      const consent = document.getElementById('consent');
+      function render() {
+        try {
+          status.textContent = localStorage.getItem(operatorKey) === '1'
+            ? 'このブラウザーは運営者端末として設定済みです。'
+            : 'このブラウザーは一般閲覧として扱われます。';
+          const choice = localStorage.getItem(consentKey);
+          consent.textContent = choice === 'granted'
+            ? 'GA4の解析は許可されています。次に開くページから区分が送信されます。'
+            : 'GA4の解析は許可されていません。区分は保存できますが、GA4への送信はありません。';
+        } catch (_) {
+          status.textContent = 'ブラウザーに設定を保存できません。プライベートモードや保存制限を確認してください。';
+          consent.textContent = '';
+        }
+      }
+      document.getElementById('mark').addEventListener('click', () => {
+        try { localStorage.setItem(operatorKey, '1'); } catch (_) { /* Show storage error below. */ }
+        render();
+      });
+      document.getElementById('unmark').addEventListener('click', () => {
+        try { localStorage.removeItem(operatorKey); } catch (_) { /* Show storage error below. */ }
+        render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>
