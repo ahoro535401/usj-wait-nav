@@ -571,7 +571,7 @@
     if (!data || data.day !== app.selectedDay) return;
     const box = $('en-archive-detail');if (!box) return;
     const {peak,top} = archiveHighlights(data);
-    const rideName = id => app.nameOf(app.live?.rides?.find(ride=>String(ride.id)===String(id)) || {id});
+    const rideName = id => app.archiveNameOf(id);
     $('en-archive-peak').textContent = peak ? `${app.hourFmt.format(new Date(peak.at*1000)).slice(0,2)}:00 hour · ${Math.round(peak.average_wait)} min average` : 'No comparable hour';
     $('en-archive-longest').textContent = top ? `${rideName(top.id)} · ${Math.round(top.wait)} min average (${app.hourFmt.format(new Date(top.at*1000)).slice(0,2)}:00 hour)` : 'No comparable record';
     $('en-archive-period').textContent = data.first_at && data.last_at ? `Records from ${app.hourFmt.format(new Date(data.first_at*1000))} to ${app.hourFmt.format(new Date(data.last_at*1000))} JST. Hours without records are not included.` : 'Record times unavailable.';
@@ -580,8 +580,8 @@
     const charts = $('en-archive-charts');charts.replaceChildren();
     const ids = [...new Set((data.hours||[]).flatMap(hour=>Object.keys(hour.rides||{})))];
     const avg = id => {const values=(data.hours||[]).map(hour=>hour.rides?.[id]?.average_wait).filter(Number.isFinite);return values.length?values.reduce((a,b)=>a+b,0)/values.length:-1;};
-    ids.sort((a,b)=>Number(app.favorites.has(Number(b)))-Number(app.favorites.has(Number(a))) || avg(b)-avg(a));
-    for (const id of ids) {
+    const orderedIds = app.orderArchiveIds(ids,avg);
+    for (const id of orderedIds) {
       const card = el('div','archive-chart');card.append(el('strong',null,rideName(id)));
       const bars = el('div','mini-bars');
       const max = Math.max(30,...(data.hours||[]).map(h=>h.rides?.[id]?.average_wait||0));

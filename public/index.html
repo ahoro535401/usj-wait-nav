@@ -550,7 +550,7 @@
     .archive-ride-name { min-width: 0; font-weight: 700; }
     .archive-ride-peak { flex: 0 0 auto; color: #1058a7; font-size: .85rem; }
     .archive-ride svg { display: block; width: 100%; height: auto; margin-top: 4px; }
-    .archive-ride-charts.is-collapsed .archive-ride:nth-child(n+13) { display: none; }
+    .archive-ride-charts.is-collapsed .archive-ride.is-preview-hidden { display: none; }
     .archive-hour-row.is-peak { font-weight: 700; }
     .archive-hour-row.is-peak strong { color: #b42318; }
     .archive-hour-row.is-peak strong::after { content: "（最も混雑）"; font-size: .75rem; font-weight: 400; }
@@ -823,7 +823,7 @@
     </div>
     <h3 class="archive-sub-title">時間帯ごとの平均待ち時間（全アトラクション）</h3>
     <div id="archive-hour-bars" class="archive-hour-bars" aria-label="時間帯ごとの平均待ち時間"></div>
-    <p class="muted">アトラクションは★お気に入りを先頭に表示し、それぞれ選択日の記録平均が長い順で並べます。</p>
+    <p class="muted">アトラクションは★お気に入りを先頭に、選択日の記録平均が長い順で表示します。ジョーズとジュラシック・パークは、それぞれ日中版・夜間版を続けて表示します。</p>
     <details class="ride-tag-notes"><summary>🧒👶🎢💧 記号の意味を見る</summary><p class="muted">🧒 キッズにおすすめ　👶 小さなお子さまと一緒に楽しめる　🎢 絶叫・スリルいっぱい　💧 水に濡れる可能性あり。当サイトの目安です。身長制限・利用条件はUSJ公式でご確認ください。</p></details>
     <h3 class="archive-sub-title archive-ride-title">アトラクション別の1日の推移</h3>
     <div class="archive-view-switch" role="group" aria-label="アトラクション別の表示方法">
@@ -834,7 +834,7 @@
     <div class="heatmap-scroll" tabindex="0" aria-label="過去のアトラクション別・時間帯別待ち時間表">
       <table class="heatmap-table"><thead><tr id="archive-head"></tr></thead><tbody id="archive-body"></tbody></table>
     </div>
-    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は営業中の記録の平均を1分単位に四捨五入しています。—は記録なし、休は記録上の休止です。</p>
+    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は営業中の記録の平均を1分単位に四捨五入しています。—は記録なし、休はその版の記録上の休止で、施設全体の休止を意味しません。</p>
   </section>
   <!-- 広告枠1：承認済み広告コードとプライバシー表示を設定してから有効化 -->
   <aside id="ad-slot-1" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-1"></div></aside>
@@ -2756,6 +2756,32 @@
       const ride = currentData?.rides?.find(item => String(item.id) === String(id));
       return ride ? rideName(ride) : japaneseNames.get(Number(id)) || `アトラクションID ${id}`;
     }
+    const ARCHIVE_VARIANT_PAIRS = [['12068', '17894'], ['12067', '15322']];
+    const archiveVariantLabels = new Map([
+      ['12068', 'ジョーズ（日中版）'],
+      ['17894', 'ジョーズ（夜間版：レッド・アラート）'],
+      ['12067', 'ジュラシック・パーク・ザ・ライド（日中版）'],
+      ['15322', 'ジュラシック・パーク・ザ・ライド（夜間版：イン・ザ・ダーク）'],
+    ]);
+    function orderArchiveRides(ids, scoreOf, nameOf) {
+      const pairFor = new Map(ARCHIVE_VARIANT_PAIRS.flatMap(pair => pair.map(id => [id, pair])));
+      const groups = new Map();
+      for (const id of ids) {
+        const key = pairFor.get(id)?.[0] || id;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(id);
+      }
+      return [...groups.values()].sort((a, b) => {
+        const favoriteOrder = Number(b.some(id => favorites.has(Number(id)))) -
+          Number(a.some(id => favorites.has(Number(id))));
+        if (favoriteOrder) return favoriteOrder;
+        const waitOrder = Math.max(...b.map(scoreOf)) - Math.max(...a.map(scoreOf));
+        return waitOrder || nameOf(a[0]).localeCompare(nameOf(b[0]), 'ja');
+      }).flatMap(group => group.sort((a, b) => {
+        const pair = pairFor.get(a);
+        return pair ? pair.indexOf(a) - pair.indexOf(b) : 0;
+      }));
+    }
     const ARCHIVE_RIDES_PREVIEW = 12;
     let archiveRidesExpanded = false;
     function renderArchiveRideCharts(hours, rideIds, nameOf) {
@@ -2764,7 +2790,10 @@
       box.replaceChildren();
       const hourOf = at => Number(hourMinuteFormat.format(new Date(at * 1000)).slice(0, 2));
       const ns = 'http://www.w3.org/2000/svg';
-      for (const id of rideIds) {
+      const previewCount = rideIds[ARCHIVE_RIDES_PREVIEW - 1] === '12068' && rideIds[ARCHIVE_RIDES_PREVIEW] === '17894' ||
+        rideIds[ARCHIVE_RIDES_PREVIEW - 1] === '12067' && rideIds[ARCHIVE_RIDES_PREVIEW] === '15322'
+        ? ARCHIVE_RIDES_PREVIEW + 1 : ARCHIVE_RIDES_PREVIEW;
+      for (const [index, id] of rideIds.entries()) {
         const values = hours.map(hour => {
           const sample = hour.rides?.[id];
           return sample?.open_samples && Number.isFinite(sample.average_wait) ? Math.round(sample.average_wait) : null;
@@ -2772,6 +2801,7 @@
         const valid = values.filter(value => value != null);
         const item = document.createElement('div');
         item.className = 'archive-ride';
+        item.classList.toggle('is-preview-hidden', index >= previewCount);
         const head = document.createElement('div');
         head.className = 'archive-ride-head';
         const name = document.createElement('span');
@@ -2827,7 +2857,7 @@
         }
         box.append(item);
       }
-      box.classList.toggle('is-collapsed', !archiveRidesExpanded && rideIds.length > ARCHIVE_RIDES_PREVIEW);
+      box.classList.toggle('is-collapsed', !archiveRidesExpanded && rideIds.length > previewCount);
       let more = document.querySelector('#archive-rides-more');
       if (!more) {
         more = document.createElement('button');
@@ -2841,8 +2871,8 @@
         });
         box.after(more);
       }
-      more.hidden = rideIds.length <= ARCHIVE_RIDES_PREVIEW;
-      more.textContent = archiveRidesExpanded ? '12件に戻す' : `残り${rideIds.length - ARCHIVE_RIDES_PREVIEW}件も表示`;
+      more.hidden = rideIds.length <= previewCount;
+      more.textContent = archiveRidesExpanded ? `${previewCount}件に戻す` : `残り${rideIds.length - previewCount}件も表示`;
     }
 
     // PCの「グラフ／表」切り替え。選んだ表示はこの端末に保持する。
@@ -2940,15 +2970,12 @@
         }
         scores.set(id, score);
       }
-      const nameOf = id => rideMap.has(id) ? rideName(rideMap.get(id)) : japaneseNames.get(Number(id)) || `アトラクションID ${id}`;
-      const rideIds = [...new Set([...rideMap.keys(), ...scores.keys()])].filter(matchesRide).sort((a, b) => {
-        const favoriteOrder = favoriteFirst(a, b);
-        if (favoriteOrder) return favoriteOrder;
-        const aScore = scores.get(a), bScore = scores.get(b);
-        const aWait = aScore?.count ? aScore.total / aScore.count : -1;
-        const bWait = bScore?.count ? bScore.total / bScore.count : -1;
-        return bWait - aWait || nameOf(a).localeCompare(nameOf(b), 'ja');
-      });
+      const nameOf = id => archiveVariantLabels.get(id) || (rideMap.has(id) ? rideName(rideMap.get(id)) : japaneseNames.get(Number(id)) || `アトラクションID ${id}`);
+      const scoreOf = id => {
+        const score = scores.get(id);
+        return score?.count ? score.total / score.count : -1;
+      };
+      const rideIds = orderArchiveRides([...new Set([...rideMap.keys(), ...scores.keys()])].filter(matchesRide), scoreOf, nameOf);
       archiveHead.replaceChildren();
       archiveBody.replaceChildren();
       for (const label of ['アトラクション', ...visibleHours.map(hour => `${hourMinuteFormat.format(new Date(hour.at * 1000))}〜`)]) {
