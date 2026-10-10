@@ -33,6 +33,64 @@ const X_POST_WINDOW_SECONDS = 15 * 60;
 const X_WAIT_URL = 'https://uniba-waittimes.com/?utm_source=x&utm_medium=social&utm_campaign=live_waits';
 const X_DAILY_URL = day => `https://uniba-waittimes.com/plan?date=${day}&utm_source=x&utm_medium=social&utm_campaign=daily_recap`;
 const X_POST_IMAGE = 'https://uniba-waittimes.com/og-photo-labeled.jpg';
+const X_POLL_FIRST_DAY = '2026-10-10';
+const X_POLL_LAST_DAY = '2026-11-09';
+const X_POLL_POST_TIME = '13:30';
+const X_POLL_URL = day => `https://uniba-waittimes.com/vote?utm_source=x&utm_medium=social&utm_campaign=attraction_poll&utm_content=${day.replace(/-/g, '')}`;
+const X_POLL_IMAGES = [1, 2, 3, 4].map(number => `https://uniba-waittimes.com/poll-campaign-${number}.jpg`);
+const X_POLL_HEADLINES = [
+  '🎢 USJのアトラクションアンケート実施中！',
+  '🌟 あなたのNo.1アトラクションを募集中！',
+  '🎠 好きなUSJの施設に1票を！',
+  '✨ みんなの推しアトラクション投票中！',
+];
+const X_POLL_CALLS = [
+  '1つ選んで投票👇', '投票フォームはこちら👇',
+  'あなたの1票をぜひ👇', '結果も見られる投票はこちら👇',
+];
+const X_POLL_QUESTIONS = [
+  'USJでいちばん好きなアトラクション、どれですか？',
+  '思い出に残っている1施設を選ぶなら？',
+  'もう一度乗りたい！と思う施設は？',
+  '友だちに最初に勧めたいアトラクションは？',
+  '家族と話題になるお気に入りは？',
+  '乗る前からワクワクするアトラクションは？',
+  'パークに行くたび楽しみにしている施設は？',
+  '印象に残った演出がある施設は？',
+  'いちばん笑顔になれたアトラクションは？',
+  '帰り道にまた話したくなる施設は？',
+  '初めて訪れる人に勧めるならどれ？',
+  'スリルを思い出すお気に入りは？',
+  '物語の世界に入り込めた施設は？',
+  '何度体験しても楽しいと思うのは？',
+  '同行者と意見が分かれそうなNo.1は？',
+  '待ち時間があっても選びたくなるのは？',
+  '小さな頃から好きな施設はありますか？',
+  '最近好きになった施設は？',
+  '景色や空気感が好きな施設は？',
+  'パークの一日を締めくくりたい施設は？',
+  '思わずもう一周したくなるのは？',
+  '行く前から決めている「これだけは」は？',
+  '誰かと感想を共有したい施設は？',
+  '選ぶのに迷うほど好きな中で、あえて一つなら？',
+  'また来園したくなる理由の一つは？',
+  '写真を見返すと思い出す施設は？',
+  'ユニバらしさを感じるお気に入りは？',
+  '次の来園でも選びたいアトラクションは？',
+  'あなたの「推し」として紹介するなら？',
+  '友人と答え合わせしたいNo.1は？',
+  '今月の締めくくりに、あなたの一票を！',
+];
+const X_POLL_REPLIES = [
+  '掲載中のアトラクションから1つ選ぶ選択式です。あなたの「好き」を教えてください。',
+  '回答結果は投票ページの横棒グラフで見られます。どの施設に票が集まるか楽しみですね📊',
+  '氏名やメールアドレスは尋ねません。好きなアトラクションを1つ選んで送信できます。',
+  '回答はお一人1回でお願いします。友だちや家族と、選ぶ施設を話してみるのも楽しそうです。',
+  'この投票は「好きな施設」を尋ねるもの。現在の待ち時間の長さとは別のランキングです。',
+  '結果は回答してくださった方の傾向です。USJ全来場者の人気順位としては扱いません。',
+  '迷ったら「また体験したい」と思う施設を選んでみてください。結果も同じページで公開しています。',
+  '絶叫系でも、物語を楽しむ施設でも。あなた自身のNo.1を1つ選んでください。',
+];
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
 const COLLECTION_TRAIL_SECONDS = 30 * 60;
@@ -175,6 +233,42 @@ function xWaitPost(rides, names, fetchedAt, previous = null) {
   return null;
 }
 
+function duePollXPost(seconds) {
+  const day = jstDay(seconds);
+  if (day < X_POLL_FIRST_DAY || day > X_POLL_LAST_DAY) return false;
+  const [hour, minute] = X_POLL_POST_TIME.split(':').map(Number);
+  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
+  const start = hour * 3600 + minute * 60;
+  return now >= start && now < start + X_POST_WINDOW_SECONDS;
+}
+
+function pollDayIndex(day) {
+  return Math.round((Date.parse(`${day}T00:00:00Z`) -
+    Date.parse(`${X_POLL_FIRST_DAY}T00:00:00Z`)) / 86400000);
+}
+
+function xPollPost(day) {
+  const index = pollDayIndex(day);
+  if (index < 0 || index >= X_POLL_QUESTIONS.length) return null;
+  const post = `${X_POLL_HEADLINES[index % X_POLL_HEADLINES.length]}\n` +
+    `${X_POLL_QUESTIONS[index]}\n${X_POLL_CALLS[index % X_POLL_CALLS.length]}\n` +
+    `${X_POLL_URL(day)}\n\n#USJ #ユニバ`;
+  return xWeightedLength(post) <= 280 && [...post.slice(0, post.indexOf('https://'))].length <= 140 ? post : null;
+}
+
+async function maybePostPollX(env, seconds) {
+  if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
+      !duePollXPost(seconds)) return;
+  const day = jstDay(seconds);
+  const index = pollDayIndex(day);
+  const post = xPollPost(day);
+  if (!post) return;
+  const imageUrl = X_POLL_IMAGES[index % X_POLL_IMAGES.length];
+  const imageAlt = 'USJ待ち時間ナビのNo.1アトラクション投票を案内する画像。パークの地球儀写真と投票を呼びかける文字。';
+  await sendBufferPost(env, seconds, X_POLL_POST_TIME, post, new Date(seconds * 1000).toISOString(),
+    X_POLL_REPLIES[index % X_POLL_REPLIES.length], imageUrl, imageAlt);
+}
+
 function xWaitReply(rides, names, fetchedAt, previous) {
   const captured = Date.parse(fetchedAt) / 1000;
   if (!Number.isFinite(captured)) return null;
@@ -239,7 +333,8 @@ async function maybePostX(env, seconds) {
   await sendBufferPost(env, seconds, slot, post, fetchedAt, xWaitReply(rides, names, fetchedAt, previous));
 }
 
-async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null) {
+async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null,
+    imageUrl = X_POST_IMAGE, imageAlt = null) {
   const key = `buffer_x_${jstDay(seconds)}_${slot.replace(':', '')}`;
   const claimed = await env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
     .bind(key, JSON.stringify({ status: 'sending', captured_at: capturedAt })).run();
@@ -247,7 +342,8 @@ async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null
   try {
     const mutation = 'mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ' +
       '... on PostActionSuccess { post { id status } } ... on MutationError { message } } }';
-    const assets = [{ image: { url: X_POST_IMAGE } }];
+    const assets = [{ image: { url: imageUrl,
+      ...(imageAlt ? { metadata: { altText: imageAlt } } : {}) } }];
     const baseInput = {
       text: post, channelId: env.BUFFER_X_CHANNEL_ID, schedulingType: 'automatic', mode: 'shareNow',
       assets,
@@ -923,6 +1019,7 @@ async function scheduled(event, env) {
   // 閉園後の実績投稿は収集時間外でも実行する。営業時間と記録量が不足すれば見送る。
   await maybePostDailyX(env, seconds);
   await maybePostPreviousDayTestX(env, seconds);
+  await maybePostPollX(env, seconds);
   if (!(await inCollectionWindow(env.DB, seconds))) {
     // ショー時刻は開園前にも必要。今日のデータが揃うまで5分間隔で確認する。
     const saved = await readMeta(env.DB, 'shows_payload');
