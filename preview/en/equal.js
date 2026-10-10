@@ -322,7 +322,10 @@
     const list = $('en-top-five');if (!list) return;
     list.replaceChildren();
     for (const ride of rides.slice(0,5)) {
-      const item = el('li');item.append(document.createTextNode(app.nameOf(ride)+' '),el('span','wait '+app.waitClass(ride.wait_time),`${ride.wait_time} min`));list.append(item);
+      const item = el('li'),name=app.nameOf(ride),url=app.officialAttractionUrl(ride.id);
+      if(url){const link=el('a',null,name);link.href=url;link.target='_blank';link.rel='noopener noreferrer';item.append(link);}
+      else item.append(document.createTextNode(name));
+      item.append(document.createTextNode(' '),el('span','wait '+app.waitClass(ride.wait_time),`${ride.wait_time} min`));list.append(item);
     }
     if (!rides.length) list.append(el('li',null,'No current standby estimates.'));
     const topPanel=list.closest('.feature-panel');
@@ -783,6 +786,11 @@
           detail.append(el('h3',null,ride?app.nameOf(ride):place?.name||'Attraction'));
           detail.append(el('p',null,`Current standby wait: ${value}`));
           if (ride) detail.append(el('p',null,`20 min ago: ${delta}`));
+          const official=ride&&app.officialAttractionUrl(ride.id);
+          if(official){
+            const info=el('p'),link=el('a',null,'View attraction on the official USJ site ↗');
+            link.href=official;link.target='_blank';link.rel='noopener noreferrer';info.append(link);detail.append(info);
+          }
           if (place) {
             const route=el('a',null,'Open walking directions in Google Maps ↗');
             route.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${place.lat},${place.lng}`)}&travelmode=walking`;

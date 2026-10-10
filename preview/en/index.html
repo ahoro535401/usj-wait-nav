@@ -75,6 +75,51 @@
     const nameOf = ride => rideNames.get(Number(ride?.id)) ||
       (ride?.name && !/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(ride.name)
         ? ride.name.trim() : `Attraction ${ride?.id||''}`);
+    // Verified English USJ pages, keyed by attraction ID so seasonal variants stay distinct.
+    const officialAttractionPaths = new Map([
+      [12066,'attractions/despicable-me-minion-mayhem'],
+      [13005,'attractions/detective-conan-4d-live-show'],
+      [12073,'attractions/flight-of-the-hippogriff'],
+      [12072,'attractions/freeze-ray-sliders'],
+      [12065,'attractions/harry-potter-and-the-forbidden-journey'],
+      [7065,'attractions/hello-kittys-cupcake-dream'],
+      [7063,'attractions/hello-kittys-ribbon-collection'],
+      [7077,'attractions/hollywood-dream-the-ride'],
+      [12070,'attractions/hollywood-dream-the-ride-backdrop'],
+      [14918,'attractions/illuminations-villain-con-minion-blast'],
+      [12068,'attractions/jaws'],
+      [17894,'25th-anniversary-discover-u/power-up-attractions'],
+      [12067,'attractions/jurassic-park-the-ride'],
+      [12061,'attractions/mario-kart-koopas-challenge'],
+      [14402,'attractions/donkey-kong-country-ride'],
+      [12197,'attractions/ollivanders'],
+      [12091,'attractions/playing-with-curious-george'],
+      [12324,'events/halloween-extreme-autumn-2026/halloween-horror-nights/sadako'],
+      [12083,'attractions/sesame-street-4-d-movie-magic'],
+      [12084,'attractions/shreks-4-d-adventure'],
+      [7214,'attractions/sing-on-tour'],
+      [14919,'attractions/snoopys-flying-ace-adventure'],
+      [12082,'attractions/space-fantasy-the-ride'],
+      [7092,'attractions/the-flying-dinosaur'],
+      [12075,'attractions/the-flying-snoopy'],
+      [12071,'attractions/yoshis-adventure'],
+      [13925,'events/halloween-extreme-autumn-2026/halloween-horror-nights/chainsaw-man-the-chaos-4d'],
+      [17893,'events/halloween-extreme-autumn-2026/halloween-horror-nights/factory-of-fear'],
+      [15322,'events/halloween-extreme-autumn-2026/jurassic-park-the-ride-in-the-dark'],
+      [17912,'events/universal-cool-japan-2026/frieren/story-ride'],
+    ]);
+    const officialAttractionUrl = id => {
+      const path=officialAttractionPaths.get(Number(id));
+      return path?`https://www.usj.co.jp/web/en/us/${path}`:null;
+    };
+    function officialAttractionLink(id,label){
+      const url=officialAttractionUrl(id);
+      if(!url)return null;
+      const link=el('a','official-attraction-link',label);
+      link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+      link.setAttribute('aria-label',`${label} (official USJ site, opens in a new tab)`);
+      return link;
+    }
     let live=null,history=null,archiveData=null,favorites=new Set(),view='cards',showRequest=0,archiveRequest=0;
     try{favorites=new Set(JSON.parse(localStorage.getItem('usj-wait-nav-favorites-v1')||'[]').map(Number));}catch{}
     function nearestHistory(rideId,target,tolerance){if(!history?.snapshots)return null;let best=null,gap=Infinity;for(const snapshot of history.snapshots){const item=snapshot.rides?.[String(rideId)];if(!item?.is_open||!Number.isFinite(item.wait_minutes))continue;const distance=Math.abs(snapshot.captured_at-target);if(distance<gap){best={...item,at:snapshot.captured_at};gap=distance;}}return gap<=tolerance?best:null;}
@@ -126,8 +171,12 @@
         const max=Math.max(30,ride.wait_time||0,...points);
         for(const snap of recent){const sample=snap.rides?.[String(ride.id)];const value=sample?.is_open?sample.wait_minutes:null;const bar=el('i');bar.style.height=Number.isFinite(value)?`${Math.max(3,value/max*100)}%`:'2px';bar.style.opacity=Number.isFinite(value)?'1':'.18';bar.title=`${jst.format(new Date(snap.captured_at*1000))}: ${Number.isFinite(value)?value+' min':'no record'}`;bars.append(bar);}
         detail.append(bars,el('p','small muted',`Latest record: ${recent.length?jst.format(new Date(recent.at(-1).captured_at*1000))+' JST':'none yet'}`));
+        const official=officialAttractionLink(ride.id,'View attraction on the official USJ site ↗');
+        if(official)detail.append(official);
         disclosure.append(detail);$('ride-cards').append(card);
-        const row=el('tr');row.append(el('td',null,nameOf(ride)),el('td',available(ride)?waitClass(ride.wait_time):'unknown',waitLabel(ride)));
+        const row=el('tr'),nameCell=el('td');
+        nameCell.append(officialAttractionLink(ride.id,nameOf(ride))||document.createTextNode(nameOf(ride)));
+        row.append(nameCell,el('td',available(ride)?waitClass(ride.wait_time):'unknown',waitLabel(ride)));
         for(const minutes of [5,20,60])row.append(el('td',null,change(ride,minutes)));
         for(const snap of allSnapshots){const sample=snap.rides?.[String(ride.id)];const v=sample?.is_open&&Number.isFinite(sample.wait_minutes)?sample.wait_minutes:null;row.append(el('td',v===null?'unknown':waitClass(v),v===null?(sample?'Closed':'—'):String(v)));}
         $('ride-body').append(row);
@@ -196,6 +245,8 @@
       box.append(el('h3',null,ride?nameOf(ride):place.name));
       box.append(el('p',null,place.type==='RESTAURANT'?'Restaurant location. Opening hours and waits are unavailable.':`Current standby wait: ${waitLabel(ride)}`));
       if(ride)box.append(el('p',null,`20 min ago: ${change(ride,20)}`));
+      const official=ride&&officialAttractionLink(ride.id,'View attraction on the official USJ site ↗');
+      if(official){const info=el('p');info.append(official);box.append(info);}
       const link=el('a',null,'Open walking directions in Google Maps ↗');
       link.href=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${place.lat},${place.lng}`)}&travelmode=walking`;
       link.target='_blank';link.rel='noopener noreferrer';box.append(link);
@@ -261,7 +312,7 @@
     $('refresh-waits').addEventListener('click',()=>refreshWaits($('refresh-waits')));
     $('map-refresh').addEventListener('click',()=>refreshWaits($('map-refresh')));
     $('sort').addEventListener('change',renderRides);$('filter').addEventListener('change',renderRides);$('archive-date').addEventListener('change',e=>{selectedDay=e.target.value;shownMonth=selectedDay.slice(0,7);selectPlanDay(selectedDay);});for(const [mode,id] of [['cards','cards-button'],['table','table-button']])$(id).addEventListener('click',()=>{view=mode;$('ride-cards').hidden=mode!=='cards';$('ride-table-wrap').hidden=mode!=='table';$('cards-button').setAttribute('aria-pressed',String(mode==='cards'));$('table-button').setAttribute('aria-pressed',String(mode==='table'));});
-    window.enApp = {get live(){return live;},get history(){return history;},get archiveData(){return archiveData;},get selectedDay(){return selectedDay;},get scheduleDays(){return scheduleDays;},get recordedDays(){return recordedDays;},get favorites(){return favorites;},get geoMap(){return geoMap;},renderRides,renderArchive,selectPlanDay,change,available,nameOf,waitClass,dateLabel,hourFmt,refreshWaits,showNames,eventNames,closureNames};
+    window.enApp = {get live(){return live;},get history(){return history;},get archiveData(){return archiveData;},get selectedDay(){return selectedDay;},get scheduleDays(){return scheduleDays;},get recordedDays(){return recordedDays;},get favorites(){return favorites;},get geoMap(){return geoMap;},renderRides,renderArchive,selectPlanDay,change,available,nameOf,officialAttractionUrl,waitClass,dateLabel,hourFmt,refreshWaits,showNames,eventNames,closureNames};
     const englishPage=window.__EN_PREVIEW_PAGE__||location.pathname.replace(/\/$/,'').split('/')[2]||'today';
     let displayedDay=today();
     if(englishPage==='today'){
