@@ -535,7 +535,7 @@
     if (closures.length) {
       box.append(el('h3',null,'Scheduled attraction closures'));
       const list = el('ul','simple-list');
-      for (const item of closures) list.append(el('li',null,app.closureNames.get(item.title) || item.title));
+      for (const item of closures) list.append(el('li',null,`${item.title_en || item.title}${item.end_note_en ? ` · ${item.end_note_en}` : ''}`));
       box.append(list);
     }
     const events = plan.events.filter(item => item.start && item.start<=day && (!item.end || day<=item.end));
@@ -543,8 +543,10 @@
       box.append(el('h3',null,'Events on this date'));
       const list = el('ul','simple-list');
       for (const item of events) {
-        const li=el('li');const a=el('a',null,app.eventNames.get(item.title)||item.title);
-        a.href=item.url||'#';a.target='_blank';a.rel='noopener noreferrer';li.append(a);list.append(li);
+        const li=el('li');const a=el('a',null,item.title_en||item.title);
+        a.href=item.url_en||item.url||'#';a.target='_blank';a.rel='noopener noreferrer';li.append(a);
+        if(item.time_note_en)li.append(el('span','small muted',` · ${item.time_note_en}`));
+        list.append(li);
       }
       box.append(list);
     }
@@ -628,9 +630,9 @@
       target.append(el('h3',null,`${heading} (${events.length})`));
       const list=el('ul','simple-list');
       for(const item of events){
-        const li=el('li');const link=el('a',null,app.eventNames.get(item.title)||item.title);
-        link.href=item.url||'#';link.target='_blank';link.rel='noopener noreferrer';
-        li.append(link,el('span','small muted',` · ${item.start}${item.end?'–'+item.end:''}`));list.append(li);
+        const li=el('li');const link=el('a',null,item.title_en||item.title);
+        link.href=item.url_en||item.url||'#';link.target='_blank';link.rel='noopener noreferrer';
+        li.append(link,el('span','small muted',` · ${item.time_note_en||`${item.start}${item.end?'–'+item.end:''}`}`));list.append(li);
       }
       if(!events.length)list.append(el('li','muted','None listed.'));
       target.append(list);

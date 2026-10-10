@@ -16,6 +16,7 @@ const files = {
   '/install.html': 'install.html',
   '/analytics.js': 'analytics.js',
   '/events.json': 'events.json',
+  '/show-translations.json': 'show-translations.json',
   '/closures.json': 'closures.json',
   '/pass-exclusions.json': 'pass-exclusions.json',
   '/ticket-prices.json': 'ticket-prices.json',
@@ -33,6 +34,8 @@ if (process.env.INCLUDE_EN === '1') {
   assets['/en/index.html'] = await readFile(join(base, 'preview', 'en', 'index.html'), 'utf8');
   assets['/en/equal.js'] = await readFile(join(base, 'preview', 'en', 'equal.js'), 'utf8');
   assets['/en/manifest.webmanifest'] = await readFile(join(base, 'preview', 'en', 'manifest.webmanifest'), 'utf8');
+  const showTranslations = JSON.parse(assets['/show-translations.json']);
+  assets['/en/show-translations.js'] = `window.USJ_SHOW_TRANSLATIONS=${JSON.stringify(showTranslations)};`;
 }
 // The API deployment path uses embedded assets when no ASSETS binding is present.
 // Binary files must be base64 encoded instead of being read as UTF-8 text.

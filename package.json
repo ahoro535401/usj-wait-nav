@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "build:en-release": "node scripts/build-en-release.mjs",
+    "build:en-release": "npm run check:content && node scripts/build-en-release.mjs",
+    "check:content": "node scripts/check-content-parity.mjs",
     "deploy:en-release": "npm run build:en-release && wrangler deploy --config dist/en-release/wrangler.jsonc",
     "dev": "wrangler dev --local",
     "check": "node --check src/index.js"

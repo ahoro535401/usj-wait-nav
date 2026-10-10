@@ -7,28 +7,35 @@
       "start": "2026-01-08",
       "end": null,
       "end_note": "当面の間",
-      "queue_times_id": 12083
+      "end_note_en": "Until further notice",
+      "queue_times_id": 12083,
+      "title_en": "Sesame Street 4-D Movie Magic™"
     },
     {
       "title": "シュレック 4-D アドベンチャー",
       "start": "2026-01-08",
       "end": null,
       "end_note": "当面の間",
-      "queue_times_id": 12084
+      "end_note_en": "Until further notice",
+      "queue_times_id": 12084,
+      "title_en": "Shrek’s 4-D Adventure"
     },
     {
       "title": "スペース・ファンタジー・ザ・ライド",
       "start": "2025-06-02",
       "end": null,
       "end_note": "当面の間",
-      "queue_times_id": 12082
+      "end_note_en": "Until further notice",
+      "queue_times_id": 12082,
+      "title_en": "Space Fantasy - The Ride"
     },
     {
       "title": "ウォーターワールド",
       "start": "2026-11-28",
       "end": "2026-12-27",
       "end_note": null,
-      "queue_times_id": null
+      "queue_times_id": null,
+      "title_en": "WaterWorld"
     }
   ]
 }
