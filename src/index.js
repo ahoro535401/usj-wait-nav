@@ -1909,7 +1909,8 @@ async function route(request, env) {
       `<meta property="og:image" content="https://uniba-waittimes.com/og-photo.jpg">` +
       `<meta name="twitter:card" content="summary_large_image">`;
     let html = (await asset.text()).replace('<!--MAP_LOCATIONS-->', safeLocations)
-      .replace('<!--EN_SOCIAL_META-->', socialMeta);
+      .replace('<!--EN_SOCIAL_META-->', socialMeta)
+      .replace('<a href="/" id="japanese-link"', `<a href="${jaPath}" id="japanese-link"`);
     if (englishPublic) {
       html = html.replace('<meta name="robots" content="noindex, nofollow">',
           '<meta name="robots" content="index, follow">')
@@ -1992,6 +1993,7 @@ async function route(request, env) {
     html = pageHtml(html, page);
     if (page === 'plan') {
       html = html
+        .replace('class="language-switch" href="/en/"', 'class="language-switch" href="/en/plan"')
         .replace(/<title>[^<]*<\/title>/,
           '<title>USJ混雑カレンダー｜過去の待ち時間実績と天気｜USJ待ち時間ナビ</title>')
         .replace(/<meta name="description" content="[^"]*">/,

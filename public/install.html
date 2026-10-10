@@ -21,6 +21,8 @@
     .brand { color:#172332; font-size:1.25rem; font-weight:800; text-decoration:none; }
     .brand span { display:inline-block; margin-right:5px; padding:2px 7px; border-radius:5px; background:#1058a7; color:#fff; }
     .unofficial { padding:2px 7px; border-radius:4px; background:#e7eef8; color:#526477; font-size:.75rem; font-weight:700; }
+    .language-switch { display:inline-flex; align-items:center; min-height:32px; margin-left:auto; padding:4px 9px; border:1px solid #b9c9d9; border-radius:7px; color:#386084; font-size:.78rem; font-weight:600; text-decoration:none; white-space:nowrap; }
+    .language-switch:hover { text-decoration:underline; }
     main { padding:clamp(18px,5vw,34px); border:1px solid #dce4ed; border-radius:14px; background:#fff; }
     h1 { margin:0 0 8px; font-size:clamp(1.55rem,5vw,2.05rem); line-height:1.35; }
     h2 { margin:0 0 10px; font-size:1.25rem; }
@@ -39,6 +41,7 @@
       a { color:#9cc4ff; }
       .brand { color:#eaf1fb; }
       .unofficial { background:#243449; color:#d1def0; }
+      .language-switch { color:#c0dcfa; border-color:#627890; }
       main { border-color:#344b61; background:#182638; }
       .lead,footer { color:#bdcce0; }
       .steps section { border-color:#344b61; background:#1d3046; }
@@ -48,7 +51,7 @@
   </style>
 </head>
 <body>
-  <header><a class="brand" href="/"><span>USJ</span>待ち時間ナビ</a><span class="unofficial">非公式</span></header>
+  <header><a class="brand" href="/"><span>USJ</span>待ち時間ナビ</a><span class="unofficial">非公式</span><a class="language-switch" href="/en/install" lang="en" hreflang="en" aria-label="Switch to English">English</a></header>
   <main>
     <h1>ホーム画面に追加する方法</h1>
     <p class="lead">スマートフォンのホーム画面から、USJ待ち時間ナビをすぐに開けます。利用者の会員登録やアプリストアからのダウンロードは不要です。</p>

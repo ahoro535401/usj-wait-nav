@@ -664,6 +664,8 @@
     .site-header .logo-usj { background: #fff; color: #1058a7; text-shadow: none; }
     .site-header .unofficial, :root[data-theme="dark"] .site-header .unofficial { background: rgba(9, 23, 40, .66); border: 1px solid rgba(255, 255, 255, .6); color: #fff; }
     .site-header .theme-toggle, :root[data-theme="dark"] .site-header .theme-toggle { min-height: 34px; border-color: rgba(255, 255, 255, .7); background: rgba(9, 23, 40, .7); color: #fff; }
+    .site-header .language-switch { display:inline-flex; align-items:center; min-height:32px; padding:4px 9px; border:1px solid #ffffff9c; border-radius:7px; background:#08192b99; color:#eef4ff; font-size:.78rem; font-weight:600; text-decoration:none; white-space:nowrap; }
+    .site-header .language-switch:hover, .site-header .language-switch:focus-visible { color:#fff; border-color:#fff; text-decoration:underline; outline:2px solid #fff; outline-offset:2px; }
     .site-header .theme-toggle:hover, .site-header .theme-toggle:focus-visible, .site-header .text-logo:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
     .hero-copy { max-width: 620px; margin-top: auto; }
     .site-header h1 { margin: 0 0 6px; color: #fff; font-size: clamp(1.6rem, 3.3vw, 2.15rem); line-height: 1.25; text-shadow: 0 2px 5px #0009; }
@@ -693,6 +695,7 @@
         <a class="text-logo" href="/"><span class="logo-usj">USJ</span><span>待ち時間ナビ</span></a>
         <span class="unofficial">非公式</span>
         <button type="button" id="theme-toggle" class="theme-toggle" aria-label="表示を切り替え（自動・ライト・ダーク）">表示：自動（ライト／ダーク）</button>
+        <a class="language-switch" href="/en/" lang="en" hreflang="en" aria-label="Switch to English">English</a>
       </div>
       <div class="hero-copy">
         <h1 data-only="now">USJの待ち時間・混雑状況</h1>
