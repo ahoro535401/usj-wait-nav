@@ -268,13 +268,10 @@ function xCardPayload(rides, names, fetchedAt, previous) {
         !Number.isInteger(before.wait_minutes)) return null;
     return { ride, difference: ride.wait_time - before.wait_minutes };
   }).filter(Boolean);
-  const shorter = changes.filter(item => item.difference <= -10)
-    .sort((a, b) => a.difference - b.difference)[0];
-  const longer = changes.filter(item => item.difference >= 15)
-    .sort((a, b) => b.difference - a.difference)[0];
-  const focus = shorter || longer;
+  const focus = changes.filter(item => item.difference <= -10 || item.difference >= 15)
+    .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
   const title = focus ?
-    `${xCardClip(xCardName(focus.ride, names), 11)}が20分前より${Math.abs(focus.difference)}分${shorter ? '短縮' : '増加'}` :
+    `${xCardClip(xCardName(focus.ride, names), 11)}が20分前より${Math.abs(focus.difference)}分${focus.difference < 0 ? '短縮' : '増加'}` :
     '現在の待ち時間 上位3施設';
   return {
     captured_at: fetchedAt,
