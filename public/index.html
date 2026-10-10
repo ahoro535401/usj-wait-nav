@@ -1532,7 +1532,6 @@
           [item.day, { ...item, label: HOLIDAY_LABELS[item.kind] || item.name }]));
         if (PAGE === 'plan') {
           renderArchiveCalendar();
-          renderShowDates();
           if (archiveData) renderArchive(archiveData);
         }
         if (selectedDate) showSelectedDay(selectedDate);
