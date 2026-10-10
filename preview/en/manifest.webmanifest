@@ -3,14 +3,15 @@
   "short_name": "USJ Wait Times",
   "description": "Unofficial English guide to USJ attraction wait times, maps and past crowd records.",
   "lang": "en",
+  "id": "/en/",
   "start_url": "/en/",
   "scope": "/en/",
   "display": "standalone",
   "background_color": "#f2f6fb",
   "theme_color": "#10243a",
   "icons": [
-    {"src":"/icon-192.png","sizes":"192x192","type":"image/png"},
-    {"src":"/icon-512.png","sizes":"512x512","type":"image/png"},
-    {"src":"/icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+    {"src":"/en/icon-en-192.png?v=20261010-2","sizes":"192x192","type":"image/png"},
+    {"src":"/en/icon-en-512.png?v=20261010-2","sizes":"512x512","type":"image/png"},
+    {"src":"/en/icon-en-maskable-512.png?v=20261010-2","sizes":"512x512","type":"image/png","purpose":"maskable"}
   ]
 }

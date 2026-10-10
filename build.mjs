@@ -56,10 +56,14 @@ const binaryFiles = {
 };
 if (process.env.INCLUDE_EN === '1') {
   binaryFiles['/en-x-card-base.png'] = 'x-card-base.png';
+  binaryFiles['/en/apple-touch-icon-en.png'] = 'apple-touch-icon-en.png';
+  binaryFiles['/en/icon-en-192.png'] = 'icon-en-192.png';
+  binaryFiles['/en/icon-en-512.png'] = 'icon-en-512.png';
+  binaryFiles['/en/icon-en-maskable-512.png'] = 'icon-en-maskable-512.png';
 }
 const binaryAssets = {};
 for (const [route, name] of Object.entries(binaryFiles)) {
-  binaryAssets[route] = (await readFile(join(base, route.startsWith('/en-') ? 'preview/en' : 'public', name))).toString('base64');
+  binaryAssets[route] = (await readFile(join(base, route.startsWith('/en-') || route.startsWith('/en/') ? 'preview/en' : 'public', name))).toString('base64');
 }
 const preamble = `const EMBEDDED_ASSETS = ${JSON.stringify(assets)};\n` +
 `const FALLBACK_DATA = JSON.parse(EMBEDDED_ASSETS['/fallback.json']);\n` +
