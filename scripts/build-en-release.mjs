@@ -9,7 +9,7 @@ await copyFile(new URL('../dist/worker.js', import.meta.url),
 config.main = './worker.js';
 config.assets.directory = '../../public';
 config.vars.EN_PUBLIC_ENABLED = 'true';
-config.vars.EN_X_AUTOPOST_ENABLED = 'false';
+config.vars.EN_X_AUTOPOST_ENABLED = 'true';
 await writeFile(new URL('../dist/en-release/wrangler.jsonc', import.meta.url),
   JSON.stringify(config, null, 2) + '\n', 'utf8');
-console.log('Wrote dist/en-release/worker.js and wrangler.jsonc; English X auto-posting remains disabled.');
+console.log('Wrote dist/en-release/worker.js and wrangler.jsonc; English X auto-posting enabled.');

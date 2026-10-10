@@ -48,7 +48,7 @@ OGP画像、ブラウザーとホーム画面用のアイコン、Webアプリ�
 
 英語版は2026年10月10日に `https://uniba-waittimes.com/en/` で公開しました。日本語版と同じ表示用APIとD1を共有します。公開用ビルドは `npm run build:en-release`、配備は `npm run deploy:en-release` を使います。通常の `npm run build` と `wrangler deploy` では英語の埋め込みアセットが含まれないため、英語版公開後は使用しません。公開設定の `EN_PUBLIC_ENABLED=true` により正規URL・日英の双方向 `hreflang`・サイトマップを有効にしています。天気APIは既存の期限切れ時にD1キャッシュを更新する場合がありますが、英語版専用の保存処理はありません。
 
-英語X自動投稿のコードを含めています。通常の待ち時間は毎日09:00・13:00・17:00 JSTの3枠、閉園後の混雑実績は22:30 JSTの追加枠です。実績は公式の閉園時刻から20分以上経ち、営業時間中の20分記録の70%以上がそろい、始業・終業付近の記録がある日だけ投稿します。条件を満たさない日は見送ります。英語版の投票案内・19:00枠は自動投稿しません。本文と補足リプライは英語、画像は英語の待ち時間カードまたは実績カードとし、`#UniversalStudiosJapan #USJWaitTimes #OsakaTravel` を付けます。通常の画像カードには取得時刻、待ち時間上位3施設、比較可能で変化が大きい施設の約20分前比を掲載します。変化は本文にも同じ数値を出せる場合だけ画像で強調します。実績カードには日平均、最も混んだ時間帯、比較的空いた時間帯の平均を掲載します。英語の長い施設名はカード用の短い名称にして読み切れるようにします。画像生成に失敗した場合は既存写真に切り替えます。投稿URLは短い `/en/x` と `/en/x/day/YYYY-MM-DD` から英語ページへ転送し、その際に英語キャンペーンのUTMを付与します。重複防止記録は `buffer_en_x_*`、画像データは `xcard_en_*` を使い、日本語投稿の記録と分離します。英語投稿先のBufferチャンネルIDと専用Xアカウントを確認するまでは `EN_X_AUTOPOST_ENABLED=false` のままにします。有効化時も英語版を含む `npm run build:en-release` を基準とし、`BUFFER_EN_X_CHANNEL_ID` の設定とBuffer接続・画像配信の検証後に `EN_X_AUTOPOST_ENABLED` を変更します。通常の `wrangler deploy` は `src/index.js` を使うため、英語ページ・画像を含みません。英語版公開後の日本語側改修も、英語版を含む公開ビルドで配備してください。
+英語X自動投稿のコードを含めています。通常の待ち時間は毎日09:00・13:00・17:00 JSTの3枠、閉園後の混雑実績は22:30 JSTの追加枠です。実績は公式の閉園時刻から20分以上経ち、営業時間中の20分記録の70%以上がそろい、始業・終業付近の記録がある日だけ投稿します。条件を満たさない日は見送ります。英語版の投票案内・19:00枠は自動投稿しません。本文と補足リプライは英語、画像は英語の待ち時間カードまたは実績カードとし、`#UniversalStudiosJapan #USJWaitTimes #OsakaTravel` を付けます。通常の画像カードには取得時刻、待ち時間上位3施設、比較可能で変化が大きい施設の約20分前比を掲載します。変化は本文にも同じ数値を出せる場合だけ画像で強調します。実績カードには日平均、最も混んだ時間帯、比較的空いた時間帯の平均を掲載します。英語の長い施設名はカード用の短い名称にして読み切れるようにします。画像生成に失敗した場合は既存写真に切り替えます。投稿URLは短い `/en/x` と `/en/x/day/YYYY-MM-DD` から英語ページへ転送し、その際に英語キャンペーンのUTMを付与します。重複防止記録は `buffer_en_x_*`、画像データは `xcard_en_*` を使い、日本語投稿の記録と分離します。英語投稿先はBufferの `@uniba_waits_en` チャンネルです。英語版を含む `npm run build:en-release` では `EN_X_AUTOPOST_ENABLED=true` とし、`BUFFER_EN_X_CHANNEL_ID` で日本語チャンネルと分離します。画像は本番の初回配信後にも実表示を確認します。通常の `wrangler deploy` は `src/index.js` を使うため、英語ページ・画像を含みません。英語版公開後の日本語側改修も、英語版を含む公開ビルドで配備してください。
 
 ## データ出典
 
@@ -77,7 +77,9 @@ Cloudflareアカウントで実行する場合は `wrangler.jsonc` のD1デー�
 
 ## 運営
 
-広告は現在未設定です。アクセス解析にはCloudflare Web AnalyticsとGA4を利用し、GA4のタグは閲覧者が許可した場合にだけ読み込みます。GA4の測定IDは `G-9DC2RDYPXX` です。サイトへのお問い合わせは [運営X（@uniba_waitnavi）のDM](https://twitter.com/messages/compose?recipient_id=2108525655323459586) へ。プライバシーポリシーは公開サイトの `/privacy` を参照してください。
+広告は現在未設定です。アクセス解析にはCloudflare Web AnalyticsとGA4を利用し、GA4のタグは閲覧者が許可した場合にだけ読み込みます。GA4の測定IDは `G-9DC2RDYPXX` です。日本語サイトへのお問い合わせは [運営X（@uniba_waitnavi）のDM](https://twitter.com/messages/compose?recipient_id=2108525655323459586)、英語サイトへのお問い合わせは [英語X（@uniba_waits_en）のDM](https://twitter.com/messages/compose?recipient_id=2108874187519733760) へ。プライバシーポリシーは公開サイトの `/privacy`・`/en/privacy` を参照してください。
+
+2026-10-10に英語X `@uniba_waits_en` をBufferのチャンネル `6aca1c216a5c39ccb67025f6` に接続した。英語を含む公開ビルドの `EN_X_AUTOPOST_ENABLED=true` と `BUFFER_EN_X_CHANNEL_ID` を用いて、09:00・13:00・17:00 JSTの通常投稿と、条件を満たした日の22:30 JST実績投稿を配信する。日本語Xと投稿先・D1の重複防止キーを分離する。BufferのAPIキーはWorkerの既存secretを共用し、ソースやノートに記録しない。投稿の成否はBufferのSentとX公開画面、D1の `buffer_en_x_*` 記録で確認する。
 
 GA4の指標定義、サイト固有イベント、解釈上の注意は [ANALYTICS.md](ANALYTICS.md) に記載しています。
 

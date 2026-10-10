@@ -126,7 +126,7 @@ const X_POLL_REPLIES = [
   '迷ったら「また体験したい」と思う施設を選んでみてください。結果も同じページで公開しています。',
   '絶叫系でも、物語を楽しむ施設でも。あなた自身のNo.1を1つ選んでください。',
 ];
-// English trial remains disabled until the English pages and channel are published.
+// English posts use a separate Buffer channel and D1 idempotency keys.
 const EN_X_WAIT_URL = 'https://uniba-waittimes.com/en/x';
 const EN_X_DAILY_URL = day => `https://uniba-waittimes.com/en/x/day/${day}`;
 const EN_X_POST_TIMES = ['09:00', '13:00', '17:00'];

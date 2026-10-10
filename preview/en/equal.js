@@ -231,7 +231,7 @@
   const footer = document.querySelector('.footer div');
   footer.append(el('p','page-links'));
   const footLinks = footer.lastElementChild;
-  for (const [label,path] of [['Add to home screen','/en/install'],['About & privacy','/en/privacy'],['Contact by X DM','https://twitter.com/messages/compose?recipient_id=2108525655323459586']]) {
+  for (const [label,path] of [['Add to home screen','/en/install'],['About & privacy','/en/privacy'],['Contact by X DM','https://twitter.com/messages/compose?recipient_id=2108874187519733760']]) {
     const a = el('a','footer-link',label);a.href = path;
     if (path.startsWith('https:')) {a.target='_blank';a.rel='noopener noreferrer';}
     footLinks.append(a);
@@ -926,7 +926,7 @@
       <p>Cloudflare Web Analytics measures page usage and device types. Google Analytics 4 starts only if you select “Allow analytics” in the consent banner. If you do not allow it, this site does not load the GA4 tag. With consent, page visits and selected actions such as filters, favorites, map and share use may be sent to Google, along with a Google Analytics identifier cookie. Attraction public IDs may be included in action events. GPS coordinates, accuracy, your name, email and favorite list are not sent to GA4. Your choice is stored in this browser. Declining later stops future GA4 loading by this site but does not erase data or cookies already held by Google. No advertising tag is currently installed.</p>
       <p><button type="button" class="action" id="analytics-settings">Change analytics choice</button></p>
       <h3>Contact and changes</h3>
-      <p>For site display or content questions, message <a href="https://twitter.com/messages/compose?recipient_id=2108525655323459586" target="_blank" rel="noopener noreferrer">@uniba_waitnavi on X</a>. Do not send sensitive personal information. Please contact USJ directly about park operations and tickets. This page will be updated if the site’s services or data handling change.</p>
+      <p>For site display or content questions, <a href="https://twitter.com/messages/compose?recipient_id=2108874187519733760" target="_blank" rel="noopener noreferrer">message @uniba_waits_en on X</a>. You need an X account to send a message. If the message screen does not open, visit <a href="https://x.com/uniba_waits_en" target="_blank" rel="noopener noreferrer">our English X profile</a>. Do not send sensitive personal information. Please contact USJ directly about park operations and tickets. This page will be updated if the site’s services or data handling change.</p>
     `);
   }
 })();

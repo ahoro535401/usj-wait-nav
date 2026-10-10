@@ -14,6 +14,7 @@
   },
   "vars": {
     "BUFFER_X_CHANNEL_ID": "6ac8e0a16a5c39ccb660d868",
+    "BUFFER_EN_X_CHANNEL_ID": "6aca1c216a5c39ccb67025f6",
     "X_AUTOPOST_ENABLED": "true",
     "EN_PUBLIC_ENABLED": "false",
     "EN_X_AUTOPOST_ENABLED": "false"
