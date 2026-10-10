@@ -32,6 +32,7 @@ const X_PREVIOUS_DAY_TEST_TIME = '05:30';
 const X_POST_WINDOW_SECONDS = 15 * 60;
 const X_WAIT_URL = 'https://uniba-waittimes.com/?utm_source=x&utm_medium=social&utm_campaign=live_waits';
 const X_DAILY_URL = day => `https://uniba-waittimes.com/plan?date=${day}&utm_source=x&utm_medium=social&utm_campaign=daily_recap`;
+const X_POST_IMAGE = 'https://uniba-waittimes.com/og-photo-labeled.jpg';
 const SNAPSHOT_SECONDS = 20 * 60;
 const COLLECTION_LEAD_SECONDS = 2 * 3600;
 const COLLECTION_TRAIL_SECONDS = 30 * 60;
@@ -118,15 +119,14 @@ function xDateLabel(day) {
   return `${month}/${date}（${weekday}）`;
 }
 
-function xWaitPost(rides, names, fetchedAt) {
+function xWaitPost(rides, names, fetchedAt, previous = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
     Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5) return null;
   const date = xDateLabel(jstDay(captured));
-  const header = `USJの待ち時間、約5分ごとに更新。地図・増減も👇\n${X_WAIT_URL}\n\n【${date} ${hhmm(captured)}｜非公式】通常待ち列｜上位5施設`;
-  const footer = `\n\n#USJ #ユニバ`;
+  const footer = `\n\n#USJ #USJ待ち時間`;
   const aliases = new Map([
     [12066, 'ミニオン・ライド'], [13005, 'コナン4-D'],
     [12073, 'ヒッポグリフ'], [12072, 'ミニオン・アイス'],
@@ -144,14 +144,33 @@ function xWaitPost(rides, names, fetchedAt) {
     [13925, 'チェンソーマン4-D'], [17893, 'ファクトリー・オブ・フィアー'],
     [15322, 'ジュラシック夜'],
   ]);
-  for (const maxName of [Infinity, 13, 10, 8, 7]) {
-    const lines = ranked.slice(0, 5).map((ride, index) => {
-      let name = (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
-      if ([...name].length > maxName) name = [...name].slice(0, maxName).join('') + '…';
-      return `${index + 1}. ${name} ${ride.wait_time}分`;
-    });
-    const post = `${header}\n${lines.join('\n')}${footer}`;
-    if (xWeightedLength(post) <= 280) return post;
+  const top = ranked[0];
+  const topFullName = (aliases.get(top.id) || names.get(top.id) || top.name || '').replace(/™/g, '').trim();
+  const topName = [...topFullName].length > 12 ? [...topFullName].slice(0, 12).join('') + '…' : topFullName;
+  const changed = ranked.slice(0, 5).map(ride => {
+    const before = previous?.rides?.[String(ride.id)];
+    if (!before || before.is_open !== 1 || before.source !== ride.source ||
+        !Number.isInteger(before.wait_minutes)) return null;
+    const decrease = before.wait_minutes - ride.wait_time;
+    return decrease >= 10 ? { ride, decrease } : null;
+  }).filter(Boolean).sort((a, b) => b.decrease - a.decrease)[0];
+  const changedName = changed && (aliases.get(changed.ride.id) || names.get(changed.ride.id) || changed.ride.name || '').replace(/™/g, '').trim();
+  const headers = [
+    ...(changed ? [`【USJ ${date} ${hhmm(captured)}｜非公式】${changedName} ${changed.ride.wait_time}分。約20分前より${changed.decrease}分短縮👇`] : []),
+    `【USJ ${date} ${hhmm(captured)}｜非公式】${topName} ${top.wait_time}分。待ち時間は約5分更新、地図・増減も👇`,
+    `【USJ ${date} ${hhmm(captured)}｜非公式】待ち時間は約5分更新。地図・増減も👇`,
+  ];
+  for (const headline of headers) {
+    if ([...`${headline}\n${X_WAIT_URL}`].length > 140) continue;
+    for (const maxName of [Infinity, 13, 10, 8, 7]) {
+      const lines = ranked.slice(0, 5).map((ride, index) => {
+        let name = (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
+        if ([...name].length > maxName) name = [...name].slice(0, maxName).join('') + '…';
+        return `${index + 1}. ${name} ${ride.wait_time}分`;
+      });
+      const post = `${headline}\n${X_WAIT_URL}\n\n通常待ち列｜長い順に5施設\n${lines.join('\n')}${footer}`;
+      if (xWeightedLength(post) <= 280) return post;
+    }
   }
   return null;
 }
@@ -170,7 +189,12 @@ async function maybePostX(env, seconds) {
   if (!Array.isArray(rides)) return;
   const response = await assetFetch(new Request('https://uniba-waittimes.com/index.html'), env);
   if (!response.ok) throw new Error('Japanese ride names unavailable');
-  const post = xWaitPost(rides, rideJapaneseNames(await response.text()), fetchedAt);
+  const snapshot = await env.DB.prepare('SELECT slot,captured_at FROM snapshots WHERE captured_at BETWEEN ? AND ? ORDER BY ABS(captured_at - ?) LIMIT 1')
+    .bind(captured - 31 * 60, captured - 9 * 60, captured - 20 * 60).first();
+  const previous = snapshot ? { rides: Object.fromEntries((await env.DB.prepare(
+    'SELECT ride_id,wait_minutes,is_open,source FROM ride_samples WHERE slot=?').bind(snapshot.slot).all()).results
+    .map(row => [String(row.ride_id), row])) } : null;
+  const post = xWaitPost(rides, rideJapaneseNames(await response.text()), fetchedAt, previous);
   if (!post) return;
 
   await sendBufferPost(env, seconds, slot, post, fetchedAt);
@@ -189,6 +213,7 @@ async function sendBufferPost(env, seconds, slot, post, capturedAt) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.BUFFER_API_KEY}` },
       body: JSON.stringify({ query: mutation, variables: { input: {
         text: post, channelId: env.BUFFER_X_CHANNEL_ID, schedulingType: 'automatic', mode: 'shareNow',
+        assets: [{ image: { url: X_POST_IMAGE } }],
       } } }),
       signal: AbortSignal.timeout(10000),
     });
@@ -209,11 +234,11 @@ function xDailyPost(day, data) {
     Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const date = xDateLabel(day);
-  const post = `【USJ ${date}の実績】非公式\n履歴→${X_DAILY_URL(day)}\n\n` +
+  const post = `【USJ ${date}｜非公式】ピークは${hhmm(peak.at).slice(0, 2)}時台、平均${Math.round(peak.average_wait)}分。\n${X_DAILY_URL(day)}\n\n` +
     `この日の平均待ち時間：${Math.round(data.average_wait)}分\n` +
-    `最も混雑した時間帯：${hhmm(peak.at).slice(0, 2)}時台（平均${Math.round(peak.average_wait)}分）\n\n` +
-    `※20分ごとの記録を集計。休止・欠測は除外。\n\n` +
-    `#USJ #ユニバ`;
+    `20分ごとの実績を混雑カレンダーで比較できます。\n` +
+    `※休止・欠測を除外。\n\n` +
+    `#USJ #USJ待ち時間`;
   return xWeightedLength(post) <= 250 ? post : null;
 }
 
