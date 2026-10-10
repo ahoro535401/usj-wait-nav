@@ -961,6 +961,38 @@ function weatherPayload(raw) {
     location: '大阪市此花区・USJ付近の予報地点', fetched_at: new Date().toISOString() };
 }
 
+function weeklyJmaForecast(raw) {
+  const report = Array.isArray(raw) ? raw.find(item => item?.timeSeries?.some(series =>
+    series.timeDefines?.length >= 5 && series.areas?.some(area =>
+      area.area?.code === '270000' && Array.isArray(area.weatherCodes)))) : null;
+  if (!report) return { reported_at: null, days: [] };
+  const weatherSeries = report.timeSeries.find(series => series.timeDefines?.length >= 5 &&
+    series.areas?.some(area => area.area?.code === '270000' && Array.isArray(area.weatherCodes)));
+  const weather = weatherSeries.areas.find(area => area.area?.code === '270000');
+  const temperatureSeries = report.timeSeries.find(series => series.areas?.some(area =>
+    area.area?.code === '62078' && Array.isArray(area.tempsMax)));
+  const temperatures = temperatureSeries?.areas.find(area => area.area?.code === '62078');
+  const temperatureDates = temperatureSeries?.timeDefines || [];
+  const numeric = value => value !== '' && value !== null && value !== undefined &&
+    Number.isFinite(Number(value)) ? Number(value) : null;
+  const days = weatherSeries.timeDefines.map((time, index) => {
+    const day = typeof time === 'string' ? time.slice(0, 10) : '';
+    const code = weather.weatherCodes?.[index];
+    if (!/^\d{3}$/.test(code) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+    const temperatureIndex = temperatureDates.findIndex(value => value?.slice(0, 10) === day);
+    const leading = code[0];
+    return { day, weather_code: code,
+      condition: leading === '1' ? 'sun' : leading === '2' ? 'cloud' :
+        leading === '3' ? 'rain' : leading === '4' ? 'snow' : 'unknown',
+      rain_probability: numeric(weather.pops?.[index]),
+      temp_min: temperatureIndex < 0 ? null : numeric(temperatures?.tempsMin?.[temperatureIndex]),
+      temp_max: temperatureIndex < 0 ? null : numeric(temperatures?.tempsMax?.[temperatureIndex]),
+      reliability: /^[ABC]$/.test(weather.reliabilities?.[index]) ? weather.reliabilities[index] : null,
+    };
+  }).filter(Boolean);
+  return { reported_at: report.reportDatetime || null, days };
+}
+
 async function getWeather(db) {
   const stored = await readMeta(db, 'weather_payload');
   const cached = stored ? JSON.parse(stored) : null;
@@ -990,7 +1022,8 @@ async function getWeather(db) {
 async function getJmaWeather(db) {
   const stored = await readMeta(db, 'jma_weather_payload');
   const cached = stored ? JSON.parse(stored) : null;
-  if (cached?.expires_at && Date.parse(cached.expires_at) > Date.now()) return cached;
+  if (cached?.expires_at && Date.parse(cached.expires_at) > Date.now() &&
+      Array.isArray(cached.weekly?.days)) return cached;
   try {
     const [latestResponse, forecastResponse] = await Promise.all([
       fetch(JMA_LATEST_URL), fetch(JMA_FORECAST_URL),
@@ -1010,6 +1043,7 @@ async function getJmaWeather(db) {
     const observedAt = key ? `${key.slice(0,4)}-${key.slice(4,6)}-${key.slice(6,8)}T${key.slice(8,10)}:${key.slice(10,12)}:00+09:00` : null;
     const today = forecast?.[0];
     const area = today?.timeSeries?.[0]?.areas?.find(item => item.area?.code === '270000');
+    const weekly = weeklyJmaForecast(forecast);
     const data = {
       location: '大阪府の予報・大阪観測所の実測',
       observed_at: observedAt,
@@ -1018,6 +1052,7 @@ async function getJmaWeather(db) {
       precipitation_1h: measured(point?.precipitation1h),
       forecast_text: area?.weathers?.[0] || null,
       forecast_reported_at: today?.reportDatetime || null,
+      weekly,
       source_url: JMA_FORECAST_URL,
       observation_url: 'https://www.jma.go.jp/bosai/map.html#contents=amedas',
       fetched_at: new Date().toISOString(),

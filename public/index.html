@@ -242,6 +242,11 @@
     .archive-cal-weather.wx-sun { color: #a85800; }
     .archive-cal-weather.wx-cloud { color: #526477; }
     .archive-cal-weather.wx-rain { color: #1d4ed8; }
+    .weekly-forecast-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; margin: 10px 0; }
+    .weekly-forecast-day { padding: 9px; border: 1px solid #dce4ed; border-radius: 9px; background: #f8fafc; font-size: .84rem; }
+    .weekly-forecast-day strong, .weekly-forecast-day span { display: block; }
+    .weekly-forecast-day .forecast-condition { font-weight: 700; margin: 3px 0; }
+    .weekly-forecast-day .forecast-temperature { font-variant-numeric: tabular-nums; }
     .archive-cal-day.crowd-1 { background: #e3f4ec; }
     .archive-cal-day.crowd-2 { background: #c5ead6; }
     .archive-cal-day.crowd-3 { background: #fff0b8; }
@@ -499,6 +504,7 @@
     :root[data-theme="dark"] .archive-cal-weather.wx-sun { color: #ffc061; }
     :root[data-theme="dark"] .archive-cal-weather.wx-cloud { color: #a9b6c4; }
     :root[data-theme="dark"] .archive-cal-weather.wx-rain { color: #8fb6ff; }
+    :root[data-theme="dark"] .weekly-forecast-day { background: #1c2d40; border-color: #3e536a; color: #e9f2fc; }
     :root[data-theme="dark"] .calendar-grid button.has-hours { background: #1b2c40; border-color: #35557a; }
     :root[data-theme="dark"] .calendar-grid button.has-closure:not(.has-hours) { background: #33291a; border-color: #6b5530; }
     :root[data-theme="dark"] .calendar-grid button.selected { background: #2f6fc0; color: #fff; }
@@ -797,6 +803,10 @@
     <h2 id="archive-title">混雑実績と営業時間のカレンダー</h2>
     <p class="muted">過去の日付をタップするとその日の混雑実績と公表営業時間、今日以降の日付をタップすると開園・閉園時刻と休止予定を表示します。混雑実績は2026年10月5日から記録しています。</p>
     <div id="archive-calendar" class="archive-calendar" aria-label="過去の混雑実績と今後の営業時間のカレンダー"></div>
+    <h3 class="archive-sub-title">週間天気予報</h3>
+    <p id="weekly-forecast-status" class="muted small" role="status">気象庁の週間予報を読み込み中…</p>
+    <div id="weekly-forecast-list" class="weekly-forecast-list" aria-label="大阪府の週間天気予報"></div>
+    <p class="muted small">天気・降水確率は大阪府の予報、最高・最低気温は大阪地点の予報です。USJ現地の予報値ではありません。予報は変わるため、来場前に<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&amp;area_code=270000" target="_blank" rel="noopener noreferrer">気象庁の最新情報</a>をご確認ください。</p>
     <details id="archive-notes" class="archive-notes">
       <summary>凡例・注記を見る</summary>
       <div id="archive-notes-calendar"></div>
@@ -1021,6 +1031,8 @@
     let archiveCalendarDays = [];
     let archiveCalendarMonth = '';
     const archiveDayStats = new Map();
+    let weeklyForecast = new Map();
+    let weeklyForecastCheckedAt = 0;
     let scheduleDays = new Map();
     let passExclusion = { days: new Set(), months: new Set(), checkedAt: null, url: null, label: '' };
     let ticketPrices = { adult: new Map(), checkedAt: null, url: null };
@@ -1421,6 +1433,12 @@
       const hours = document.createElement('span');
       hours.textContent = `営業時間：${hoursLabel(scheduleDays.get(day))}`;
       selectedDay.append(heading, hours);
+      const forecast = day > jstToday() ? weeklyForecast.get(day) : null;
+      if (forecast) {
+        const forecastLine = document.createElement('span');
+        forecastLine.textContent = `天気予報（気象庁）：${weeklyForecastLabel(forecast)}`;
+        selectedDay.append(forecastLine);
+      }
       const adultPrice = ticketPrices.adult.get(day);
       if (Number.isInteger(adultPrice)) {
         const priceLine = document.createElement('span');
@@ -2506,6 +2524,70 @@
         detail: `${kind.label}　${temp}　降水${weather.precip_total}mm（8〜22時 ${weather.precip_daytime}mm）　日照${weather.sun_hours}時間` +
           (complete ? '' : '　※欠測が多いため天気判定は不明') };
     }
+    const weeklyConditions = {
+      sun: { icon: '☀', label: '晴れ', cls: 'wx-sun' },
+      cloud: { icon: '☁', label: 'くもり', cls: 'wx-cloud' },
+      rain: { icon: '☂', label: '雨', cls: 'wx-rain' },
+      snow: { icon: '❄', label: '雪', cls: 'wx-cloud' },
+    };
+    function weeklyForecastLabel(item) {
+      if (!item) return '';
+      const condition = weeklyConditions[item.condition]?.label || '天気不明';
+      const temp = Number.isFinite(item.temp_max) && Number.isFinite(item.temp_min)
+        ? `最高${item.temp_max}℃／最低${item.temp_min}℃` : '気温未発表';
+      const rain = Number.isFinite(item.rain_probability) ? `降水確率${item.rain_probability}%` : '降水確率未発表';
+      return `大阪府の予報：${condition}、${temp}、${rain}`;
+    }
+    function renderWeeklyForecast() {
+      const list = document.querySelector('#weekly-forecast-list');
+      if (!list) return;
+      list.replaceChildren();
+      const today = jstToday();
+      for (const [day, item] of [...weeklyForecast].sort(([a], [b]) => a.localeCompare(b))) {
+        if (day <= today || day > addDays(today, 7)) continue;
+        const card = document.createElement('div');
+        card.className = 'weekly-forecast-day';
+        const heading = document.createElement('strong');
+        heading.textContent = dateLabel(day);
+        const condition = document.createElement('span');
+        condition.className = 'forecast-condition';
+        condition.textContent = `${weeklyConditions[item.condition]?.icon || '？'} ${weeklyConditions[item.condition]?.label || '不明'}`;
+        const temperature = document.createElement('span');
+        temperature.className = 'forecast-temperature';
+        temperature.textContent = Number.isFinite(item.temp_max) && Number.isFinite(item.temp_min)
+          ? `最高${item.temp_max}℃ / 最低${item.temp_min}℃` : '気温未発表';
+        const rain = document.createElement('span');
+        rain.textContent = Number.isFinite(item.rain_probability) ? `降水確率 ${item.rain_probability}%` : '降水確率未発表';
+        card.append(heading, condition, temperature, rain);
+        list.append(card);
+      }
+    }
+    async function loadWeeklyForecast() {
+      if (Date.now() - weeklyForecastCheckedAt < 30 * 60 * 1000) return;
+      const status = document.querySelector('#weekly-forecast-status');
+      if (!status) return;
+      try {
+        const response = await apiRequest('/api/weather?view=weekly');
+        const data = await response.json();
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const weekly = data.jma?.weekly;
+        const reported = Date.parse(weekly?.reported_at);
+        if (!Array.isArray(weekly?.days) || !weekly.days.some(item => item.day > jstToday()) || !Number.isFinite(reported) ||
+            Date.now() - reported > 30 * 60 * 60 * 1000) throw new Error('週間予報を確認できません');
+        weeklyForecast = new Map(weekly.days.map(item => [item.day, item]));
+        weeklyForecastCheckedAt = Date.now();
+        const reportedAt = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}).format(new Date(reported));
+        status.textContent = `気象庁・大阪府の週間予報（${reportedAt}発表）${data.jma.stale ? '・前回取得値' : ''}`;
+        renderWeeklyForecast();
+        renderArchiveCalendar();
+        if (selectedDate) showSelectedDay(selectedDate);
+      } catch {
+        weeklyForecast = new Map();
+        status.textContent = '週間予報を取得できません。気象庁の最新情報をご確認ください。';
+        renderWeeklyForecast();
+        renderArchiveCalendar();
+      }
+    }
     const crowdLevel = average => CROWD_LEVELS.find(level => average < level.max);
     function shiftArchiveMonth(key, delta) {
       const [year, month] = key.split('-').map(Number);
@@ -2543,8 +2625,10 @@
       const lastClosureDay = closuresData ? closuresData.closures.map(item => item.end).filter(Boolean).sort().at(-1) : null;
       const lastPassMonth = [...passExclusion.months].sort().at(-1);
       const lastPriceDay = [...ticketPrices.adult.keys()].sort().at(-1);
+      const lastForecastDay = [...weeklyForecast.keys()].sort().at(-1);
       const maxMonth = [today.slice(0, 7), lastPlanDay.slice(0, 7), (lastClosureDay || today).slice(0, 7),
         (lastPriceDay || today).slice(0, 7),
+        (lastForecastDay || today).slice(0, 7),
         lastPassMonth ? shiftArchiveMonth(lastPassMonth, 1) : today.slice(0, 7)].sort().at(-1);
       if (!archiveCalendarMonth) archiveCalendarMonth = (days.at(-1) || today).slice(0, 7);
       const [year, month] = archiveCalendarMonth.split('-').map(Number);
@@ -2582,17 +2666,25 @@
         const item = recorded.get(key);
         const adultPrice = ticketPrices.adult.get(key);
         const plan = key >= today
-          ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) || passExclusion.url || ticketPrices.adult.has(key) ? {} : null)) : null;
+          ? (scheduleDays.get(key) || (closuresFor(key).some(entry => entry.end) || passExclusion.url || ticketPrices.adult.has(key) || weeklyForecast.has(key) ? {} : null)) : null;
         const cell = document.createElement(item || plan ? 'button' : 'span');
         cell.className = `archive-cal-day${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}${holidayDays.has(key) ? ' holiday' : ''}${key === today ? ' today' : ''}`;
         const label = document.createElement('span');
         label.className = 'archive-cal-date';
         label.textContent = String(date);
         const weather = weatherInfo(item?.weather);
+        const forecast = key > today ? weeklyForecast.get(key) : null;
         if (weather) {
           const icon = document.createElement('span');
           icon.className = `archive-cal-weather ${weather.cls}`;
           icon.textContent = weather.icon;
+          icon.setAttribute('aria-hidden', 'true');
+          label.append(icon);
+        }
+        if (forecast) {
+          const icon = document.createElement('span');
+          icon.className = `archive-cal-weather ${weeklyConditions[forecast.condition]?.cls || 'wx-cloud'}`;
+          icon.textContent = weeklyConditions[forecast.condition]?.icon || '？';
           icon.setAttribute('aria-hidden', 'true');
           label.append(icon);
         }
@@ -2630,7 +2722,8 @@
           const closureCount = closuresFor(key).filter(item => item.end).length;
           cell.title = `${month}/${date}${key === today ? '（今日）' : ''}：営業時間 ${hoursLabel(plan)}` +
             (Number.isInteger(adultPrice) ? `・1デイ大人${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認）` : '') +
-            (closureCount ? `・休止予定${closureCount}件` : '');
+            (closureCount ? `・休止予定${closureCount}件` : '') +
+            (forecast ? `・${weeklyForecastLabel(forecast)}` : '');
           cell.setAttribute('aria-label', `${cell.title}。タップで詳細を表示`);
           cell.addEventListener('click', () => {
             window.trackSiteEvent?.('archive_future_select');
@@ -2714,6 +2807,7 @@
       note.className = 'muted';
       note.textContent = '営業時間の上下2行は公表された開園・閉園時刻です。過去日は当時保存した予定時刻の参考表示で、実際の開園・閉園とは異なる場合があります。過去日の「分」は記録された営業中の平均待ち時間です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
       const longTerm = closuresData ? closuresData.closures.filter(item => !item.end) : [];
+      note.textContent += ' 先の日付の天気記号は大阪府の週間予報で、過去日の観測結果とは異なります。';
       const longNote = document.createElement('p');
       longNote.className = 'archive-cal-longterm';
       longNote.hidden = !longTerm.length;
@@ -3720,6 +3814,7 @@
       if (PAGE === 'now') loadWeather();
       if (PAGE === 'now') loadShows();
       if (PAGE === 'plan') loadArchiveDates();
+      if (PAGE === 'plan') loadWeeklyForecast();
       button.disabled = true;
       error.textContent = '';
       status.textContent = '取得中…';

@@ -23,6 +23,7 @@
     .quick-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.quick-nav a{display:block;padding:10px 14px;border-radius:9px;background:#e8f2ff;font-weight:700;text-decoration:none}.action{border:1px solid #a3bdd7;border-radius:9px;background:#f5f9ff;color:#215983;padding:8px 12px;font-weight:700}.action:disabled{opacity:.55}.delta-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:8px 0}.delta-grid span{font-size:.82rem;border-radius:6px;background:#f3f7fb;padding:4px 5px}.delta-grid b{display:block}.map-controls{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0}.map-controls label{display:flex;gap:5px;align-items:center}.map-controls input{width:20px;height:20px}.geo-map{height:min(75vh,720px);min-height:420px;border:1px solid #cddbec;border-radius:12px;overflow:hidden}.geo-pin{font:700 12px system-ui;background:#fff;color:#153c60;border:2px solid #fff;border-radius:8px;padding:5px 7px;box-shadow:0 2px 8px #0008;white-space:nowrap}.geo-pin.low{background:#087c60;color:#fff}.geo-pin.mid,.geo-pin.high{background:#a45d12;color:#fff}.geo-pin.very-high{background:#a02a3b;color:#fff}.geo-pin.unknown{background:#43586e;color:#fff}.geo-pin.restaurant{background:#66428d;color:#fff}.geo-pin:focus-visible{outline:3px solid #1463a5}.map-detail{background:#f3f8fe;border:1px solid #cddbec;border-radius:9px;padding:10px;margin-top:8px}.map-detail h3{margin:0 0 4px}.map-detail p{margin:4px 0}.share-links{display:flex;gap:7px;flex-wrap:wrap}.share-links a,.share-links button{display:inline-block;padding:9px 14px;border-radius:999px;text-decoration:none;border:1px solid #aec2d7;background:#f3f8ff;color:#194f7b;font-weight:700}.share-links .line{background:#06c755;color:#fff;border-color:#06c755}.share-links .x{background:#10151d;color:#fff;border-color:#10151d}.share-links .threads{background:#303030;color:#fff;border-color:#303030}@media(max-width:620px){.geo-map{min-height:65vh}.delta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.map-controls{position:sticky;top:55px;z-index:5;background:#fff;padding:6px;border:1px solid #d5e2f0;border-radius:8px}}
     .month-nav{display:flex;gap:8px;align-items:center;justify-content:center;margin:10px 0}.month-nav strong{min-width:170px;text-align:center}.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.month-grid>span{text-align:center;font-size:.78rem;font-weight:700;color:#50677e}.month-grid button{min-width:0;min-height:72px;text-align:left;border:1px solid #d3e0ec;border-radius:7px;background:#f8fbff;padding:4px;color:#173b60}.month-grid button[aria-pressed="true"]{outline:2px solid #1765ac}.month-grid button:disabled{color:#8998a6;background:#f4f5f7}.month-grid button small{display:block;font-size:.68rem;line-height:1.2}.month-grid button .recorded{color:#087c60;font-weight:700}.plan-day-info{padding:8px 12px;border-radius:8px;background:#e8f2ff;margin:10px 0}@media(max-width:620px){.month-grid{gap:2px}.month-grid button{padding:2px;min-height:65px;font-size:.82rem}.month-grid button small{font-size:.6rem}}
     .month-grid button .cal-weather{margin-left:2px;font-size:.85em}.month-grid button .cal-average{font-weight:800;padding:2px 3px;border-radius:4px;color:#173b60}.month-grid button .cal-average.crowd-1{background:#e3f4ec}.month-grid button .cal-average.crowd-2{background:#c5ead6}.month-grid button .cal-average.crowd-3{background:#f4ebb8}.month-grid button .cal-average.crowd-4{background:#ffd4aa}.month-grid button .cal-average.crowd-5{background:#f7b9b9}.month-grid button .cal-average.is-partial{background:#e7e0f7}.month-grid button .cal-average.is-pending{background:#e7edf4}
+    .weekly-forecast-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin:10px 0}.weekly-forecast-day{padding:9px;border:1px solid #d4e0ee;border-radius:9px;background:#f4f8fd;font-size:.84rem}.weekly-forecast-day strong,.weekly-forecast-day span{display:block}.weekly-forecast-day .forecast-condition{font-weight:700;margin:3px 0}[data-theme="dark"] .weekly-forecast-day{background:#203346;border-color:#3e536a;color:#e9f2fc}
     .share-links .facebook{background:#1877f2;color:#fff;border-color:#1877f2}
     .controls label{min-width:0;max-width:100%}
     .controls select,.controls input{min-width:0;max-width:100%;width:100%}
@@ -216,6 +217,16 @@
     async function loadShows(day){const request=++showRequest;$('show-status').textContent='Loading show times…';$('show-list').replaceChildren();try{const data=await get('/api/shows?date='+encodeURIComponent(day));if(request!==showRequest)return;const shows=(data.shows||[]).filter(s=>Array.isArray(s.times)&&s.times.length);if(!shows.length){$('show-status').textContent='Show start times are unavailable for this date. Please check the official daily schedule.';return;}$('show-status').textContent=`${dateLabel(day)} · ${shows.length} ${shows.length===1?'show':'shows'} · start times only`;for(const show of shows){const li=el('li');const title=el('strong',null,showNames.get(show.name)||show.name);li.append(title,el('span',null,show.times.map(v=>typeof v==='string'?v:new Date(v.start||v).toLocaleTimeString('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'})).join(' · ')));$('show-list').append(li);}}catch(error){if(request===showRequest)$('show-status').textContent=`Show times unavailable: ${error.message}`;}}
     function setupShowDays(){const day=today();$('show-dates').replaceChildren();for(let i=0;i<7;i++){const d=addDays(day,i),button=el('button',null,i===0?'Today':dateLabel(d));button.type='button';button.setAttribute('aria-pressed',String(i===0));button.addEventListener('click',()=>{for(const other of $('show-dates').children)other.setAttribute('aria-pressed',String(other===button));loadShows(d);});$('show-dates').append(button);}loadShows(day);}
     let scheduleDays=new Map(),recordedDays=new Set(),recordedDayMeta=new Map(),selectedDay=today(),shownMonth=today().slice(0,7);
+    let weeklyForecast=new Map(),weeklyForecastCheckedAt=0;
+    const weeklyHeading=el('h3',null,'Weekly weather forecast');
+    const weeklyStatus=el('p','muted small','Loading the Japan Meteorological Agency forecast…');
+    weeklyStatus.id='weekly-forecast-status';weeklyStatus.setAttribute('role','status');
+    const weeklyList=el('div','weekly-forecast-list');weeklyList.id='weekly-forecast-list';
+    weeklyList.setAttribute('aria-label','Osaka Prefecture weekly weather forecast');
+    const weeklyNote=el('p','muted small','Conditions and rain probability are for Osaka Prefecture; high and low temperatures are for Osaka city. These are forecasts, not measurements inside USJ. Check the ');
+    const weeklyLink=el('a',null,'latest JMA forecast');weeklyLink.href='https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000';
+    weeklyLink.target='_blank';weeklyLink.rel='noopener noreferrer';weeklyNote.append(weeklyLink,document.createTextNode(' before your visit.'));
+    $('month-grid').after(weeklyHeading,weeklyStatus,weeklyList,weeklyNote);
     const archiveDayStats=new Map(),PARTIAL_DAY_SNAPSHOTS=18;
     const crowdClass=average=>average<20?'crowd-1':average<30?'crowd-2':average<40?'crowd-3':average<50?'crowd-4':'crowd-5';
     function calendarWeather(weather){
@@ -227,6 +238,57 @@
       const temperatures=Number.isFinite(weather.temp_max)&&Number.isFinite(weather.temp_min)
         ?`; high ${weather.temp_max.toFixed(1)}°C, low ${weather.temp_min.toFixed(1)}°C`:'';
       return {...kind,label:`${kind.label}${temperatures}`};
+    }
+    const forecastConditions={
+      sun:{icon:'☀',label:'Sunny'},cloud:{icon:'☁',label:'Cloudy'},
+      rain:{icon:'☂',label:'Rain'},snow:{icon:'❄',label:'Snow'},
+    };
+    function forecastDescription(item){
+      if(!item)return '';
+      const condition=forecastConditions[item.condition]?.label||'Unknown';
+      const temperature=Number.isFinite(item.temp_max)&&Number.isFinite(item.temp_min)
+        ?`high ${item.temp_max}°C, low ${item.temp_min}°C`:'temperature unavailable';
+      const rain=Number.isFinite(item.rain_probability)
+        ?`rain chance ${item.rain_probability}%`:'rain chance unavailable';
+      return `Osaka Prefecture forecast: ${condition}, ${temperature}, ${rain}`;
+    }
+    function planDayDescription(day){
+      const item=scheduleDays.get(day),hours=item?.status==='CLOSED'?'Closed'
+        :item?.opens&&item?.closes?`${item.opens}–${item.closes}`:'Not published';
+      const forecast=day>today()?weeklyForecast.get(day):null;
+      return `${dateLabel(day)} · Park hours: ${hours}${recordedDays.has(day)?' · Past wait records available':''}${forecast?' · '+forecastDescription(forecast):''}`;
+    }
+    function renderWeeklyForecast(){
+      weeklyList.replaceChildren();
+      for(const [day,item] of [...weeklyForecast].sort(([a],[b])=>a.localeCompare(b))){
+        if(day<=today()||day>addDays(today(),7))continue;
+        const card=el('div','weekly-forecast-day');
+        card.append(el('strong',null,dateLabel(day)),
+          el('span','forecast-condition',`${forecastConditions[item.condition]?.icon||'?'} ${forecastConditions[item.condition]?.label||'Unknown'}`),
+          el('span',null,Number.isFinite(item.temp_max)&&Number.isFinite(item.temp_min)
+            ?`High ${item.temp_max}°C / low ${item.temp_min}°C`:'Temperature unavailable'),
+          el('span',null,Number.isFinite(item.rain_probability)
+            ?`Rain chance ${item.rain_probability}%`:'Rain chance unavailable'));
+        weeklyList.append(card);
+      }
+    }
+    async function loadWeeklyForecast(){
+      if(Date.now()-weeklyForecastCheckedAt<30*60*1000)return;
+      try{
+        const data=await get('/api/weather?view=weekly'),weekly=data.jma?.weekly;
+        const reported=Date.parse(weekly?.reported_at);
+        if(!Array.isArray(weekly?.days)||!weekly.days.some(item=>item.day>today())||!Number.isFinite(reported)||
+          Date.now()-reported>30*60*60*1000)throw new Error('Forecast unavailable');
+        weeklyForecast=new Map(weekly.days.map(item=>[item.day,item]));
+        weeklyForecastCheckedAt=Date.now();
+        const reportedAt=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',month:'short',
+          day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(reported));
+        weeklyStatus.textContent=`JMA forecast for Osaka Prefecture · issued ${reportedAt} JST${data.jma.stale?' · previously fetched':''}`;
+        renderWeeklyForecast();renderCalendar();
+      }catch{
+        weeklyForecast=new Map();weeklyStatus.textContent='Weekly forecast unavailable. Check the latest JMA forecast.';
+        renderWeeklyForecast();renderCalendar();
+      }
     }
     async function loadArchiveMonthStats(){
       const targets=[...recordedDays].filter(day=>day.startsWith(shownMonth)&&!archiveDayStats.has(day));
@@ -246,14 +308,13 @@
     const monthMove=(month,offset)=>{const date=new Date(month+'-01T00:00:00Z');date.setUTCMonth(date.getUTCMonth()+offset);return date.toISOString().slice(0,7);};
     function selectPlanDay(day){
       selectedDay=day;renderCalendar();
-      const item=scheduleDays.get(day),hours=item?.status==='CLOSED'?'Closed':item?.opens&&item?.closes?`${item.opens}–${item.closes}`:'Not published';
-      $('plan-day-info').textContent=`${dateLabel(day)} · Park hours: ${hours}${recordedDays.has(day)?' · Past wait records available':''}`;
+      $('plan-day-info').textContent=planDayDescription(day);
       $('past-record').hidden=!recordedDays.has(day);
       if(recordedDays.has(day)){$('archive-date').value=day;loadArchiveDay(day);}
     }
     function renderCalendar(){
       $('month-label').textContent=monthLabel(shownMonth);
-      const lastMonth=[...scheduleDays.keys()].sort().at(-1)?.slice(0,7)||shownMonth;
+      const lastMonth=[...scheduleDays.keys(),...weeklyForecast.keys(),shownMonth].sort().at(-1).slice(0,7);
       $('month-prev').disabled=shownMonth<='2026-10';$('month-next').disabled=shownMonth>=lastMonth;
       const grid=$('month-grid');grid.replaceChildren();
       for(const day of ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'])grid.append(el('span',null,day));
@@ -261,11 +322,13 @@
       for(let i=0;i<first.getUTCDay();i++)grid.append(el('span'));
       for(let n=1;n<=count;n++){
         const day=`${shownMonth}-${String(n).padStart(2,'0')}`,hours=scheduleDays.get(day),recorded=recordedDays.has(day);
-        const button=el('button');button.type='button';button.dataset.day=day;button.disabled=!hours&&!recorded;
+        const forecast=day>today()?weeklyForecast.get(day):null;
+        const button=el('button');button.type='button';button.dataset.day=day;button.disabled=!hours&&!recorded&&!forecast;
         button.setAttribute('aria-pressed',String(day===selectedDay));
         const weather=recorded?calendarWeather(recordedDayMeta.get(day)?.weather):null;
         const dateNumber=el('span',null,String(n));
         if(weather){const icon=el('span','cal-weather',weather.icon);icon.setAttribute('aria-hidden','true');dateNumber.append(icon);}
+        if(forecast){const icon=el('span','cal-weather',forecastConditions[forecast.condition]?.icon||'?');icon.setAttribute('aria-hidden','true');dateNumber.append(icon);}
         const stats=archiveDayStats.get(day);
         const partial=recorded&&Number.isFinite(stats?.average)&&stats.snapshots<PARTIAL_DAY_SNAPSHOTS;
         const hasAverage=recorded&&Number.isFinite(stats?.average)&&!partial;
@@ -274,11 +337,10 @@
         const line=recorded?el('small',`cal-average ${averageClass}`,averageText)
           :el('small',null,hours?.status==='CLOSED'?'Closed':hours?.opens&&hours?.closes?`${hours.opens}–${hours.closes}`:'');
         const averageDescription=recorded?(partial?'; partial wait records':hasAverage?`; daily average ${Math.round(stats.average)} min`:stats?.error?'; daily average unavailable':'; daily average loading'):'';
-        button.setAttribute('aria-label',`${dateLabel(day)}; ${hours?.opens&&hours?.closes?hours.opens+' to '+hours.closes:'hours unavailable'}${averageDescription}${weather?`; Osaka weather: ${weather.label}`:recorded?'; Osaka weather unavailable':''}`);
+        button.setAttribute('aria-label',`${dateLabel(day)}; ${hours?.opens&&hours?.closes?hours.opens+' to '+hours.closes:'hours unavailable'}${averageDescription}${weather?`; Osaka observations: ${weather.label}`:recorded?'; Osaka observations unavailable':''}${forecast?'; '+forecastDescription(forecast):''}`);
         button.append(dateNumber,line);button.addEventListener('click',()=>selectPlanDay(day));grid.append(button);
       }
-      const chosen=scheduleDays.get(selectedDay);
-      $('plan-day-info').textContent=`${dateLabel(selectedDay)} · Park hours: ${chosen?.status==='CLOSED'?'Closed':chosen?.opens&&chosen?.closes?`${chosen.opens}–${chosen.closes}`:'Not published'}${recordedDays.has(selectedDay)?' · Past wait records available':''}`;
+      $('plan-day-info').textContent=planDayDescription(selectedDay);
       $('past-record').hidden=!recordedDays.has(selectedDay);
       loadArchiveMonthStats();
     }
@@ -385,7 +447,7 @@
       Promise.allSettled([loadLive(),loadToday()]);
       setInterval(()=>{loadLive();loadToday();},5*60*1000);
     }else if(englishPage==='plan'){
-      Promise.allSettled([loadLive(),loadSchedule(),loadArchiveDates(),loadExtras()]);setupShowDays();
+      Promise.allSettled([loadLive(),loadSchedule(),loadArchiveDates(),loadWeeklyForecast(),loadExtras()]);setupShowDays();
     }
   })();
   </script>
