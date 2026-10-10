@@ -125,7 +125,7 @@ function xWaitPost(rides, names, fetchedAt) {
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5) return null;
   const date = xDateLabel(jstDay(captured));
-  const header = `USJの待ち時間・地図・増減がひと目で分かる👇\n${X_WAIT_URL}\n\n【${date} ${hhmm(captured)}｜非公式】通常待ち列｜上位5施設`;
+  const header = `USJの待ち時間、約5分ごとに更新。地図・増減も👇\n${X_WAIT_URL}\n\n【${date} ${hhmm(captured)}｜非公式】通常待ち列｜上位5施設`;
   const footer = `\n\n#USJ #ユニバ`;
   const aliases = new Map([
     [12066, 'ミニオン・ライド'], [13005, 'コナン4-D'],
@@ -144,7 +144,7 @@ function xWaitPost(rides, names, fetchedAt) {
     [13925, 'チェンソーマン4-D'], [17893, 'ファクトリー・オブ・フィアー'],
     [15322, 'ジュラシック夜'],
   ]);
-  for (const maxName of [Infinity, 13, 10, 8]) {
+  for (const maxName of [Infinity, 13, 10, 8, 7]) {
     const lines = ranked.slice(0, 5).map((ride, index) => {
       let name = (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
       if ([...name].length > maxName) name = [...name].slice(0, maxName).join('') + '…';
