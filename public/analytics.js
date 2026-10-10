@@ -10,7 +10,7 @@
     'favorite_add', 'favorite_remove', 'ride_detail_open', 'view_mode_change',
     'filter_apply', 'archive_past_select', 'archive_future_select',
     'map_place_open', 'map_location_request', 'map_location_success',
-    'map_location_failure', 'walking_route_open', 'share_click'
+    'map_location_failure', 'walking_route_open', 'share_click', 'follow_click'
   ]);
   const values = {
     view_mode: new Set(['today_cards', 'today_heatmap', 'archive_chart', 'archive_table',
@@ -59,6 +59,10 @@
     }
     window.gtag('event', name, safe);
   };
+
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-follow-x]')) window.trackSiteEvent('follow_click');
+  });
 
   function removeBanner() {
     document.getElementById('analytics-consent')?.remove();

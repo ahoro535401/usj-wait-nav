@@ -151,6 +151,12 @@
     .page-share-actions a:hover,.page-share-actions button:hover,.page-share-actions a:focus-visible,.page-share-actions button:focus-visible { outline:2px solid #1058a7; outline-offset:2px; }
     #site-share-status:empty { display:none; }
     #site-share-status:not(:empty) { margin:8px 0 0; }
+    .x-follow-panel { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:12px 0; padding:12px 14px; border:1px solid #d8e1eb; border-radius:12px; background:#fff; }
+    .x-follow-panel strong { display:block; }
+    .x-follow-panel p { margin:4px 0 0; color:#415268; font-size:.85rem; }
+    .x-follow-panel a { display:inline-flex; min-height:44px; align-items:center; justify-content:center; flex-shrink:0; padding:8px 14px; border-radius:999px; background:#0f1419; color:#fff; font-weight:700; text-decoration:none; }
+    .x-follow-panel a:hover,.x-follow-panel a:focus-visible { outline:2px solid #1058a7; outline-offset:2px; }
+    @media(max-width:620px) { .x-follow-panel { align-items:stretch; flex-direction:column; } .x-follow-panel a { width:100%; } }
     footer { max-width:1120px; margin:auto; padding:12px; border-top:1px solid #d8e1eb; color:#415268; font-size:.82rem; }
     :root[data-theme="dark"] { color-scheme:dark; color:#e7eff8; background:#0e1721; }
     :root[data-theme="dark"] a { color:#9fc5ff; }
@@ -178,6 +184,9 @@
     :root[data-theme="dark"] .map-share .share-x { background:#e7eff8; color:#172536; }
     :root[data-theme="dark"] .site-share-panel { background:#182638; border-color:#2f4a6b; }
     :root[data-theme="dark"] .site-share-panel p { color:#bccbdc; }
+    :root[data-theme="dark"] .x-follow-panel { background:#182638; border-color:#2f4a6b; }
+    :root[data-theme="dark"] .x-follow-panel p { color:#bccbdc; }
+    :root[data-theme="dark"] .x-follow-panel a { background:#e6edf3; color:#0f1419; }
     :root[data-theme="dark"] .page-share-actions .share-x,:root[data-theme="dark"] .page-share-actions .share-threads { background:#e6edf3; color:#0f1419; }
     :root[data-theme="dark"] .page-share-actions .share-copy { background:#17212c; color:#9cc4ff; border-color:#3a4b5d; }
     :root[data-theme="dark"] #my-location,:root[data-theme="dark"] .route-link { background:#2f6fc0; color:#fff; }
@@ -238,6 +247,10 @@
         <button id="site-share-copy" class="share-copy" type="button" aria-label="地図で探すページの紹介文とURLをコピー">紹介文をコピー</button>
       </div>
       <p id="site-share-status" role="status"></p>
+    </aside>
+    <aside class="x-follow-panel" aria-label="Xの更新を受け取る">
+      <div><strong>Xで更新を受け取る</strong><p>待ち時間や混雑実績を投稿しています。@uniba_waitnavi のプロフィールからフォローできます。</p></div>
+      <a href="https://x.com/uniba_waitnavi" data-follow-x target="_blank" rel="noopener noreferrer" aria-label="XでUSJ待ち時間ナビ（@uniba_waitnavi）をフォローする">Xでフォローする ↗</a>
     </aside>
   </main>
   <footer><a href="/vote">No.1アトラクション投票</a> · <a href="/install">ホーム画面に追加する方法</a> · <a href="/privacy">このサイトについて・プライバシーポリシー</a> · <a href="https://twitter.com/messages/compose?recipient_id=2108525655323459586" target="_blank" rel="noopener noreferrer">サイトへのお問い合わせ（XのDM）</a> · 待ち時間データ：<a href="https://queue-times.com/">Queue-Times</a>、<a href="https://www.themeparks.wiki/">ThemeParks.wiki</a></footer>

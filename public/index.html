@@ -641,6 +641,15 @@
     .site-share-panel > strong { display: block; font-size: 1rem; }
     .site-share-panel p { margin: 4px 0 8px; font-size: .85rem; }
     :root[data-theme="dark"] .site-share-panel { background: #182638; border-color: #2f4a6b; }
+    .x-follow-panel { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:12px 0; padding:12px 14px; border:1px solid #d8e1eb; border-radius:12px; background:#f8fafc; }
+    .x-follow-panel strong { display:block; }
+    .x-follow-panel p { margin:4px 0 0; color:#435569; font-size:.85rem; }
+    .x-follow-panel a { display:inline-flex; min-height:44px; align-items:center; justify-content:center; flex-shrink:0; padding:8px 14px; border-radius:999px; background:#0f1419; color:#fff; font-weight:700; text-decoration:none; }
+    .x-follow-panel a:hover,.x-follow-panel a:focus-visible { outline:2px solid #1058a7; outline-offset:2px; }
+    :root[data-theme="dark"] .x-follow-panel { background:#182638; border-color:#2f4a6b; }
+    :root[data-theme="dark"] .x-follow-panel p { color:#bccbdc; }
+    :root[data-theme="dark"] .x-follow-panel a { background:#e6edf3; color:#0f1419; }
+    @media(max-width:620px) { .x-follow-panel { align-items:stretch; flex-direction:column; } .x-follow-panel a { width:100%; } }
     .pass-exclusion-note .archive-cal-pass { display: inline-block; margin-right: 4px; font-size: .7rem; vertical-align: 1px; }
     .selected-pass-excluded { color: #5b3a8c; font-weight: 700; }
     :root[data-theme="dark"] .archive-cal-pass { background: #8e6cc4; color: #fff; }
@@ -913,6 +922,10 @@
     <p data-only="now">待ち時間・地図・混雑カレンダーを紹介。現在の待ち時間や取得時刻を含まない文を送れます。</p>
     <p data-only="plan">過去の混雑カレンダーや来園前に役立つ情報を、現在の待ち時間を含まない文で紹介できます。</p>
     <div id="site-share-actions"></div>
+  </aside>
+  <aside class="x-follow-panel" aria-label="Xの更新を受け取る">
+    <div><strong>Xで更新を受け取る</strong><p>待ち時間や混雑実績を投稿しています。@uniba_waitnavi のプロフィールからフォローできます。</p></div>
+    <a href="https://x.com/uniba_waitnavi" data-follow-x target="_blank" rel="noopener noreferrer" aria-label="XでUSJ待ち時間ナビ（@uniba_waitnavi）をフォローする">Xでフォローする ↗</a>
   </aside>
   </main>
   <footer>
