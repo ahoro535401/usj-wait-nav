@@ -6,9 +6,11 @@ USJの公開データをもとに、アトラクションの待ち時間、20分
 
 ## LINE内で開くLIFF版
 
-個人開発プロバイダー「宮崎浩太朗 個人開発」のLINE Loginチャネル「USJ待ち時間ナビ」（Channel ID `2011965864`）に、LIFFアプリ `2011965864-hCyp1wQP` を登録しています。LINE内で開くURLは `https://liff.line.me/2011965864-hCyp1wQP`、Endpoint URLは `https://uniba-waittimes.com/liff/` です。表示サイズはFull、スコープは必須の `openid` のみ、友だち追加案内はOffです。プロフィール・メール・チャットへのアクセス権は要求せず、LINEユーザーIDやトークンはサイトのD1/KVへ保存しません。
+個人開発プロバイダー「宮崎浩太朗 個人開発」のLINE Loginチャネル「USJ待ち時間ナビ」（Channel ID `2011965864`）に、LIFFアプリ `2011965864-hCyp1wQP` を登録しています。LINE内で開くURLは `https://liff.line.me/2011965864-hCyp1wQP`、Endpoint URLは `https://uniba-waittimes.com/liff/` です。表示サイズはFull、スコープは必須の `openid` のみ、友だち追加案内はOffです。プロフィール・メール・チャットへのアクセス権は要求しません。生のLINEユーザーIDやトークンはサイトのD1/KVへ保存しません。
 
-Workerの `/liff/`、`/liff/map`、`/liff/plan`、`/liff/vote`、`/liff/install`、`/liff/privacy` は日本語版ページを共用します。LIFF内のページ遷移はこの名前空間に留め、最新値は既存の表示用APIから読みます。LIFF入口は検索対象外・キャッシュ不可とし、LINEの認証用パラメータが解析へ送られないよう、このページではGAのスクリプトを除去し、外部解析スクリプトをCSPで遮断します。地図の現在地は利用者が端末で許可した場合だけ表示します。英語版や既存の収集Cron・D1構造には変更を加えません。
+Workerの `/liff/`、`/liff/map`、`/liff/plan`、`/liff/vote`、`/liff/install`、`/liff/privacy` は日本語版ページを共用します。LIFF内のページ遷移はこの名前空間に留め、最新値は既存の表示用APIから読みます。LIFF入口は検索対象外・キャッシュ不可とし、LINEの認証用パラメータが解析へ送られないよう、このページではGAのスクリプトを除去し、外部解析スクリプトをCSPで遮断します。地図の現在地は利用者が端末で許可した場合だけ表示します。
+
+`/liff/my-plan` は任意保存のマイプランです。利用者が同意して「LINEに保存する」を押すと、お気に入り施設IDと来園予定日をD1に保存します。`/api/line-plan` はLIFFのIDトークンをLINEへ照会して検証し、LINEユーザーIDからHMAC照合キーを生成します。プロフィール・メール・GPS・生のLINEユーザーID・トークンは保存しません。最後の保存から180日で自動削除し、本人の削除操作でも消せます。D1マイグレーション `migrations/0007_line_crm_plans.sql` とWorker secret `CRM_HASH_KEY`（十分長いランダム値）が必要です。secretを変更すると既存プランを参照できなくなるため、移行計画なくローテーションしないでください。`npm run test:crm` で認証・同意・他ユーザー分離・期限・削除を検証できます。LINE公式アカウント／Messaging APIは未接続で、通知は行いません。
 
 公開用ビルド・配備には英語版を含む `npm run build:en-release` と `npm run deploy:en-release` を使います。LINE DevelopersでEndpoint URLを変更する場合は、Workerの `/liff/` ルートと、ページ内リンクの行き先を同時に確認してください。
 

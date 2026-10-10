@@ -8,7 +8,8 @@
     "check:content": "node scripts/check-content-parity.mjs",
     "deploy:en-release": "npm run build:en-release && wrangler deploy --config dist/en-release/wrangler.jsonc",
     "dev": "wrangler dev --local",
-    "check": "node --check src/index.js"
+    "check": "node --check src/index.js",
+    "test:crm": "node --test tests/line-plan.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"

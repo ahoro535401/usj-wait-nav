@@ -201,6 +201,88 @@ const json = (value, status = 200) => Response.json(value, {
   status,
   headers: { 'Cache-Control': 'public, max-age=60', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' },
 });
+const privateJson = (value, status = 200) => Response.json(value, {
+  status,
+  headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer', 'Vary': 'Authorization' },
+});
+const LINE_PLAN_RETENTION_SECONDS = 180 * 86400;
+
+async function verifiedLineUserKey(request, env) {
+  if (!env.CRM_HASH_KEY || !env.LIFF_APP_ID) return { error: privateJson({ error: 'マイプランは準備中です' }, 503) };
+  const match = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.exec(
+    request.headers.get('Authorization') || '');
+  if (!match || match[1].length > 5000) return { error: privateJson({ error: 'LINEで開き直してください' }, 401) };
+  const channelId = env.LIFF_APP_ID.split('-')[0];
+  let verified;
+  try {
+    const response = await fetch('https://api.line.me/oauth2/v2.1/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ id_token: match[1], client_id: channelId }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return { error: privateJson({ error: 'LINEで開き直してください' }, 401) };
+    verified = await response.json();
+  } catch (_) { return { error: privateJson({ error: 'LINEの認証を確認できません' }, 503) }; }
+  if (!verified || String(verified.aud) !== channelId || verified.iss !== 'https://access.line.me' ||
+      !/^U[0-9a-f]{32}$/.test(verified.sub || '') ||
+      !Number.isFinite(Number(verified.exp)) || Number(verified.exp) <= epoch())
+    return { error: privateJson({ error: 'LINEで開き直してください' }, 401) };
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.CRM_HASH_KEY),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(verified.sub));
+  return { userKey: [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('') };
+}
+
+async function handleLinePlan(request, env) {
+  if (!['GET', 'PUT', 'DELETE'].includes(request.method))
+    return privateJson({ error: 'Method not allowed' }, 405);
+  if (request.method !== 'GET' && request.headers.get('Origin') !== new URL(request.url).origin)
+    return privateJson({ error: '送信元を確認できません' }, 403);
+  const identity = await verifiedLineUserKey(request, env);
+  if (identity.error) return identity.error;
+  const { userKey } = identity;
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM line_crm_plans WHERE user_key=?').bind(userKey).run();
+    return privateJson({ saved: false });
+  }
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare('SELECT favorites_json,visit_day,updated_at,expires_at FROM line_crm_plans WHERE user_key=?')
+      .bind(userKey).first();
+    if (!row || row.expires_at <= epoch()) return privateJson({ saved: false });
+    return privateJson({ saved: true, favorites: JSON.parse(row.favorites_json),
+      visit_day: row.visit_day, updated_at: row.updated_at });
+  }
+  if (!request.headers.get('Content-Type')?.startsWith('application/json'))
+    return privateJson({ error: 'JSONで送信してください' }, 415);
+  if (Number(request.headers.get('Content-Length') || 0) > 4096)
+    return privateJson({ error: '保存内容が大きすぎます' }, 413);
+  let body;
+  try {
+    const raw = await request.text();
+    if (raw.length > 4096) return privateJson({ error: '保存内容が大きすぎます' }, 413);
+    body = JSON.parse(raw);
+  } catch (_) { return privateJson({ error: '保存内容を確認してください' }, 400); }
+  if (body?.consent !== true || !Array.isArray(body.favorites) || body.favorites.length > 40 ||
+      body.favorites.some(id => !Number.isInteger(id) || id < 1 || id > 99999999))
+    return privateJson({ error: '保存内容を確認してください' }, 400);
+  const favorites = [...new Set(body.favorites)];
+  const visitDay = body.visit_day === '' || body.visit_day == null ? null : body.visit_day;
+  if (visitDay !== null) {
+    const seconds = Date.parse(`${visitDay}T00:00:00+09:00`) / 1000;
+    if (typeof visitDay !== 'string' || !/^20\d\d-\d\d-\d\d$/.test(visitDay) ||
+        !Number.isFinite(seconds) || jstDay(seconds) !== visitDay || visitDay < jstDay(epoch()) ||
+        visitDay > jstDay(epoch() + 366 * 86400))
+      return privateJson({ error: '来園予定日は今日から1年以内にしてください' }, 400);
+  }
+  const now = epoch();
+  await env.DB.prepare(`INSERT INTO line_crm_plans
+    (user_key,favorites_json,visit_day,consented_at,updated_at,expires_at) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(user_key) DO UPDATE SET favorites_json=excluded.favorites_json,
+    visit_day=excluded.visit_day,updated_at=excluded.updated_at,expires_at=excluded.expires_at`)
+    .bind(userKey, JSON.stringify(favorites), visitDay, now, now, now + LINE_PLAN_RETENTION_SECONDS).run();
+  return privateJson({ saved: true, favorites, visit_day: visitDay, updated_at: now });
+}
 const readMeta = async (db, key) => (await db.prepare('SELECT value FROM app_meta WHERE key = ?').bind(key).first())?.value ?? null;
 const writeMeta = (db, key, value) => db.prepare(
   'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE value <> excluded.value'
@@ -1458,6 +1540,7 @@ async function scheduled(event, env) {
     } catch (error) { console.error('Map location refresh failed', error); }
   }
   if (minute === 0 && jstHour(seconds) === 3) {
+    await env.DB.prepare('DELETE FROM line_crm_plans WHERE expires_at <= ?').bind(seconds).run();
     const cutoff = `buffer_x_${jstDay(seconds - 30 * 86400)}`;
     await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'buffer_x_%' AND key < ?")
       .bind(cutoff).run();
@@ -1866,7 +1949,7 @@ function changedBodyResponse(body, original) {
   return new Response(body, { status: original.status, statusText: original.statusText, headers });
 }
 
-const LIFF_PAGE = /^\/liff(?:\/(plan|map|vote|privacy|install|r\/[1-9]\d{0,7}))?\/?$/;
+const LIFF_PAGE = /^\/liff(?:\/(plan|map|vote|privacy|install|my-plan|r\/[1-9]\d{0,7}))?\/?$/;
 
 function liffPageHtml(html, liffId) {
   // Keep the public site's canonical/share URLs, but keep in-app navigation below the LIFF endpoint.
@@ -1877,6 +1960,8 @@ function liffPageHtml(html, liffId) {
     .replace('location.pathname.match(/^\\/r\\/', 'location.pathname.match(/^\\/liff\\/r\\/');
   // The primary LIFF redirect can contain credentials. Do not load GA on LIFF pages.
   html = html.replace(/<script src="\/analytics\.js" defer><\/script>/g, '');
+  if (!html.includes('href="/liff/my-plan"')) html = html.replace(/(<footer\b[^>]*>)/i,
+    '$1<p><a href="/liff/my-plan">★ LINE内マイプラン（お気に入り・来園予定）</a></p>');
   const bootstrap = liffId
     ? `<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>` +
       `<script>window.usjLiffReady = liff.init({liffId:${JSON.stringify(liffId)}})` +
@@ -1891,13 +1976,26 @@ async function route(request, env) {
   const url = new URL(request.url);
   const englishPublic = env.EN_PUBLIC_ENABLED === 'true' &&
     typeof EMBEDDED_ASSETS !== 'undefined' && Object.hasOwn(EMBEDDED_ASSETS, '/en/index.html');
-  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
   if (url.hostname === 'usj-wait-nav.kotaro-7436.workers.dev') {
     url.hostname = 'uniba-waittimes.com';
     return Response.redirect(url.toString(), 301);
   }
+  if (url.pathname === '/api/line-plan') return handleLinePlan(request, env);
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
   const liffPage = LIFF_PAGE.exec(url.pathname);
   if (liffPage) {
+    if (liffPage[1] === 'my-plan') {
+      const page = await assetFetch(new Request(new URL('/my-plan.html', url), request), env);
+      if (!page.ok) return page;
+      const headers = new Headers(page.headers);
+      headers.set('Content-Type', 'text/html; charset=utf-8');
+      headers.set('Cache-Control', 'no-store');
+      headers.set('X-Robots-Tag', 'noindex, nofollow');
+      headers.set('Referrer-Policy', 'no-referrer');
+      headers.set('Content-Security-Policy', "script-src 'self' 'unsafe-inline' https://static.line-scdn.net");
+      return request.method === 'HEAD' ? new Response(null, { status: 200, headers }) :
+        new Response(liffPageHtml(await page.text(), env.LIFF_APP_ID), { status: 200, headers });
+    }
     const publicUrl = new URL(liffPage[1] ? `/${liffPage[1]}` : '/', url);
     publicUrl.search = url.search;
     const page = await route(new Request(publicUrl, request), env);

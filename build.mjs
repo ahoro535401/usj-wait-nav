@@ -15,6 +15,8 @@ const files = {
   '/privacy.html': 'privacy.html',
   '/operator-analytics.html': 'operator-analytics.html',
   '/install.html': 'install.html',
+  '/my-plan.html': 'my-plan.html',
+  '/line-plan.js': 'line-plan.js',
   '/analytics.js': 'analytics.js',
   '/events.json': 'events.json',
   '/show-translations.json': 'show-translations.json',
