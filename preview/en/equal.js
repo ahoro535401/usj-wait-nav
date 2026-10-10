@@ -82,6 +82,23 @@
     .poll-frame{width:100%;min-height:680px;border:0}.poll-bars{padding:0;list-style:none}.poll-bars li{padding:7px 0;border-bottom:1px solid #dce7f1}.poll-track{display:block;height:12px;background:#e6eff8;border-radius:6px;overflow:hidden}.poll-track i{display:block;height:100%;background:#2e81cb}
     .footer-link{margin-right:12px}.footer p{line-height:1.7}
     [data-theme="dark"]{color-scheme:dark;background:#0e1721;color:#e9f2fc}[data-theme="dark"] body{background:#0e1721}[data-theme="dark"] section{background:#172534;border-color:#344b61;color:#e9f2fc}[data-theme="dark"] .nav{background:#192b3d;border-color:#344b61}[data-theme="dark"] .nav a{color:#b9d9ff}[data-theme="dark"] .nav a.active{color:white}[data-theme="dark"] .muted,[data-theme="dark"] .small{color:#b4c8df}[data-theme="dark"] .feature-panel,[data-theme="dark"] .stat,[data-theme="dark"] .plan-day-info,[data-theme="dark"] .map-detail,[data-theme="dark"] .weather-periods div,[data-theme="dark"] .archive-chart{background:#203346;border-color:#3e536a;color:#e9f2fc}[data-theme="dark"] .ride,[data-theme="dark"] .day,[data-theme="dark"] .month-grid button,[data-theme="dark"] .table td:first-child,[data-theme="dark"] .table th:first-child{background:#1c2d40;color:#e9f2fc}[data-theme="dark"] .table th,[data-theme="dark"] .table td{border-color:#3c536c}[data-theme="dark"] .table thead th{background:#274464;color:#e9f2fc}[data-theme="dark"] .notice{background:#203b58;color:#e9f2fc}[data-theme="dark"] .notice a{color:#a7d4ff}[data-theme="dark"] a{color:#a7d4ff}[data-theme="dark"] .movement-grid p{background:#294766}[data-theme="dark"] .month-grid button:disabled{background:#1a2735;color:#8497a8}
+    [data-theme="dark"] .ride{border-color:#3e536a}
+    [data-theme="dark"] .ride summary:hover{background:#27405a}
+    [data-theme="dark"] .ride .name small,[data-theme="dark"] .delta,[data-theme="dark"] .day small,[data-theme="dark"] .month-grid>span{color:#b9cce0}
+    [data-theme="dark"] .ride-details,[data-theme="dark"] .poll-bars li{border-color:#3e536a}
+    [data-theme="dark"] .delta-grid span,[data-theme="dark"] .plan-meta span{background:#29445e;color:#e9f2fc}
+    [data-theme="dark"] .controls select,[data-theme="dark"] .controls input,[data-theme="dark"] .feature-grid select{background:#21384e;border-color:#6686a2;color:#f3f8ff}
+    [data-theme="dark"] .segmented,[data-theme="dark"] .check-group label{border-color:#6686a2}
+    [data-theme="dark"] .segmented button,[data-theme="dark"] .date-pills button,[data-theme="dark"] .map-mode button,[data-theme="dark"] .archive-mode button{background:#21384e;border-color:#6686a2;color:#c5e0ff}
+    [data-theme="dark"] .segmented button[aria-pressed="true"],[data-theme="dark"] .date-pills button[aria-pressed="true"],[data-theme="dark"] .map-mode button[aria-pressed="true"],[data-theme="dark"] .archive-mode button[aria-pressed="true"]{background:#2f6fc0;color:#fff}
+    [data-theme="dark"] .action,[data-theme="dark"] .quick-nav a{background:#21384e;border-color:#6686a2;color:#c5e0ff}
+    [data-theme="dark"] .month-grid button{border-color:#3e536a}
+    [data-theme="dark"] .month-grid button .cal-extra{color:#a9d2ff}
+    [data-theme="dark"] .month-grid button .exclusion{color:#d0a8ff}
+    [data-theme="dark"] .month-grid button .closure{color:#ffb1b6}
+    [data-theme="dark"] .hour-track,[data-theme="dark"] .poll-track{background:#30465d}
+    [data-theme="dark"] .map-controls{background:#172534;border-color:#3e536a;color:#e9f2fc}
+    [data-theme="dark"] .share-links :is(a,button):not(.line):not(.x):not(.threads):not(.facebook){background:#21384e;border-color:#6686a2;color:#c5e0ff}
     [data-theme="dark"] #geo-map,[data-theme="dark"] .map-frame{filter:none;color-scheme:light}
     @media(max-width:620px){.month-grid button .cal-extra{font-size:.58rem}.map-controls{top:55px}.feature-grid>*{flex-basis:100%}}
   `;
