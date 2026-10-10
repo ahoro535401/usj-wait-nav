@@ -33,6 +33,7 @@ const X_POST_WINDOW_SECONDS = 15 * 60;
 const X_WAIT_URL = 'https://uniba-waittimes.com/?utm_source=x&utm_medium=social&utm_campaign=live_waits';
 const X_DAILY_URL = day => `https://uniba-waittimes.com/plan?date=${day}&utm_source=x&utm_medium=social&utm_campaign=daily_recap`;
 const X_POST_IMAGE = 'https://uniba-waittimes.com/og-photo-labeled.jpg';
+const X_CARD_FONT = 'https://uniba-waittimes.com/x-card-font.ttf';
 const X_POLL_FIRST_DAY = '2026-10-10';
 const X_POLL_LAST_DAY = '2026-11-09';
 const X_POLL_POST_TIME = '13:30';
@@ -205,16 +206,20 @@ function xWaitPost(rides, names, fetchedAt, previous = null) {
   const top = ranked[0];
   const topFullName = (aliases.get(top.id) || names.get(top.id) || top.name || '').replace(/™/g, '').trim();
   const topName = [...topFullName].length > 12 ? [...topFullName].slice(0, 12).join('') + '…' : topFullName;
-  const changed = ranked.slice(0, 5).map(ride => {
+  const changes = ranked.slice(0, 5).map(ride => {
     const before = previous?.rides?.[String(ride.id)];
     if (!before || before.is_open !== 1 || before.source !== ride.source ||
         !Number.isInteger(before.wait_minutes)) return null;
-    const decrease = before.wait_minutes - ride.wait_time;
-    return decrease >= 10 ? { ride, decrease } : null;
-  }).filter(Boolean).sort((a, b) => b.decrease - a.decrease)[0];
+    return { ride, difference: ride.wait_time - before.wait_minutes };
+  }).filter(Boolean);
+  const changed = changes.filter(item => item.difference <= -10 || item.difference >= 15)
+    .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
   const changedName = changed && (aliases.get(changed.ride.id) || names.get(changed.ride.id) || changed.ride.name || '').replace(/™/g, '').trim();
+  const changeText = changed && (changed.difference < 0 ?
+    `約20分前より${Math.abs(changed.difference)}分短縮` :
+    `約20分前より${changed.difference}分増加`);
   const headers = [
-    ...(changed ? [`【USJ ${date} ${hhmm(captured)}｜非公式】${changedName} ${changed.ride.wait_time}分。約20分前より${changed.decrease}分短縮👇`] : []),
+    ...(changed ? [`【USJ ${date} ${hhmm(captured)}】${changedName} ${changed.ride.wait_time}分。${changeText}👇`] : []),
     `【USJ ${date} ${hhmm(captured)}｜非公式】${topName} ${top.wait_time}分。待ち時間は約5分更新、地図・増減も👇`,
     `【USJ ${date} ${hhmm(captured)}｜非公式】待ち時間は約5分更新。地図・増減も👇`,
   ];
@@ -231,6 +236,75 @@ function xWaitPost(rides, names, fetchedAt, previous = null) {
     }
   }
   return null;
+}
+
+const X_CARD_SHORT_NAMES = new Map([
+  [14402, 'ドンキーコング'], [12061, 'マリオカート'], [12071, 'ヨッシー'],
+  [7077, 'ハリドリ'], [12070, 'ハリドリ・バックドロップ'],
+  [7092, 'フライング・ダイナソー'], [12068, 'ジョーズ'],
+  [12067, 'ジュラシック・パーク'], [13005, 'コナン4-D'],
+  [12065, 'フォービドゥン・ジャーニー'], [12073, 'ヒッポグリフ'],
+]);
+const xCardClip = (value, limit) => {
+  const chars = [...String(value).replace(/™/g, '').trim()];
+  return chars.length > limit ? chars.slice(0, limit - 1).join('') + '…' : chars.join('');
+};
+const xCardName = (ride, names) => xCardClip(
+  X_CARD_SHORT_NAMES.get(ride.id) || names.get(ride.id) || ride.name || 'アトラクション', 15);
+const xCardKey = (day, slot) => `xcard_${day}_${slot.replace(':', '')}`;
+const xCardUrl = (day, slot) =>
+  `https://uniba-waittimes.com/x-card/${day}/${slot.replace(':', '')}.png`;
+
+function xCardPayload(rides, names, fetchedAt, previous) {
+  const captured = Date.parse(fetchedAt) / 1000;
+  if (!Number.isFinite(captured)) return null;
+  const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+    Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
+    .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
+  if (ranked.length < 5) return null;
+  const changes = ranked.slice(0, 5).map(ride => {
+    const before = previous?.rides?.[String(ride.id)];
+    if (!before || before.is_open !== 1 || before.source !== ride.source ||
+        !Number.isInteger(before.wait_minutes)) return null;
+    return { ride, difference: ride.wait_time - before.wait_minutes };
+  }).filter(Boolean);
+  const shorter = changes.filter(item => item.difference <= -10)
+    .sort((a, b) => a.difference - b.difference)[0];
+  const longer = changes.filter(item => item.difference >= 15)
+    .sort((a, b) => b.difference - a.difference)[0];
+  const focus = shorter || longer;
+  const title = focus ?
+    `${xCardClip(xCardName(focus.ride, names), 11)}が20分前より${Math.abs(focus.difference)}分${shorter ? '短縮' : '増加'}` :
+    '現在の待ち時間 上位3施設';
+  return {
+    captured_at: fetchedAt,
+    label: `${xDateLabel(jstDay(captured))} ${hhmm(captured)}時点`,
+    title,
+    rows: ranked.slice(0, 3).map(ride => ({ name: xCardName(ride, names), wait: ride.wait_time })),
+  };
+}
+
+async function renderXCard(env, card) {
+  if (!env.IMAGES || !card || !Array.isArray(card.rows) || card.rows.length !== 3)
+    return new Response('Image rendering unavailable', { status: 503 });
+  const base = await assetFetch(new Request('https://uniba-waittimes.com/x-card-base.png'), env);
+  if (!base.ok || !base.body) return new Response('Base image unavailable', { status: 503 });
+  let image = env.IMAGES.input(base.body);
+  const add = (value, left, top, size, color = '#ffffff') => {
+    image = image.draw(env.IMAGES.text(String(value), {
+      font: { url: X_CARD_FONT }, color, size,
+    }), { left, top });
+  };
+  add(xCardClip(card.label, 24), 655, 46, 26, '#d9e7f2');
+  add(xCardClip(card.title, 28), 79, 154, 47);
+  card.rows.forEach((row, index) => {
+    add(xCardClip(row.name, 15), 146, 291 + 102 * index, 40);
+    add(`${Math.max(0, Math.min(999, Number(row.wait) || 0))}分`, 946, 290 + 102 * index, 46, '#ffcc82');
+  });
+  return (await image.output({ format: 'image/png' })).response({
+    headers: { 'Cache-Control': 'public, max-age=2592000, immutable',
+      'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' },
+  });
 }
 
 function duePollXPost(seconds) {
@@ -269,7 +343,7 @@ async function maybePostPollX(env, seconds) {
     X_POLL_REPLIES[index % X_POLL_REPLIES.length], imageUrl, imageAlt);
 }
 
-function xWaitReply(rides, names, fetchedAt, previous) {
+function xWaitReply(rides, names, fetchedAt, previous, slot) {
   const captured = Date.parse(fetchedAt) / 1000;
   if (!Number.isFinite(captured)) return null;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
@@ -293,6 +367,7 @@ function xWaitReply(rides, names, fetchedAt, previous) {
   const comparable = counts.up + counts.flat + counts.down;
   const trend = comparable >= 5 ?
     `約20分前比（${comparable}施設）：待ち時間が長くなった${counts.up}・変化なし${counts.flat}・短くなった${counts.down}。` : null;
+  const question = slot === '15:00' ? '今はどのアトラクションに並んでいますか？ 現地の様子もぜひ教えてください。' : null;
   if (!moreRides.length && !trend) return null;
   for (const count of [3, 2, 1, 0]) {
     const lines = moreRides.slice(0, count);
@@ -301,6 +376,7 @@ function xWaitReply(rides, names, fetchedAt, previous) {
       ...(lines.length ? ['【上位5以外の待ち時間】', ...lines] : []),
       ...(trend ? ['', trend] : []),
       '通常待ち列の取得値です。',
+      ...(question ? ['', question] : []),
     ].join('\n');
     if (xWeightedLength(reply) <= 280) return reply;
   }
@@ -329,8 +405,25 @@ async function maybePostX(env, seconds) {
   const names = rideJapaneseNames(await response.text());
   const post = xWaitPost(rides, names, fetchedAt, previous);
   if (!post) return;
-
-  await sendBufferPost(env, seconds, slot, post, fetchedAt, xWaitReply(rides, names, fetchedAt, previous));
+  let imageUrl = X_POST_IMAGE;
+  let imageAlt = null;
+  const card = xCardPayload(rides, names, fetchedAt, previous);
+  if (card && env.IMAGES) {
+    try {
+      const preview = await renderXCard(env, card);
+      const bytes = preview.ok && preview.headers.get('Content-Type')?.startsWith('image/png') ?
+        (await preview.arrayBuffer()).byteLength : 0;
+      if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid card image: ${preview.status}, ${bytes} bytes`);
+      await writeMeta(env.DB, xCardKey(jstDay(seconds), slot), JSON.stringify(card));
+      imageUrl = xCardUrl(jstDay(seconds), slot);
+      imageAlt = `${card.label}のUSJ通常待ち列。${card.title}。` +
+        card.rows.map((row, index) => `${index + 1}位 ${row.name} ${row.wait}分`).join('、');
+    } catch (error) {
+      console.error('X card unavailable; using photo', error);
+    }
+  }
+  await sendBufferPost(env, seconds, slot, post, fetchedAt,
+    xWaitReply(rides, names, fetchedAt, previous, slot), imageUrl, imageAlt);
 }
 
 async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null,
@@ -411,6 +504,25 @@ function xDailyReply(data) {
   return xWeightedLength(reply) <= 280 ? reply : null;
 }
 
+function xDailyCardPayload(day, data) {
+  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait));
+  if (hours.length < 2 || !Number.isFinite(data.average_wait)) return null;
+  const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
+  const quiet = ranked[0];
+  const peak = ranked[ranked.length - 1];
+  return {
+    captured_at: new Date(data.last_at * 1000).toISOString(),
+    label: `${xDateLabel(day)}の実績`,
+    title: '今日の混雑実績',
+    rows: [
+      { name: 'この日の平均待ち時間', wait: Math.round(data.average_wait) },
+      { name: `混雑ピーク ${hhmm(peak.at).slice(0, 2)}時台`, wait: Math.round(peak.average_wait) },
+      { name: `比較的空いた ${hhmm(quiet.at).slice(0, 2)}時台`, wait: Math.round(quiet.average_wait) },
+    ],
+  };
+}
+
 async function maybePostDailyX(env, seconds) {
   if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
       !dueDailyXPost(seconds)) return;
@@ -428,8 +540,25 @@ async function maybePostDailyX(env, seconds) {
   if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
       data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
   const post = xDailyPost(day, data);
-  if (post) await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post,
-    new Date(data.last_at * 1000).toISOString(), xDailyReply(data));
+  if (!post) return;
+  let imageUrl = X_POST_IMAGE;
+  let imageAlt = null;
+  const card = xDailyCardPayload(day, data);
+  if (card && env.IMAGES) {
+    try {
+      const preview = await renderXCard(env, card);
+      const bytes = preview.ok && preview.headers.get('Content-Type')?.startsWith('image/png') ?
+        (await preview.arrayBuffer()).byteLength : 0;
+      if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid recap image: ${preview.status}, ${bytes} bytes`);
+      await writeMeta(env.DB, xCardKey(day, X_DAILY_POST_TIME), JSON.stringify(card));
+      imageUrl = xCardUrl(day, X_DAILY_POST_TIME);
+      imageAlt = `${card.label}。${card.rows.map(row => `${row.name} ${row.wait}分`).join('、')}。`;
+    } catch (error) {
+      console.error('X recap card unavailable; using photo', error);
+    }
+  }
+  await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post,
+    new Date(data.last_at * 1000).toISOString(), xDailyReply(data), imageUrl, imageAlt);
 }
 
 // 10/9の混雑実績を翌朝に1回だけ配信し、Bufferの認証復旧も確認する。
@@ -981,6 +1110,8 @@ async function scheduled(event, env) {
     const cutoff = `buffer_x_${jstDay(seconds - 30 * 86400)}`;
     await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'buffer_x_%' AND key < ?")
       .bind(cutoff).run();
+    await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'xcard_%' AND key < ?")
+      .bind(`xcard_${jstDay(seconds - 35 * 86400)}`).run();
   }
   const scheduleFetchedAt = Date.parse(await readMeta(env.DB, 'schedule_fetched_at'));
   if (!Number.isFinite(scheduleFetchedAt) || Date.now() - scheduleFetchedAt > 6 * 3600 * 1000) {
@@ -1361,6 +1492,15 @@ async function route(request, env) {
   if (url.hostname === 'usj-wait-nav.kotaro-7436.workers.dev') {
     url.hostname = 'uniba-waittimes.com';
     return Response.redirect(url.toString(), 301);
+  }
+  const xCardPath = /^\/x-card\/(20\d\d-\d\d-\d\d)\/(\d{4})\.png$/.exec(url.pathname);
+  if (xCardPath) {
+    const [day, time] = xCardPath.slice(1);
+    const stored = await readMeta(env.DB, `xcard_${day}_${time}`);
+    if (!stored) return new Response('Not found', { status: 404 });
+    let card;
+    try { card = JSON.parse(stored); } catch (_) { return new Response('Invalid card', { status: 500 }); }
+    return renderXCard(env, card);
   }
   if (url.pathname === '/en' || url.pathname === '/en/') {
     const assetUrl = new URL('/en/index.html', url);

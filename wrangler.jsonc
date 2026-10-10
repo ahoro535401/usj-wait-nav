@@ -7,7 +7,7 @@
     "directory": "./public",
     "binding": "ASSETS",
     "html_handling": "none",
-    "run_worker_first": ["/", "/en", "/en/", "/plan", "/map", "/map-locations.json", "/privacy", "/sitemap.xml", "/api/*"]
+    "run_worker_first": ["/", "/en", "/en/", "/plan", "/map", "/map-locations.json", "/privacy", "/sitemap.xml", "/api/*", "/x-card/*"]
   },
   "triggers": {
     "crons": ["*/5 * * * *", "2,22,42 * * * *"]
@@ -15,6 +15,9 @@
   "vars": {
     "BUFFER_X_CHANNEL_ID": "6ac8e0a16a5c39ccb660d868",
     "X_AUTOPOST_ENABLED": "true"
+  },
+  "images": {
+    "binding": "IMAGES"
   },
   "d1_databases": [
     {

@@ -36,6 +36,8 @@ const binaryFiles = {
   '/og.png': 'og.png',
   '/og-photo.jpg': 'og-photo.jpg',
   '/og-photo-labeled.jpg': 'og-photo-labeled.jpg',
+  '/x-card-base.png': 'x-card-base.png',
+  '/x-card-font.ttf': 'x-card-font.ttf',
   '/poll-campaign-1.jpg': 'poll-campaign-1.jpg',
   '/poll-campaign-2.jpg': 'poll-campaign-2.jpg',
   '/poll-campaign-3.jpg': 'poll-campaign-3.jpg',
@@ -61,7 +63,7 @@ const preamble = `const EMBEDDED_ASSETS = ${JSON.stringify(assets)};\n` +
   const binary = EMBEDDED_BINARY_ASSETS[route];
   if (binary !== undefined) {
     const body = Uint8Array.from(atob(binary), character => character.charCodeAt(0));
-    const type = route.endsWith('.ico') ? 'image/x-icon' : route.endsWith('.jpg') ? 'image/jpeg' : 'image/png';
+    const type = route.endsWith('.ico') ? 'image/x-icon' : route.endsWith('.ttf') ? 'font/ttf' : route.endsWith('.jpg') ? 'image/jpeg' : 'image/png';
     return Promise.resolve(new Response(body, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' } }));
   }
   const body = EMBEDDED_ASSETS[route];
