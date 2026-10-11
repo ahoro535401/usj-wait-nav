@@ -9,7 +9,8 @@
     "deploy:en-release": "npm run build:en-release && wrangler deploy --config dist/en-release/wrangler.jsonc",
     "dev": "wrangler dev --local",
     "check": "node --check src/index.js",
-    "test:crm": "node --test tests/line-plan.test.mjs"
+    "test:crm": "node --test tests/line-plan.test.mjs",
+    "test:survey": "node --test tests/line-survey.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"

@@ -1,0 +1,7 @@
+    .survey-card{border:1px solid #b9d2ec;border-radius:10px;background:#f5f9ff;padding:14px;margin:16px 0 24px}
+    .survey-card h2{margin:0 0 8px}.survey-card>label:not(.consent){display:block;font-weight:700;margin:13px 0 5px}
+    .survey-card select{font:inherit;width:100%;min-height:44px;padding:8px;border:1px solid #9dafbf;border-radius:8px;background:#fff;color:#172332}
+    .survey-note{color:#455b70;font-size:.92rem}.survey-card .actions{margin-bottom:5px}
+    #survey-status{min-height:1.5em;font-weight:700}#survey-status[data-kind=error]{color:#a22121}#survey-status[data-kind=success]{color:#11604e}
+    .survey-card select:focus-visible{outline:3px solid #e9a01d;outline-offset:2px}
+    @media(prefers-color-scheme:dark){.survey-card{background:#1c3751;border-color:#52728f}.survey-note{color:#d5e2ef}.survey-card select{background:#223345;color:#fff;border-color:#71869a}#survey-status[data-kind=success]{color:#85dec4}}

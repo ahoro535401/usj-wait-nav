@@ -6,11 +6,13 @@ USJの公開データをもとに、アトラクションの待ち時間、20分
 
 ## LINE内で開くLIFF版
 
-個人開発プロバイダー「宮崎浩太朗 個人開発」のLINE Loginチャネル「USJ待ち時間ナビ」（Channel ID `2011965864`）に、LIFFアプリ `2011965864-hCyp1wQP` を登録しています。LINE内で開くURLは `https://liff.line.me/2011965864-hCyp1wQP`、Endpoint URLは `https://uniba-waittimes.com/liff/` です。表示サイズはFull、スコープは必須の `openid` のみ、友だち追加案内はOffです。プロフィール・メール・チャットへのアクセス権は要求しません。生のLINEユーザーIDやトークンはサイトのD1/KVへ保存しません。
+プロバイダー「USJ待ち時間ナビ運営（非公式）」のLINE Loginチャネル「USJ待ち時間ナビ」（Channel ID `2011965864`）に、LIFFアプリ `2011965864-hCyp1wQP` を登録しています。LINE内で開くURLは `https://liff.line.me/2011965864-hCyp1wQP`、Endpoint URLは `https://uniba-waittimes.com/liff/` です。表示サイズはFull、スコープは必須の `openid` のみ、友だち追加案内はOffです。プロフィール・メール・チャットへのアクセス権は要求しません。生のLINEユーザーIDやトークンはサイトのD1/KVへ保存しません。
 
 Workerの `/liff/`、`/liff/map`、`/liff/plan`、`/liff/vote`、`/liff/install`、`/liff/privacy` は日本語版ページを共用します。LIFF内のページ遷移はこの名前空間に留め、最新値は既存の表示用APIから読みます。LIFF入口は検索対象外・キャッシュ不可とし、LINEの認証用パラメータが解析へ送られないよう、このページではGAのスクリプトを除去し、外部解析スクリプトをCSPで遮断します。地図の現在地は利用者が端末で許可した場合だけ表示します。
 
-`/liff/my-plan` は任意保存のマイプランです。利用者が同意して「LINEに保存する」を押すと、お気に入り施設IDと来園予定日をD1に保存します。`/api/line-plan` はLIFFのIDトークンをLINEへ照会して検証し、LINEユーザーIDからHMAC照合キーを生成します。プロフィール・メール・GPS・生のLINEユーザーID・トークンは保存しません。最後の保存から180日で自動削除し、本人の削除操作でも消せます。D1マイグレーション `migrations/0007_line_crm_plans.sql` とWorker secret `CRM_HASH_KEY`（十分長いランダム値）が必要です。secretを変更すると既存プランを参照できなくなるため、移行計画なくローテーションしないでください。`npm run test:crm` で認証・同意・他ユーザー分離・期限・削除を検証できます。LINE公式アカウント／Messaging APIは未接続で、通知は行いません。
+`/liff/my-plan` は任意保存のマイプランです。利用者が同意して「LINEに保存する」を押すと、お気に入り施設IDと来園予定日をD1に保存します。`/api/line-plan` はLIFFのIDトークンをLINEへ照会して検証し、LINEユーザーIDからHMAC照合キーを生成します。プロフィール・メール・GPS・生のLINEユーザーID・トークンは保存しません。最後の保存から180日で自動削除し、本人の削除操作でも消せます。D1マイグレーション `migrations/0007_line_crm_plans.sql` とWorker secret `CRM_HASH_KEY`（十分長いランダム値）が必要です。secretを変更すると既存プランを参照できなくなるため、移行計画なくローテーションしないでください。`npm run test:crm` で認証・同意・他ユーザー分離・期限・削除を検証できます。LINE公式アカウント `@133lotsh` のMessaging APIは有効ですが、個別通知の配信処理は実装していません。
+
+利用者アンケートは公開LIFFの `/liff/my-plan` に5項目と個別同意を表示します。公開LIFF入口は `https://liff.line.me/2011965864-hCyp1wQP/my-plan` です。年代・性別・居住地（47都道府県と海外）・来園頻度・年間パスの5項目は、アンケートに参加する場合の必須選択です。来園頻度は初回／年1回未満／年1～2回／年3～5回／月1回より少なめ（年6～11回）／月1回程度（年12～23回）／月2回以上（年24回以上）から選択します。性別は「女性・男性・その他」、年間パスは「スタンダード・グランロイヤル・なし」の3択です。アンケート自体もマイプラン保存も任意で、それぞれ別の同意と保存操作です。`/api/line-survey` はLIFF IDトークンを検証し、HMAC照合キーと回答を本番D1へ保存します。本人による再表示・変更・削除ができ、回答は個人に紐づく情報として扱い180日で失効します。本番D1マイグレーションは `0011_line_survey_public.sql` です。`build:en-release` で画面を同梱し、`LINE_SURVEY_ENABLED=true` でAPIと画面を公開します。テスト用LIFFとテスト用D1は別に維持します。
 
 公開用ビルド・配備には英語版を含む `npm run build:en-release` と `npm run deploy:en-release` を使います。LINE DevelopersでEndpoint URLを変更する場合は、Workerの `/liff/` ルートと、ページ内リンクの行き先を同時に確認してください。
 

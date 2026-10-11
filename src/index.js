@@ -207,6 +207,13 @@ const privateJson = (value, status = 200) => Response.json(value, {
     'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer', 'Vary': 'Authorization' },
 });
 const LINE_PLAN_RETENTION_SECONDS = 180 * 86400;
+const LINE_SURVEY_CHOICES = {
+  age_band: new Set(['under20', '20s', '30s', '40s', '50s', '60plus']),
+  gender: new Set(['woman', 'man', 'other']),
+  prefecture: new Set([...Array.from({ length: 47 }, (_, index) => String(index + 1).padStart(2, '0')), 'overseas']),
+  visit_frequency: new Set(['first', 'less_than_yearly', 'yearly', 'yearly_3_5', 'yearly_6_11', 'monthly_1', 'monthly_2_plus']),
+  annual_pass: new Set(['standard', 'grand_royal', 'none']),
+};
 
 async function verifiedLineUserKey(request, env) {
   if (!env.CRM_HASH_KEY || !env.LIFF_APP_ID) return { error: privateJson({ error: 'マイプランは準備中です' }, 503) };
@@ -282,6 +289,56 @@ async function handleLinePlan(request, env) {
     visit_day=excluded.visit_day,updated_at=excluded.updated_at,expires_at=excluded.expires_at`)
     .bind(userKey, JSON.stringify(favorites), visitDay, now, now, now + LINE_PLAN_RETENTION_SECONDS).run();
   return privateJson({ saved: true, favorites, visit_day: visitDay, updated_at: now });
+}
+
+async function handleLineSurvey(request, env) {
+  if (!['GET', 'PUT', 'DELETE'].includes(request.method))
+    return privateJson({ error: 'Method not allowed' }, 405);
+  if (request.method !== 'GET' && request.headers.get('Origin') !== new URL(request.url).origin)
+    return privateJson({ error: '送信元を確認できません' }, 403);
+  const identity = await verifiedLineUserKey(request, env);
+  if (identity.error) return identity.error;
+  const { userKey } = identity;
+  const now = epoch();
+  await env.DB.prepare('DELETE FROM line_survey_answers WHERE expires_at <= ?').bind(now).run();
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM line_survey_answers WHERE user_key=?').bind(userKey).run();
+    return privateJson({ saved: false });
+  }
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare(
+      'SELECT age_band,gender,prefecture,visit_frequency,annual_pass,updated_at FROM line_survey_answers WHERE user_key=?'
+    ).bind(userKey).first();
+    return privateJson(row ? { saved: true, ...row } : { saved: false });
+  }
+  if (!request.headers.get('Content-Type')?.startsWith('application/json'))
+    return privateJson({ error: 'JSONで送信してください' }, 415);
+  if (Number(request.headers.get('Content-Length') || 0) > 2048)
+    return privateJson({ error: '回答が大きすぎます' }, 413);
+  let body;
+  try {
+    const raw = await request.text();
+    if (raw.length > 2048) return privateJson({ error: '回答が大きすぎます' }, 413);
+    body = JSON.parse(raw);
+  } catch (_) { return privateJson({ error: '回答を確認してください' }, 400); }
+  if (!body || typeof body !== 'object' || Array.isArray(body) || body.consent !== true ||
+      Object.keys(body).some(key => !['consent', ...Object.keys(LINE_SURVEY_CHOICES)].includes(key)))
+    return privateJson({ error: '回答を確認してください' }, 400);
+  const answer = {};
+  for (const [field, allowed] of Object.entries(LINE_SURVEY_CHOICES)) {
+    const value = body[field] === '' || body[field] == null ? null : body[field];
+    if (value === null || !allowed.has(value)) return privateJson({ error: '5項目すべてを選択してください' }, 400);
+    answer[field] = value;
+  }
+  await env.DB.prepare(`INSERT INTO line_survey_answers
+    (user_key,age_band,gender,prefecture,visit_frequency,annual_pass,consented_at,updated_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(user_key) DO UPDATE SET age_band=excluded.age_band,gender=excluded.gender,
+    prefecture=excluded.prefecture,visit_frequency=excluded.visit_frequency,
+    annual_pass=excluded.annual_pass,updated_at=excluded.updated_at,expires_at=excluded.expires_at`)
+    .bind(userKey, answer.age_band, answer.gender, answer.prefecture, answer.visit_frequency,
+      answer.annual_pass, now, now,
+      now + LINE_PLAN_RETENTION_SECONDS).run();
+  return privateJson({ saved: true, ...answer, updated_at: now });
 }
 const readMeta = async (db, key) => (await db.prepare('SELECT value FROM app_meta WHERE key = ?').bind(key).first())?.value ?? null;
 const writeMeta = (db, key, value) => db.prepare(
@@ -1541,6 +1598,8 @@ async function scheduled(event, env) {
   }
   if (minute === 0 && jstHour(seconds) === 3) {
     await env.DB.prepare('DELETE FROM line_crm_plans WHERE expires_at <= ?').bind(seconds).run();
+    if (lineSurveyEnabled(env))
+      await env.DB.prepare('DELETE FROM line_survey_answers WHERE expires_at <= ?').bind(seconds).run();
     const cutoff = `buffer_x_${jstDay(seconds - 30 * 86400)}`;
     await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'buffer_x_%' AND key < ?")
       .bind(cutoff).run();
@@ -1949,7 +2008,7 @@ function changedBodyResponse(body, original) {
   return new Response(body, { status: original.status, statusText: original.statusText, headers });
 }
 
-const LIFF_PAGE = /^\/liff(?:\/(plan|map|vote|privacy|install|my-plan|r\/[1-9]\d{0,7}))?\/?$/;
+const LIFF_PAGE = /^\/liff(?:\/(plan|map|vote|privacy|install|my-plan(?:\/survey)?|survey|r\/[1-9]\d{0,7}))?\/?$/;
 
 function liffPageHtml(html, liffId) {
   // Keep the public site's canonical/share URLs, but keep in-app navigation below the LIFF endpoint.
@@ -1960,8 +2019,6 @@ function liffPageHtml(html, liffId) {
     .replace('location.pathname.match(/^\\/r\\/', 'location.pathname.match(/^\\/liff\\/r\\/');
   // The primary LIFF redirect can contain credentials. Do not load GA on LIFF pages.
   html = html.replace(/<script src="\/analytics\.js" defer><\/script>/g, '');
-  if (!html.includes('href="/liff/my-plan"')) html = html.replace(/(<footer\b[^>]*>)/i,
-    '$1<p><a href="/liff/my-plan">★ LINE内マイプラン（お気に入り・来園予定）</a></p>');
   const bootstrap = liffId
     ? `<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>` +
       `<script>window.usjLiffReady = liff.init({liffId:${JSON.stringify(liffId)}})` +
@@ -1972,6 +2029,8 @@ function liffPageHtml(html, liffId) {
     .replace('</body>', `${bootstrap}</body>`);
 }
 
+const lineSurveyEnabled = env => env.LINE_SURVEY_ENABLED === 'true' || env.LINE_SURVEY_TEST_ENABLED === 'true';
+
 async function route(request, env) {
   const url = new URL(request.url);
   const englishPublic = env.EN_PUBLIC_ENABLED === 'true' &&
@@ -1981,20 +2040,35 @@ async function route(request, env) {
     return Response.redirect(url.toString(), 301);
   }
   if (url.pathname === '/api/line-plan') return handleLinePlan(request, env);
+  if (url.pathname === '/api/line-survey') return lineSurveyEnabled(env)
+    ? handleLineSurvey(request, env) : new Response('Not found', { status: 404 });
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
   const liffPage = LIFF_PAGE.exec(url.pathname);
   if (liffPage) {
-    if (liffPage[1] === 'my-plan') {
-      const page = await assetFetch(new Request(new URL('/my-plan.html', url), request), env);
-      if (!page.ok) return page;
-      const headers = new Headers(page.headers);
+    if (liffPage[1] === 'survey')
+      return lineSurveyEnabled(env)
+        ? Response.redirect(new URL('/liff/my-plan', url).toString(), 302)
+        : new Response('Not found', { status: 404 });
+    if (liffPage[1] === 'my-plan' || liffPage[1] === 'my-plan/survey') {
+      const surveyIncluded = lineSurveyEnabled(env) &&
+        typeof EMBEDDED_ASSETS !== 'undefined' &&
+        Object.hasOwn(EMBEDDED_ASSETS, '/__line-my-plan-survey.html');
+      if (liffPage[1] === 'my-plan/survey' && !surveyIncluded)
+        return new Response('Not found', { status: 404 });
+      let page = null;
+      if (!surveyIncluded) {
+        page = await assetFetch(new Request(new URL('/my-plan.html', url), request), env);
+        if (!page.ok) return page;
+      }
+      const headers = new Headers(page?.headers);
       headers.set('Content-Type', 'text/html; charset=utf-8');
       headers.set('Cache-Control', 'no-store');
       headers.set('X-Robots-Tag', 'noindex, nofollow');
       headers.set('Referrer-Policy', 'no-referrer');
       headers.set('Content-Security-Policy', "script-src 'self' 'unsafe-inline' https://static.line-scdn.net");
       return request.method === 'HEAD' ? new Response(null, { status: 200, headers }) :
-        new Response(liffPageHtml(await page.text(), env.LIFF_APP_ID), { status: 200, headers });
+        new Response(liffPageHtml(surveyIncluded ? EMBEDDED_ASSETS['/__line-my-plan-survey.html'] :
+          await page.text(), env.LIFF_APP_ID), { status: 200, headers });
     }
     const publicUrl = new URL(liffPage[1] ? `/${liffPage[1]}` : '/', url);
     publicUrl.search = url.search;
@@ -2011,7 +2085,10 @@ async function route(request, env) {
     headers.set('Content-Security-Policy',
       "script-src 'self' 'unsafe-inline' https://static.line-scdn.net https://cdn.jsdelivr.net");
     if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
-    return new Response(liffPageHtml(await page.text(), env.LIFF_APP_ID), { status: 200, headers });
+    let html = await page.text();
+    if (!liffPage[1] && lineSurveyEnabled(env))
+      html = html.replace('<main>', '<main><aside style="padding:12px;margin:0 0 16px;border:1px solid #83add4;border-radius:9px;background:#eef5ff;color:#172332"><strong>1分アンケートにご協力ください</strong><br>年代・性別・都道府県・来園頻度・年間パスについて、任意のアンケートに回答できます。<a href="/liff/my-plan">回答する ↗</a></aside>');
+    return new Response(liffPageHtml(html, env.LIFF_APP_ID), { status: 200, headers });
   }
   if (url.pathname === '/en/x' || /^\/en\/x\/day\/20\d\d-\d\d-\d\d$/.test(url.pathname)) {
     if (typeof EMBEDDED_ASSETS === 'undefined' || !Object.hasOwn(EMBEDDED_ASSETS, '/en/index.html'))
