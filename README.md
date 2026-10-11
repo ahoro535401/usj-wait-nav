@@ -16,6 +16,12 @@ Workerの `/liff/`、`/liff/map`、`/liff/plan`、`/liff/vote`、`/liff/install`
 
 公開用ビルド・配備には英語版を含む `npm run build:en-release` と `npm run deploy:en-release` を使います。LINE DevelopersでEndpoint URLを変更する場合は、Workerの `/liff/` ルートと、ページ内リンクの行き先を同時に確認してください。
 
+## 運営者用LINE CRM
+
+`https://crm.uniba-waittimes.com/` は運営者専用の管理画面です。Cloudflare Accessのメール認証と、管理画面Worker内での署名付きJWT・メールアドレス検証を通過した場合だけ表示します。Workerは公開サイトと分離した `admin-crm/` にあり、`workers.dev` とプレビューURLは無効です。`admin-crm/wrangler.jsonc` で配備し、D1マイグレーション `admin-crm/migrations/0001_follower_insights.sql` を適用します。`ADMIN_EMAIL` と `LINE_CHANNEL_ACCESS_TOKEN` は管理画面Workerの暗号化シークレットとして設定し、ソースやGitには保存しません。
+
+画面にはLINE公式アカウントの友だち追加累計・ブロック数・ターゲットリーチの日次集計と、LIFFのアンケート回答者数・マイプラン保存者数・回答分布・直近の仮名化した利用記録を表示します。LINE APIの友だち集計は毎日12:15 JSTのCronと管理画面表示時に取得し、集計完了前は「集計待ち」と表示します。LIFF利用者と公式アカウントの友だちは別集計で、利用者ごとの友だち状態は判定しません。友だち一覧の取得や個別メッセージ送信は実装していません。`node --test admin-crm/tests/admin.test.mjs` で認証境界を検証します。
+
 ## 構成
 
 - Cloudflare Workers: 表示と定期取得

@@ -1,0 +1,19 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "usj-wait-nav-crm-admin",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-11",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["15 3 * * *"] },
+  "routes": [{ "pattern": "crm.uniba-waittimes.com", "custom_domain": true }],
+  "vars": {
+    "TEAM_DOMAIN": "https://super-wildflower-c9f7.cloudflareaccess.com",
+    "POLICY_AUD": "2fe337e6737ac97f71db124e31aa92915cf10f9b0f8b8a2aca8a5e225f001683"
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "usj-wait-nav-db",
+    "database_id": "56859b57-f992-4bfc-883f-214e3a9dd9b3"
+  }]
+}
