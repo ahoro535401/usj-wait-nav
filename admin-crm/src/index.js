@@ -1,3 +1,5 @@
+import { rideNames } from './ride-names.js';
+
 const HOST = 'crm.uniba-waittimes.com';
 const DAY = 86400000;
 const LABELS = {
@@ -13,6 +15,13 @@ const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': 
 const dateJst = offset => new Date(Date.now() + 9 * 3600000 - offset * DAY).toISOString().slice(0, 10);
 const dateDisplay = day => day ? `${day.slice(0, 4)}/${day.slice(5, 7)}/${day.slice(8, 10)}` : '—';
 const fmt = value => value == null ? '—' : Number(value).toLocaleString('ja-JP');
+const favoriteName = id => rideNames.get(Number(id)) || `施設ID ${id}`;
+const parseFavorites = value => {
+  try {
+    const ids = JSON.parse(value || '[]');
+    return Array.isArray(ids) ? [...new Set(ids.filter(id => Number.isInteger(id) && id > 0))] : [];
+  } catch { return []; }
+};
 const htmlResponse = (body, status = 200) => new Response(body, { status, headers: {
   'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store',
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
@@ -78,7 +87,7 @@ async function refreshInsights(env) {
 
 async function dataForDashboard(env) {
   const now = Math.floor(Date.now() / 1000);
-  const [plans, answers, linked, recent, groups, insights] = await Promise.all([
+  const [plans, answers, linked, recent, favoriteRows, groups, insights] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS n FROM line_crm_plans WHERE expires_at>?').bind(now).first(),
     env.DB.prepare('SELECT COUNT(*) AS n FROM line_survey_answers WHERE expires_at>?').bind(now).first(),
     env.DB.prepare('SELECT COUNT(*) AS n FROM line_crm_plans p JOIN line_survey_answers s ON p.user_key=s.user_key WHERE p.expires_at>? AND s.expires_at>?').bind(now, now).first(),
@@ -87,12 +96,17 @@ async function dataForDashboard(env) {
       LEFT JOIN line_crm_plans p ON p.user_key=x.user_key AND p.expires_at>?
       LEFT JOIN line_survey_answers s ON s.user_key=x.user_key AND s.expires_at>?
       ORDER BY max(COALESCE(p.updated_at,0),COALESCE(s.updated_at,0)) DESC LIMIT 100`).bind(now, now, now, now).all(),
+    env.DB.prepare(`SELECT CAST(j.value AS INTEGER) AS ride_id,COUNT(DISTINCT p.user_key) AS n
+      FROM line_crm_plans p,json_each(CASE WHEN json_valid(p.favorites_json) THEN p.favorites_json ELSE '[]' END) j
+      WHERE p.expires_at>? AND j.type='integer' AND CAST(j.value AS INTEGER)>0
+      GROUP BY CAST(j.value AS INTEGER) ORDER BY n DESC,ride_id`).bind(now).all(),
     Promise.all(['age_band', 'gender', 'prefecture', 'visit_frequency', 'annual_pass'].map(async key => ({
       key, rows: (await env.DB.prepare(`SELECT ${key} AS choice,COUNT(*) AS n FROM line_survey_answers WHERE expires_at>? GROUP BY ${key} ORDER BY n DESC,choice`).bind(now).all()).results || [],
     }))),
     env.DB.prepare('SELECT day,followers,blocks,targeted_reaches FROM line_admin_follower_insights ORDER BY day DESC LIMIT 14').all(),
   ]);
-  return { plans: plans?.n || 0, answers: answers?.n || 0, linked: linked?.n || 0, recent: recent.results || [], groups, insights: insights.results || [] };
+  return { plans: plans?.n || 0, answers: answers?.n || 0, linked: linked?.n || 0,
+    recent: recent.results || [], favorites: favoriteRows.results || [], groups, insights: insights.results || [] };
 }
 
 function groupHtml({ key, rows }) {
@@ -107,19 +121,21 @@ function groupHtml({ key, rows }) {
 function dashboard(data, insightState) {
   const latest = data.insights[0];
   const rows = data.recent.map(row => {
-    let favorites = [];
-    try { favorites = JSON.parse(row.favorites_json || '[]'); } catch { /* malformed historic data */ }
+    const favorites = parseFavorites(row.favorites_json);
     const last = Math.max(row.plan_updated || 0, row.survey_updated || 0);
-    return `<tr><td><code>${escape(row.user_key?.slice(0, 10))}</code></td><td>${row.survey_updated ? '回答済み' : '未回答'}</td><td>${Array.isArray(favorites) ? fmt(favorites.length) : '—'}</td><td>${escape(row.visit_day || '—')}</td><td>${escape(LABELS.age_band[row.age_band] || '—')}</td><td>${escape(LABELS.gender[row.gender] || '—')}</td><td>${escape(prefectureName(row.prefecture))}</td><td>${escape(LABELS.visit_frequency[row.visit_frequency] || '—')}</td><td>${escape(LABELS.annual_pass[row.annual_pass] || '—')}</td><td>${last ? escape(new Date(last * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })) : '—'}</td></tr>`;
+    return `<tr><td><code>${escape(row.user_key?.slice(0, 10))}</code></td><td>${row.survey_updated ? '回答済み' : '未回答'}</td><td>${row.plan_updated ? (favorites.length ? escape(favorites.map(favoriteName).join('、')) : '登録なし') : '未保存'}</td><td>${escape(row.visit_day || '—')}</td><td>${escape(LABELS.age_band[row.age_band] || '—')}</td><td>${escape(LABELS.gender[row.gender] || '—')}</td><td>${escape(prefectureName(row.prefecture))}</td><td>${escape(LABELS.visit_frequency[row.visit_frequency] || '—')}</td><td>${escape(LABELS.annual_pass[row.annual_pass] || '—')}</td><td>${last ? escape(new Date(last * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })) : '—'}</td></tr>`;
   }).join('');
+  const favoriteTotal = data.favorites.reduce((sum, row) => sum + row.n, 0);
+  const favoriteItems = data.favorites.map(row => `<div class="bar-row"><span>${escape(favoriteName(row.ride_id))}</span><div class="track"><div style="width:${Math.round(row.n * 100 / Math.max(data.plans, 1))}%"></div></div><strong>${fmt(row.n)}人</strong></div>`).join('');
   return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LINE友だち・利用状況 | USJ待ち時間ナビ</title><style>
-  :root{font-family:system-ui,sans-serif;color:#182b42;background:#f3f7fb}*{box-sizing:border-box}body{max-width:1200px;margin:auto;padding:28px 16px 60px}h1{font-size:clamp(1.6rem,4vw,2.2rem);margin:0 0 4px}h2{font-size:1.12rem;margin:0 0 16px}.muted{color:#5c6b7b}.note{font-size:.88rem;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:22px 0}.card,.panel{background:white;border:1px solid #d7e2ee;border-radius:14px;padding:20px}.card strong{display:block;font-size:2rem;color:#145aa1}.card span{font-size:.85rem;color:#52657a}.panel{margin:16px 0}.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}.columns .panel{margin:0}.bars{display:grid;gap:11px}.bar-row{display:grid;grid-template-columns:100px 1fr 35px;gap:8px;align-items:center;font-size:.87rem}.track{height:10px;background:#e7edf5;border-radius:10px;overflow:hidden}.track div{height:100%;background:#236dbc}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:.84rem}td,th{text-align:left;padding:9px;border-bottom:1px solid #e4eaf1}th{background:#f1f6fc}a{color:#145aa1}code{font-size:.82rem}
+  :root{font-family:system-ui,sans-serif;color:#182b42;background:#f3f7fb}*{box-sizing:border-box}body{max-width:1200px;margin:auto;padding:28px 16px 60px}h1{font-size:clamp(1.6rem,4vw,2.2rem);margin:0 0 4px}h2{font-size:1.12rem;margin:0 0 16px}.muted{color:#5c6b7b}.note{font-size:.88rem;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:22px 0}.card,.panel{background:white;border:1px solid #d7e2ee;border-radius:14px;padding:20px}.card strong{display:block;font-size:2rem;color:#145aa1}.card span{font-size:.85rem;color:#52657a}.panel{margin:16px 0}.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}.columns .panel{margin:0}.bars{display:grid;gap:11px}.bar-row{display:grid;grid-template-columns:minmax(110px,260px) minmax(90px,1fr) 44px;gap:8px;align-items:center;font-size:.87rem}.bar-row span{overflow-wrap:anywhere}.track{height:10px;background:#e7edf5;border-radius:10px;overflow:hidden}.track div{height:100%;background:#236dbc}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:.84rem}td,th{text-align:left;padding:9px;border-bottom:1px solid #e4eaf1}th{background:#f1f6fc}a{color:#145aa1}code{font-size:.82rem}@media(max-width:600px){.bar-row{grid-template-columns:minmax(100px,1fr) 80px 44px}body{padding:20px 12px 40px}}
   </style></head><body><h1>LINE友だち・利用状況</h1><p class="muted">USJ待ち時間ナビ｜運営者専用・読み取り中心</p>
   <section class="grid"><div class="card"><span>友だち追加累計${latest ? `（${dateDisplay(latest.day)}時点）` : ''}</span><strong>${fmt(latest?.followers)}</strong></div><div class="card"><span>ブロック</span><strong>${fmt(latest?.blocks)}</strong></div><div class="card"><span>ターゲットリーチ</span><strong>${fmt(latest?.targeted_reaches)}</strong></div><div class="card"><span>アンケート回答者</span><strong>${fmt(data.answers)}</strong></div><div class="card"><span>マイプラン保存者</span><strong>${fmt(data.plans)}</strong></div><div class="card"><span>両方利用</span><strong>${fmt(data.linked)}</strong></div></section>
-  <p class="note muted">友だち数：${escape(insightState.state)}${insightState.detail ? `（${escape(insightState.detail)}）` : ''}。LINE公式アカウントの友だちとLIFF利用者は別集計です。アンケート回答者を友だち数に加算しません。友だち追加累計はブロック後も減らず、ターゲットリーチは配信可能な全員ではありません。</p>
+  <p class="note muted">友だち数：${escape(insightState.state)}${insightState.detail ? `（${escape(insightState.detail)}）` : ''}。LINE公式アカウントの友だちとLINE内機能の利用者は別集計です。友だち追加累計はブロック後も減らず、ターゲットリーチは配信可能な全員ではありません。</p>
   <section class="panel"><h2>友だち数の推移</h2>${data.insights.length ? `<div class="table-wrap"><table><thead><tr><th>日付</th><th>追加累計</th><th>ブロック</th><th>ターゲットリーチ</th></tr></thead><tbody>${data.insights.map(row => `<tr><td>${dateDisplay(row.day)}</td><td>${fmt(row.followers)}</td><td>${fmt(row.blocks)}</td><td>${fmt(row.targeted_reaches)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">LINE APIの接続後、確定した日次データを表示します。</p>'}</section>
+  <section class="panel"><h2>お気に入り施設の登録状況</h2><p class="note muted">LINE内マイプランに現在保存されている施設です。施設ごとの人数を表示します。1人が複数施設を登録できるため、合計${fmt(favoriteTotal)}件は保存者${fmt(data.plans)}人と一致しない場合があります。端末だけに保存されたお気に入りは含みません。</p>${favoriteItems ? `<div class="bars">${favoriteItems}</div>` : '<p class="muted">LINEに保存されたお気に入り施設はまだありません。</p>'}</section>
   <div class="columns">${data.groups.map(groupHtml).join('')}</div>
-  <section class="panel"><h2>LINE内利用者（直近100件）</h2><p class="note muted">照合キーの一部だけを表示。LINE公式アカウントの友だちかどうかは判定していません。回答・保存は180日で失効します。</p><div class="table-wrap"><table><thead><tr><th>管理用ID</th><th>アンケート</th><th>お気に入り数</th><th>来園予定日</th><th>年代</th><th>性別</th><th>居住地</th><th>来園頻度</th><th>年パス</th><th>最終更新</th></tr></thead><tbody>${rows || '<tr><td colspan="10">利用者データはまだありません。</td></tr>'}</tbody></table></div></section>
+  <section class="panel"><h2>LINE内利用者（直近100件）</h2><p class="note muted">照合キーの一部だけを表示。LINE公式アカウントの友だちかどうかは判定していません。回答・保存は180日で失効します。</p><div class="table-wrap"><table><thead><tr><th>管理用ID</th><th>アンケート</th><th>お気に入り施設</th><th>来園予定日</th><th>年代</th><th>性別</th><th>居住地</th><th>来園頻度</th><th>年パス</th><th>最終更新</th></tr></thead><tbody>${rows || '<tr><td colspan="10">利用者データはまだありません。</td></tr>'}</tbody></table></div></section>
   <p class="note muted">この画面から利用者へのメッセージ送信やデータ編集はできません。<a href="https://manager.line.biz/account/@133lotsh/insight/friends" rel="noreferrer">LINE公式管理画面の友だち分析</a>でも数値を確認できます。</p></body></html>`;
 }
 

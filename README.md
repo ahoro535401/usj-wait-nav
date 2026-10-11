@@ -20,7 +20,7 @@ Workerの `/liff/`、`/liff/map`、`/liff/plan`、`/liff/vote`、`/liff/install`
 
 `https://crm.uniba-waittimes.com/` は運営者専用の管理画面です。Cloudflare Accessのメール認証と、管理画面Worker内での署名付きJWT・メールアドレス検証を通過した場合だけ表示します。Workerは公開サイトと分離した `admin-crm/` にあり、`workers.dev` とプレビューURLは無効です。`admin-crm/wrangler.jsonc` で配備し、D1マイグレーション `admin-crm/migrations/0001_follower_insights.sql` を適用します。`ADMIN_EMAIL` と `LINE_CHANNEL_ACCESS_TOKEN` は管理画面Workerの暗号化シークレットとして設定し、ソースやGitには保存しません。
 
-画面にはLINE公式アカウントの友だち追加累計・ブロック数・ターゲットリーチの日次集計と、LIFFのアンケート回答者数・マイプラン保存者数・回答分布・直近の仮名化した利用記録を表示します。LINE APIの友だち集計は毎日12:15 JSTのCronと管理画面表示時に取得し、集計完了前は「集計待ち」と表示します。LIFF利用者と公式アカウントの友だちは別集計で、利用者ごとの友だち状態は判定しません。友だち一覧の取得や個別メッセージ送信は実装していません。`node --test admin-crm/tests/admin.test.mjs` で認証境界を検証します。
+画面にはLINE公式アカウントの友だち追加累計・ブロック数・ターゲットリーチの日次集計と、LIFFのアンケート回答者数・マイプラン保存者数・回答分布・お気に入り施設別の登録人数・直近100件の仮名化した回答と保存施設を表示します。お気に入りの集計対象は有効なLINE内マイプランだけで、端末だけのお気に入りは含みません。施設名は公開サイトの日本語一覧から `npm run build:crm` で同期してから管理画面Workerを配備します。LINE APIの友だち集計は毎日12:15 JSTのCronと管理画面表示時に取得し、集計完了前は「集計待ち」と表示します。LIFF利用者と公式アカウントの友だちは別集計で、利用者ごとの友だち状態は判定しません。友だち一覧の取得や個別メッセージ送信は実装していません。`npm run build:crm` で施設名の同期・認証と画面の検証を行います。
 
 ## 構成
 
