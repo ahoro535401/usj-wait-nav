@@ -4,6 +4,12 @@ USJの公開データをもとに、アトラクションの待ち時間、20分
 
 公開URL: https://uniba-waittimes.com/
 
+## 施設別の待ち時間ページ
+
+マリオカート、ドンキーコング、ザ・フライング・ダイナソー、ハリウッド・ドリーム・ザ・ライドは、`/attraction/<slug>` と `/en/attraction/<slug>` に日本語・英語の独立ページを用意しています。Workerが初期HTMLに現在の掲載値、取得時刻、比較可能な5分・20分・1時間前比、過去7日の時間帯別実測を埋め込みます。欠測・休止・推定値を実測平均に混ぜず、3件未満の時間帯は省きます。現在値は取得・検証時刻とも15分以内の場合だけ表示します。公式施設案内へのリンク、各言語の固有メタ情報・相互hreflang・パンくず、サイトマップを付けています。英語トップの初期HTMLにも最新の待ち時間上位5施設を載せます。
+
+定番施設のID・日本語名・英語名・公式リンクは `src/index.js` の `ATTRACTION_DETAILS` で対として管理します。施設を追加・改名する際は両言語を同時に直し、`node --test tests/seo-attractions.test.mjs`、`npm run check:content`、`npm run build:en-release` を実行してください。通常ビルドでは英語公開フラグが維持されないため、本番には `dist/en-release/wrangler.jsonc` を使います。専用ページの表示は、既存の解析同意設定がある場合にだけGA4へ送られます。
+
 ## LINE内で開くLIFF版
 
 プロバイダー「USJ待ち時間ナビ運営（非公式）」のLINE Loginチャネル「USJ待ち時間ナビ」（Channel ID `2011965864`）に、LIFFアプリ `2011965864-hCyp1wQP` を登録しています。LINE内で開くURLは `https://liff.line.me/2011965864-hCyp1wQP`、Endpoint URLは `https://uniba-waittimes.com/liff/` です。表示サイズはFull、スコープは必須の `openid` のみ、友だち追加案内はOffです。プロフィール・メール・チャットへのアクセス権は要求しません。生のLINEユーザーIDやトークンはサイトのD1/KVへ保存しません。

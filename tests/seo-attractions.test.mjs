@@ -1,0 +1,100 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker from '../dist/en-release/worker.js';
+
+const now = Date.now();
+const fetchedAt = new Date(now - 60000).toISOString();
+const verifiedAt = new Date(now - 90000).toISOString();
+const previousAt = new Date(now - 6 * 60000).toISOString();
+const ride = { id: 12061, is_open: true, wait_time: 95, source: 'Queue-Times', last_updated: verifiedAt };
+const values = new Map([
+  ['rides_payload', JSON.stringify([ride])], ['rides_fetched_at', fetchedAt],
+  ['rides_previous_payload', JSON.stringify({ fetched_at: previousAt, rides: [
+    { ...ride, wait_time: 105, last_updated: previousAt },
+  ] })],
+]);
+const env = { EN_PUBLIC_ENABLED: 'true', DB: {
+  prepare(sql) {
+    let args;
+    return {
+      bind(...values) { args = values; return this; },
+      async first() {
+        assert.match(sql, /SELECT value FROM app_meta/);
+        return { value: values.get(args[0]) };
+      },
+      async all() {
+        if (sql.includes('GROUP BY hour')) return { results: [
+          { hour: 10, samples: 12, average_wait: 70 },
+          { hour: 11, samples: 6, average_wait: 90 },
+          { hour: 12, samples: 2, average_wait: 150 },
+        ] };
+        if (sql.includes('ORDER BY h.captured_at DESC')) return { results: [
+          { captured_at: Math.floor((Date.parse(fetchedAt) - 20 * 60000) / 1000), wait_minutes: 85,
+            is_open: 1, source: 'Queue-Times' },
+          { captured_at: Math.floor((Date.parse(fetchedAt) - 60 * 60000) / 1000), wait_minutes: 120,
+            is_open: 1, source: 'Queue-Times' },
+        ] };
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+  },
+} };
+const get = path => worker.fetch(new Request(`https://uniba-waittimes.com${path}`), env, {});
+
+test('Japanese and English attraction pages render useful, matching source HTML', async () => {
+  const ja = await get('/attraction/mario-kart-koopas-challenge');
+  const en = await get('/en/attraction/mario-kart-koopas-challenge');
+  assert.equal(ja.status, 200);
+  assert.equal(en.status, 200);
+  const japanese = await ja.text(), english = await en.text();
+  assert.match(japanese, /<h1>マリオカート ～クッパの挑戦状～™の待ち時間<\/h1>/);
+  assert.match(japanese, /95分/);
+  assert.match(japanese, /5分前比<\/span><strong>↓10分/);
+  assert.match(japanese, /20分前比<\/span><strong>↑10分/);
+  assert.match(japanese, /1時間前比<\/span><strong>↓25分/);
+  assert.match(japanese, /11時台・平均90分/);
+  assert.doesNotMatch(japanese, /12:00–13:00/); // fewer than three records
+  assert.match(english, /<html lang="en">/);
+  assert.match(english, /<h1>Mario Kart: Koopa&#39;s Challenge wait time<\/h1>/);
+  assert.match(english, /95 min/);
+  for (const html of [japanese, english]) {
+    assert.match(html, /hreflang="ja" href="https:\/\/uniba-waittimes.com\/attraction\/mario-kart-koopas-challenge"/);
+    assert.match(html, /hreflang="en" href="https:\/\/uniba-waittimes.com\/en\/attraction\/mario-kart-koopas-challenge"/);
+    assert.match(html, /"@type":"BreadcrumbList"/);
+    assert.match(html, /https:\/\/www.usj.co.jp\/web\//);
+    assert.match(html, /<script src="\/analytics.js" defer><\/script>/);
+  }
+});
+
+test('all four attraction guides resolve in both languages', async () => {
+  for (const slug of ['mario-kart-koopas-challenge', 'donkey-kong-country-ride',
+    'the-flying-dinosaur', 'hollywood-dream-the-ride']) {
+    assert.equal((await get(`/attraction/${slug}`)).status, 200);
+    assert.equal((await get(`/en/attraction/${slug}`)).status, 200);
+  }
+});
+
+test('English home includes server-rendered wait names before JavaScript runs', async () => {
+  const response = await get('/en/');
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Longest listed waits/);
+  assert.match(html, /Mario Kart: Koopa&#39;s Challenge <strong>95 min<\/strong>/);
+  assert.match(html, /href="\/en\/attraction\/mario-kart-koopas-challenge"/);
+});
+
+test('stale values, unknown slugs and sitemap behave safely', async () => {
+  values.set('rides_fetched_at', new Date(now - 3600000).toISOString());
+  const stale = await (await get('/attraction/mario-kart-koopas-challenge')).text();
+  assert.match(stale, /現在の待ち時間は確認できません/);
+  assert.doesNotMatch(stale, /<p class="big">95分<\/p>/);
+  values.set('rides_fetched_at', fetchedAt);
+  values.set('rides_payload', JSON.stringify([{ ...ride, is_open: true, wait_time: null }]));
+  const unknownWait = await (await get('/attraction/mario-kart-koopas-challenge')).text();
+  assert.match(unknownWait, /通常待ち列の時間は確認できません/);
+  values.set('rides_payload', JSON.stringify([ride]));
+  assert.equal((await get('/attraction/unknown')).status, 404);
+  const sitemap = await (await get('/sitemap.xml')).text();
+  assert.match(sitemap, /\/attraction\/mario-kart-koopas-challenge<\/loc>/);
+  assert.match(sitemap, /\/en\/attraction\/mario-kart-koopas-challenge<\/loc>/);
+});

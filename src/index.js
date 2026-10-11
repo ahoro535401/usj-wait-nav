@@ -2009,6 +2009,220 @@ async function renderInitialData(html, page, request, env, rides, fetchedAt, tod
 const ENGLISH_PAGES = { '/': '/en/', '/plan': '/en/plan', '/map': '/en/map',
   '/vote': '/en/vote', '/install': '/en/install', '/privacy': '/en/privacy' };
 
+// Evergreen attraction guides. Names and official paths are paired so that a
+// Japanese page cannot be published without its English counterpart.
+const ATTRACTION_DETAILS = [
+  { id: 12061, slug: 'mario-kart-koopas-challenge',
+    ja: 'マリオカート ～クッパの挑戦状～™', en: "Mario Kart: Koopa's Challenge",
+    areaJa: 'スーパー・ニンテンドー・ワールド™', areaEn: 'Super Nintendo World',
+    descriptionJa: 'マリオカートの世界を体験するライドです。現在の通常待ち列の掲載値と、保存済み記録から見た時間帯別の実績を確認できます。',
+    descriptionEn: 'A ride set in the world of Mario Kart. Check the listed standby wait and hourly averages from saved observations.',
+    official: 'mario-kart-koopas-challenge' },
+  { id: 14402, slug: 'donkey-kong-country-ride',
+    ja: 'ドンキーコングのクレイジー・トロッコ™', en: 'Mine Cart Madness',
+    areaJa: 'スーパー・ニンテンドー・ワールド™', areaEn: 'Super Nintendo World',
+    descriptionJa: 'ドンキーコングの世界をトロッコで進むライドです。現在の通常待ち列の掲載値と、保存済み記録から見た時間帯別の実績を確認できます。',
+    descriptionEn: 'A mine cart ride through Donkey Kong Country. Check the listed standby wait and hourly averages from saved observations.',
+    official: 'donkey-kong-country-ride' },
+  { id: 7092, slug: 'the-flying-dinosaur',
+    ja: 'ザ・フライング・ダイナソー', en: 'The Flying Dinosaur',
+    areaJa: 'ジュラシック・パーク', areaEn: 'Jurassic Park',
+    descriptionJa: 'ジュラシック・パークのフライング・コースターです。現在の通常待ち列の掲載値と、保存済み記録から見た時間帯別の実績を確認できます。',
+    descriptionEn: 'A flying coaster in Jurassic Park. Check the listed standby wait and hourly averages from saved observations.',
+    official: 'the-flying-dinosaur' },
+  { id: 7077, slug: 'hollywood-dream-the-ride',
+    ja: 'ハリウッド・ドリーム・ザ・ライド', en: 'Hollywood Dream - The Ride',
+    areaJa: 'ハリウッド・エリア', areaEn: 'Hollywood',
+    descriptionJa: '音楽とともに楽しむハリウッド・エリアのコースターです。現在の通常待ち列の掲載値と、保存済み記録から見た時間帯別の実績を確認できます。',
+    descriptionEn: 'A music-themed coaster in Hollywood. Check the listed standby wait and hourly averages from saved observations.',
+    official: 'hollywood-dream-the-ride' },
+];
+
+const attractionPath = (item, english) => `${english ? '/en' : ''}/attraction/${item.slug}`;
+const attractionLinks = english => ATTRACTION_DETAILS.map(item =>
+  `<li><a href="${attractionPath(item, english)}">${escapeHtml(english ? item.en : item.ja)}</a></li>`).join('');
+
+function englishInitialWaits(rides, fetchedAt) {
+  const fetched = Date.parse(fetchedAt);
+  const now = Date.now();
+  if (!Number.isFinite(fetched) || now - fetched < -120000 || now - fetched > 900000 || !Array.isArray(rides))
+    return '<p id="initial-waits-summary" class="muted">Current wait data is unavailable. The live cards will update when a new observation arrives.</p>';
+  const ranked = rides.filter(ride => {
+    const updated = Date.parse(ride.verified_at || ride.last_updated);
+    return ride.is_open && !ride.data_unavailable && ride.source !== DARK_ESTIMATE_SOURCE &&
+      Number.isInteger(ride.wait_time) &&
+      Number.isFinite(updated) && now - updated >= -120000 && now - updated <= 900000;
+  }).sort((a, b) => b.wait_time - a.wait_time).slice(0, 5);
+  if (!ranked.length) return '<p id="initial-waits-summary" class="muted">No current operating wait is verified. Check the live cards and official app.</p>';
+  const observed = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo',
+    hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(fetched));
+  const list = ranked.map(ride => {
+    const item = ATTRACTION_DETAILS.find(value => value.id === Number(ride.id));
+    const name = item?.en || EN_X_CARD_NAMES.get(Number(ride.id)) || englishRideName(ride) || `Attraction ${ride.id}`;
+    return `<li>${escapeHtml(name)} <strong>${ride.wait_time} min</strong></li>`;
+  }).join('');
+  return `<aside id="initial-waits-summary" aria-label="Longest listed waits at page load">` +
+    `<h3>Longest listed waits · ${observed} JST</h3><ol>${list}</ol>` +
+    '<p class="muted small">Provider-listed standby estimates. The cards below load the newest available data.</p></aside>';
+}
+
+async function attractionComparisons(db, ride, fetchedAt, previousRaw) {
+  if (!ride || !Number.isInteger(ride.wait_time) || !ride.is_open) return [];
+  const currentAt = Date.parse(fetchedAt);
+  if (!Number.isFinite(currentAt)) return [];
+  const comparisons = [];
+  try {
+    const previous = JSON.parse(previousRaw);
+    const previousAt = Date.parse(previous?.fetched_at);
+    const old = previous?.rides?.find(item => Number(item.id) === Number(ride.id));
+    const oldAt = Date.parse(old?.verified_at || old?.last_updated);
+    if (old?.is_open && !old.data_unavailable && Number.isInteger(old.wait_time) &&
+      old.source === ride.source && currentAt - previousAt >= 180000 && currentAt - previousAt <= 480000 &&
+      previousAt - oldAt >= -120000 && previousAt - oldAt <= 900000)
+      comparisons.push({ minutes: 5, wait: old.wait_time, at: previousAt });
+  } catch (_) { /* A missing previous refresh is not a zero-minute difference. */ }
+  const since = Math.floor(currentAt / 1000) - 71 * 60;
+  const { results } = await db.prepare(
+    'SELECT h.captured_at,s.wait_minutes,s.is_open,s.source FROM ride_samples s JOIN snapshots h USING(slot) ' +
+    'WHERE s.ride_id=? AND s.slot>=? AND h.captured_at>=? ORDER BY h.captured_at DESC LIMIT 6'
+  ).bind(ride.id, Math.floor(since / SNAPSHOT_SECONDS), since).all();
+  for (const minutes of [20, 60]) {
+    const target = currentAt / 1000 - minutes * 60;
+    const old = results.filter(item => Math.abs(item.captured_at - target) <= 11 * 60 &&
+      item.is_open && Number.isInteger(item.wait_minutes) && item.source === ride.source &&
+      item.source !== DARK_ESTIMATE_SOURCE)
+      .sort((a, b) => Math.abs(a.captured_at - target) - Math.abs(b.captured_at - target))[0];
+    if (old) comparisons.push({ minutes, wait: old.wait_minutes, at: old.captured_at * 1000 });
+  }
+  return comparisons;
+}
+
+async function attractionHourlyHistory(db, rideId) {
+  const since = epoch() - 7 * 86400;
+  const { results } = await db.prepare(
+    'SELECT CAST(((h.captured_at + 32400) / 3600) % 24 AS INTEGER) AS hour, ' +
+    'COUNT(*) AS samples, ROUND(AVG(s.wait_minutes)) AS average_wait ' +
+    'FROM ride_samples s JOIN snapshots h USING(slot) ' +
+    'WHERE s.ride_id=? AND s.slot>=? AND h.captured_at>=? AND s.is_open=1 ' +
+    'AND s.wait_minutes IS NOT NULL AND s.source<>? GROUP BY hour ORDER BY hour'
+  ).bind(rideId, Math.floor(since / SNAPSHOT_SECONDS), since, DARK_ESTIMATE_SOURCE).all();
+  return results || [];
+}
+
+async function renderAttractionPage(request, env, item, english) {
+  const origin = 'https://uniba-waittimes.com';
+  const jaPath = attractionPath(item, false), enPath = attractionPath(item, true);
+  const path = english ? enPath : jaPath;
+  const name = english ? item.en : item.ja;
+  const title = english ? `${name} wait time and recent records | USJ Wait Times Guide`
+    : `${name}の待ち時間・過去7日の傾向｜USJ待ち時間ナビ`;
+  const description = english
+    ? `Check the current listed wait and recorded hourly trends for ${name} at Universal Studios Japan. Updated data is marked with its observation time.`
+    : `${name}の現在の待ち時間と、過去7日の時間帯別の実測を確認できます。取得時刻と欠測の扱いを明示します。`;
+  let ride = null, fetchedAt = null, previousRaw = null;
+  try {
+    const [payload, updated, previous] = await Promise.all([
+      readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
+      readMeta(env.DB, 'rides_previous_payload'),
+    ]);
+    ride = JSON.parse(payload)?.find(value => Number(value.id) === item.id) || null;
+    fetchedAt = updated;
+    previousRaw = previous;
+  } catch (error) { console.warn('Attraction current wait unavailable', error); }
+  const now = Date.now(), fetched = Date.parse(fetchedAt);
+  const verified = Date.parse(ride?.verified_at || ride?.last_updated);
+  const fresh = ride && !ride.data_unavailable && ride.source !== DARK_ESTIMATE_SOURCE &&
+    Number.isFinite(fetched) && Number.isFinite(verified) &&
+    now - fetched >= -120000 && now - fetched <= 900000 &&
+    now - verified >= -120000 && now - verified <= 900000;
+  const currentText = !fresh ? (english ? 'Current wait unavailable' : '現在の待ち時間は確認できません')
+    : ride.is_open && Number.isInteger(ride.wait_time)
+      ? (english ? `${ride.wait_time} min` : `${ride.wait_time}分`)
+      : ride.is_open ? (english ? 'Standby wait unavailable' : '通常待ち列の時間は確認できません')
+        : (english ? 'Not operating according to the data provider' : '提供元では運行していない表示です');
+  const stamp = fresh ? new Intl.DateTimeFormat(english ? 'en-US' : 'ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date(verified)) : null;
+  let comparisons = [], hourly = [];
+  try {
+    [comparisons, hourly] = await Promise.all([
+      fresh ? attractionComparisons(env.DB, ride, fetchedAt, previousRaw) : [],
+      attractionHourlyHistory(env.DB, item.id),
+    ]);
+  } catch (error) { console.warn('Attraction history unavailable', error); }
+  const comparisonList = [5, 20, 60].map(minutes => {
+    const match = comparisons.find(row => row.minutes === minutes);
+    const label = english ? `${minutes === 60 ? '1 hour' : `${minutes} min`} ago` :
+      `${minutes === 60 ? '1時間' : `${minutes}分`}前比`;
+    const delta = match ? ride.wait_time - match.wait : null;
+    const change = delta == null ? '—' : Math.abs(delta) < 5 ? '→' :
+      `${delta > 0 ? '↑' : '↓'}${Math.abs(delta)}${english ? ' min' : '分'}`;
+    return `<li><span>${escapeHtml(label)}</span><strong>${change}</strong></li>`;
+  }).join('');
+  const sufficient = hourly.filter(row => Number(row.samples) >= 3);
+  const peak = sufficient.reduce((best, row) => !best || row.average_wait > best.average_wait ? row : best, null);
+  const peakText = peak ? (english
+    ? `${String(peak.hour).padStart(2, '0')}:00 hour · ${peak.average_wait} min average (${peak.samples} records)`
+    : `${String(peak.hour).padStart(2, '0')}時台・平均${peak.average_wait}分（${peak.samples}件の記録）`)
+    : (english ? 'Not enough recorded observations yet' : '実測記録がまだ足りません');
+  const historyRows = sufficient.map(row => `<tr><th scope="row">${String(row.hour).padStart(2, '0')}:00–${String((row.hour + 1) % 24).padStart(2, '0')}:00</th>` +
+    `<td>${row.average_wait}${english ? ' min' : '分'}</td><td>${row.samples}</td></tr>`).join('');
+  const official = `https://www.usj.co.jp/web/${english ? 'en/us' : 'ja/jp'}/attractions/${item.official}`;
+  const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: english ? 'Today at the park' : '今日のパーク', item: `${origin}${english ? '/en/' : '/'}` },
+      { '@type': 'ListItem', position: 2, name, item: `${origin}${path}` },
+    ] }).replace(/</g, '\\u003c');
+  const html = `<!doctype html><html lang="${english ? 'en' : 'ja'}"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>` +
+    `<meta name="description" content="${escapeHtml(description)}"><link rel="canonical" href="${origin}${path}">` +
+    languageAlternates(jaPath, enPath) +
+    `<meta property="og:type" content="website"><meta property="og:title" content="${escapeHtml(title)}">` +
+    `<meta property="og:description" content="${escapeHtml(description)}"><meta property="og:url" content="${origin}${path}">` +
+    `<meta property="og:image" content="${origin}/og-photo.jpg"><script type="application/ld+json">${jsonLd}</script>` +
+    `<style>body{margin:0;background:#f3f6fb;color:#192639;font:16px/1.65 system-ui,-apple-system,sans-serif}` +
+    `main,header,footer{max-width:900px;margin:auto;padding:20px}header{display:flex;justify-content:space-between;gap:12px}` +
+    `a{color:#075aab}section{background:white;border:1px solid #ced9e6;border-radius:14px;padding:18px;margin:16px 0}` +
+    `h1{line-height:1.35}h2{font-size:1.25rem}.big{font-size:2rem;font-weight:750;margin:.2em 0}` +
+    `.muted{color:#536478}.comparison{display:flex;gap:12px;flex-wrap:wrap;list-style:none;padding:0}` +
+    `.comparison li{background:#eef4fb;border-radius:8px;padding:8px 12px;min-width:120px}` +
+    `.comparison span{display:block;font-size:.9rem}.comparison strong{font-size:1.15rem}` +
+    `table{width:100%;border-collapse:collapse}th,td{padding:8px;text-align:left;border-bottom:1px solid #d8e1eb}` +
+    `@media(prefers-color-scheme:dark){body{background:#121d2a;color:#eef4fc}section{background:#1c2b3b;border-color:#40546c}` +
+    `a{color:#9dcbff}.muted{color:#b9c9d8}.comparison li{background:#283c51}th,td{border-color:#40546c}}</style></head><body>` +
+    `<header><a href="${english ? '/en/' : '/'}">${english ? 'USJ Wait Times Guide' : 'USJ待ち時間ナビ'}</a>` +
+    `<a href="${english ? jaPath : enPath}" hreflang="${english ? 'ja' : 'en'}">${english ? '日本語' : 'English'}</a></header>` +
+    `<main><nav aria-label="${english ? 'Breadcrumb' : 'パンくずリスト'}"><a href="${english ? '/en/' : '/'}">${english ? 'Today at the park' : '今日のパーク'}</a> › ${escapeHtml(name)}</nav>` +
+    `<h1>${escapeHtml(name)}${english ? ' wait time' : 'の待ち時間'}</h1>` +
+    `<p class="muted">${escapeHtml(english ? item.areaEn : item.areaJa)} · ${english ? 'Unofficial site' : '個人運営の非公式サイト'}</p>` +
+    `<section><h2>${english ? 'Current listed standby wait' : '現在の通常待ち列の掲載値'}</h2><p class="big">${escapeHtml(currentText)}</p>` +
+    `<p class="muted">${stamp ? escapeHtml(`${stamp} JST · ${english ? 'Data provider' : '提供元'}: ${ride.source || '—'}`) :
+      (english ? 'No recent observation can be verified. See the official app for current operations.' : '新しい実測を確認できません。現在の運行状況は公式アプリで確認してください。')}</p>` +
+    `<ul class="comparison">${comparisonList}</ul><p class="muted">${english ? '↑ longer, ↓ shorter, → change under 5 min. — means no reliable comparison. These are past changes, not a forecast.' :
+      '↑増加、↓減少、→5分未満の変化。—は比較できる記録がありません。過去の変化であり、予測ではありません。'}</p></section>` +
+    `<section><h2>${english ? 'About this attraction' : 'アトラクションについて'}</h2><p>${escapeHtml(english ? item.descriptionEn : item.descriptionJa)}</p>` +
+    `<p><a href="${official}" target="_blank" rel="noopener noreferrer">${english ? 'Official USJ attraction page ↗' : 'USJ公式の施設案内・利用条件を見る ↗'}</a></p></section>` +
+    `<section><h2>${english ? 'Recorded hourly trends, past 7 days' : '過去7日間・時間帯別の実測傾向'}</h2>` +
+    `<p>${english ? 'Highest recorded hourly average' : '記録上、平均待ち時間が最も長かった時間帯'}: <strong>${escapeHtml(peakText)}</strong></p>` +
+    `<p class="muted">${english ? 'Only available, operating, numeric standby observations are counted. Closure, missing data and inferred values are excluded. Hours with fewer than 3 observations are omitted. This is not a forecast.' :
+      '保存済みの運行中・数値ありの通常待ち列だけを集計。休止・欠測・推定値は除外し、3件未満の時間帯は表示しません。将来の予測ではありません。'}</p>` +
+    (historyRows ? `<table><thead><tr><th>${english ? 'JST hour' : '日本時間'}</th><th>${english ? 'Average' : '平均'}</th><th>${english ? 'Records' : '記録数'}</th></tr></thead><tbody>${historyRows}</tbody></table>` :
+      `<p>${english ? 'Not enough recorded observations yet.' : '表示できる実測記録がまだありません。'}</p>`) + `</section>` +
+    `<section><h2>${english ? 'Explore more' : 'ほかの施設も見る'}</h2><ul>${attractionLinks(english)}</ul>` +
+    `<p><a href="${english ? '/en/' : '/'}">${english ? 'All current waits and map' : '全施設の待ち時間と地図へ'}</a> · ` +
+    `<a href="${english ? '/en/plan' : '/plan'}">${english ? 'Crowd calendar' : '混雑カレンダー'}</a></p></section></main>` +
+    `<footer>${english ? 'Waits come from public providers and may arrive late. Check official USJ information before visiting.' :
+      '待ち時間は外部提供元の掲載値で、更新が遅れる場合があります。来園前にはUSJ公式情報も確認してください。'}` +
+    ` <a href="${english ? '/en/privacy' : '/privacy'}">${english ? 'Privacy' : 'プライバシー'}</a>` +
+    ` · <button type="button" id="analytics-settings">${english ? 'Analytics settings' : 'アクセス解析の設定'}</button></footer>` +
+    `<script src="/analytics.js" defer></script></body></html>`;
+  return new Response(html, { status: 200, headers: {
+    'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60',
+    'X-Content-Type-Options': 'nosniff',
+  } });
+}
+
 function languageAlternates(jaPath, enPath) {
   const origin = 'https://uniba-waittimes.com';
   return `<link rel="alternate" hreflang="ja" href="${origin}${jaPath}">` +
@@ -2062,6 +2276,16 @@ async function route(request, env) {
   if (url.pathname === '/api/line-survey') return lineSurveyEnabled(env)
     ? handleLineSurvey(request, env) : new Response('Not found', { status: 404 });
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
+  const attractionMatch = /^\/(en\/)?attraction\/([a-z0-9-]+)\/?$/.exec(url.pathname);
+  if (attractionMatch) {
+    const english = !!attractionMatch[1];
+    const item = ATTRACTION_DETAILS.find(value => value.slug === attractionMatch[2]);
+    if (!item || english && !englishPublic) return new Response('Not found', { status: 404 });
+    const canonicalPath = attractionPath(item, english);
+    if (url.pathname !== canonicalPath) return Response.redirect(new URL(canonicalPath, url).toString(), 301);
+    const response = await renderAttractionPage(request, env, item, english);
+    return request.method === 'HEAD' ? new Response(null, { status: response.status, headers: response.headers }) : response;
+  }
   const liffPage = LIFF_PAGE.exec(url.pathname);
   if (liffPage) {
     if (liffPage[1] === 'survey')
@@ -2181,6 +2405,24 @@ async function route(request, env) {
     let html = (await asset.text()).replace('<!--MAP_LOCATIONS-->', safeLocations)
       .replace('<!--EN_SOCIAL_META-->', socialMeta)
       .replace('<a href="/" id="japanese-link"', `<a href="${jaPath}" id="japanese-link"`);
+    if (!enPage) {
+      html = html.replace('<section id="map">',
+        `<section class="attraction-guides"><h2>Attraction wait times and recent trends</h2>` +
+        `<p class="muted">Open a guide to see the current listed wait, recent changes and hourly observations from the past seven days.</p>` +
+        `<ul>${attractionLinks(true)}</ul></section><section id="map">`);
+      let rides = null, fetchedAt = null;
+      try {
+        const [payload, updated] = await Promise.all([
+          readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
+        ]);
+        rides = JSON.parse(payload);
+        fetchedAt = updated;
+      } catch (error) { console.warn('English initial waits unavailable', error); }
+      html = html.replace('</style>',
+        '#today:has(#ride-cards > *) #initial-waits-summary{display:none}</style>')
+        .replace('<div id="ride-cards" class="cards"></div>',
+          `${englishInitialWaits(rides, fetchedAt)}<div id="ride-cards" class="cards"></div>`);
+    }
     if (englishPublic) {
       html = html.replace('<meta name="robots" content="noindex, nofollow">',
           '<meta name="robots" content="index, follow">')
@@ -2322,10 +2564,13 @@ async function route(request, env) {
   }
   if (url.pathname === '/sitemap.xml') {
     const response = await assetFetch(request, env);
-    if (!englishPublic || !response.ok) return response;
-    const englishUrls = Object.values(ENGLISH_PAGES)
+    if (!response.ok) return response;
+    const attractionUrls = ATTRACTION_DETAILS.map(item => attractionPath(item, false));
+    const englishUrls = englishPublic ? [...Object.values(ENGLISH_PAGES),
+      ...ATTRACTION_DETAILS.map(item => attractionPath(item, true))] : [];
+    const extraUrls = [...attractionUrls, ...englishUrls]
       .map(path => `  <url><loc>https://uniba-waittimes.com${path}</loc></url>`).join('\n');
-    const xml = (await response.text()).replace('</urlset>', `${englishUrls}\n</urlset>`);
+    const xml = (await response.text()).replace('</urlset>', `${extraUrls}\n</urlset>`);
     return changedBodyResponse(xml, response);
   }
   if (url.pathname === '/api/poll-results') {
@@ -2477,7 +2722,8 @@ export default {
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
     const ttl = request.method === 'GET'
-      ? (/^\/r\/[1-9]\d{0,7}$/.test(pathname) ? 60 : API_CACHE_SECONDS.get(pathname)) : null;
+      ? (/^\/(?:en\/)?attraction\/[a-z0-9-]+$/.test(pathname) || /^\/r\/[1-9]\d{0,7}$/.test(pathname)
+        ? 60 : API_CACHE_SECONDS.get(pathname)) : null;
     const cache = ttl && typeof caches !== 'undefined' ? caches.default : null;
     if (cache) {
       const cached = await cache.match(request);
