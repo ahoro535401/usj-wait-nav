@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import worker from '../dist/en-release/worker.js';
 
 const now = Date.now();
@@ -71,12 +72,31 @@ test('Japanese and English attraction pages render useful, matching source HTML'
   }
 });
 
-test('all four attraction guides resolve in both languages', async () => {
-  for (const slug of ['mario-kart-koopas-challenge', 'donkey-kong-country-ride',
-    'the-flying-dinosaur', 'hollywood-dream-the-ride']) {
-    assert.equal((await get(`/attraction/${slug}`)).status, 200);
-    assert.equal((await get(`/en/attraction/${slug}`)).status, 200);
+const guideSlugs = ['mario-kart-koopas-challenge', 'donkey-kong-country-ride',
+  'the-flying-dinosaur', 'hollywood-dream-the-ride', 'hollywood-dream-the-ride-backdrop',
+  'yoshis-adventure', 'flight-of-the-hippogriff', 'harry-potter-and-the-forbidden-journey',
+  'jurassic-park-the-ride', 'jaws'];
+
+test('ten attraction guides and their entry links exist in both languages', async () => {
+  const japaneseHome = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  const englishHome = await (await get('/en/')).text();
+  const sitemap = await (await get('/sitemap.xml')).text();
+  for (const slug of guideSlugs) {
+    const jaPath = `/attraction/${slug}`;
+    const enPath = `/en/attraction/${slug}`;
+    const [ja, en] = await Promise.all([get(jaPath), get(enPath)]);
+    assert.equal(ja.status, 200, jaPath);
+    assert.equal(en.status, 200, enPath);
+    const [japanese, english] = await Promise.all([ja.text(), en.text()]);
+    assert.match(japanese, /data-series="past"/);
+    assert.match(english, /data-series="past"/);
+    assert.match(japaneseHome, new RegExp(`href="${jaPath}"`));
+    assert.match(englishHome, new RegExp(`href="${enPath}"`));
+    assert.match(sitemap, new RegExp(`${jaPath}<\\/loc>`));
+    assert.match(sitemap, new RegExp(`${enPath}<\\/loc>`));
   }
+  assert.match(japaneseHome, /\[12068, '\/attraction\/jaws'\]/);
+  assert.match(japaneseHome, /\[12067, '\/attraction\/jurassic-park-the-ride'\]/);
 });
 
 test('English home includes server-rendered wait names before JavaScript runs', async () => {

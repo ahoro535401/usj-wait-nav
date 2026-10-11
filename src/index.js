@@ -2041,6 +2041,42 @@ const ATTRACTION_DETAILS = [
     descriptionJa: '音楽とともに楽しむハリウッド・エリアのコースターです。現在の通常待ち列の掲載値と、保存済み記録から見た時間帯別の実績を確認できます。',
     descriptionEn: 'A music-themed coaster in Hollywood. Check the listed standby wait and hourly averages from saved observations.',
     official: 'hollywood-dream-the-ride' },
+  { id: 12070, slug: 'hollywood-dream-the-ride-backdrop',
+    ja: 'ハリウッド・ドリーム・ザ・ライド ～バックドロップ～', en: 'Hollywood Dream - The Ride: Backdrop',
+    areaJa: 'ハリウッド・エリア', areaEn: 'Hollywood',
+    descriptionJa: '後ろ向きに進むハリウッド・ドリームの待ち時間です。通常版とは別の施設として記録しています。',
+    descriptionEn: 'The backward-facing Hollywood Dream ride. Its standby waits are recorded separately from the regular version.',
+    official: 'hollywood-dream-the-ride-backdrop' },
+  { id: 12071, slug: 'yoshis-adventure',
+    ja: 'ヨッシー・アドベンチャー™', en: "Yoshi's Adventure",
+    areaJa: 'スーパー・ニンテンドー・ワールド™', areaEn: 'Super Nintendo World',
+    descriptionJa: 'ヨッシー・アドベンチャーの通常待ち列の掲載値と、過去7日間の時間帯別の実績を確認できます。',
+    descriptionEn: "Check Yoshi's Adventure's listed standby wait and hourly averages from the previous seven days.",
+    official: 'yoshis-adventure' },
+  { id: 12073, slug: 'flight-of-the-hippogriff',
+    ja: 'フライト・オブ・ザ・ヒッポグリフ™', en: 'Flight of the Hippogriff',
+    areaJa: 'ウィザーディング・ワールド・オブ・ハリー・ポッター™', areaEn: 'The Wizarding World of Harry Potter',
+    descriptionJa: 'フライト・オブ・ザ・ヒッポグリフの通常待ち列の掲載値と、過去7日間の時間帯別の実績を確認できます。',
+    descriptionEn: "Check Flight of the Hippogriff's listed standby wait and hourly averages from the previous seven days.",
+    official: 'flight-of-the-hippogriff' },
+  { id: 12065, slug: 'harry-potter-and-the-forbidden-journey',
+    ja: 'ハリー・ポッター・アンド・ザ・フォービドゥン・ジャーニー™', en: 'Harry Potter and the Forbidden Journey',
+    areaJa: 'ウィザーディング・ワールド・オブ・ハリー・ポッター™', areaEn: 'The Wizarding World of Harry Potter',
+    descriptionJa: 'ハリー・ポッター・アンド・ザ・フォービドゥン・ジャーニーの通常待ち列の掲載値と、過去7日間の時間帯別の実績を確認できます。',
+    descriptionEn: "Check Harry Potter and the Forbidden Journey's listed standby wait and hourly averages from the previous seven days.",
+    official: 'harry-potter-and-the-forbidden-journey' },
+  { id: 12067, slug: 'jurassic-park-the-ride',
+    ja: 'ジュラシック・パーク・ザ・ライド（日中版）', en: 'Jurassic Park: The Ride (daytime)',
+    areaJa: 'ジュラシック・パーク', areaEn: 'Jurassic Park',
+    descriptionJa: '日中版の待ち時間を表示します。夜間イベント版は別の施設として記録しており、ここには合算していません。',
+    descriptionEn: 'This page shows daytime standby waits. The seasonal nighttime version is recorded separately and is not combined here.',
+    official: 'jurassic-park-the-ride' },
+  { id: 12068, slug: 'jaws',
+    ja: 'ジョーズ（日中版）', en: 'JAWS (daytime)',
+    areaJa: 'アミティ・ビレッジ', areaEn: 'Amity Village',
+    descriptionJa: '日中版の待ち時間を表示します。夜間イベント版は別の施設として記録しており、ここには合算していません。',
+    descriptionEn: 'This page shows daytime standby waits. The seasonal nighttime version is recorded separately and is not combined here.',
+    official: 'jaws' },
 ];
 
 const attractionPath = (item, english) => `${english ? '/en' : ''}/attraction/${item.slug}`;
@@ -2478,8 +2514,8 @@ async function route(request, env) {
       .replace('<a href="/" id="japanese-link"', `<a href="${jaPath}" id="japanese-link"`);
     if (!enPage) {
       html = html.replace('<section id="map">',
-        `<section class="attraction-guides"><h2>Attraction wait times and recent trends</h2>` +
-        `<p class="muted">Open a guide to see the current listed wait, recent changes and hourly observations from the past seven days.</p>` +
+        `<section class="attraction-guides"><h2>Wait times and trends for 10 popular attractions</h2>` +
+        `<p class="muted">Open a guide to see the current listed wait, recent changes, and a comparison of today with the previous seven days.</p>` +
         `<ul>${attractionLinks(true)}</ul></section><section id="map">`);
       let rides = null, fetchedAt = null;
       try {
