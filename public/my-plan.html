@@ -27,13 +27,19 @@
     ul{padding-left:1.4em}li{margin:3px 0}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #e9a01d;outline-offset:2px}
     @media(prefers-color-scheme:dark){:root{background:#0e1822;color:#eef4fc}header,main{background:#172532;border-color:#344c63}.muted{color:#bfcedd}.notice{background:#1c3751;border-color:#52728f}a{color:#9dcafa}.consent,.favorite-list li,#saved-plan{border-color:#52728f}.wait-badge{background:#234565;color:#e9f4ff}.wait-badge[data-state="closed"],.wait-badge[data-state="unknown"]{background:#303d4b;color:#d9e3ed}input[type=date]{background:#223345;color:#fff;border-color:#71869a}.actions .secondary,.actions .danger{background:#172532}}
   </style>
-  <script src="/line-plan.js?v=20261011-live4" defer></script>
+  <script src="/line-plan.js?v=20261011-transfer1" defer></script>
 </head>
 <body>
   <header><strong>USJ待ち時間ナビ</strong><a href="/liff/">今日のパーク</a><a href="/liff/plan">行く前に</a></header>
   <main>
     <h1>LINE内マイプラン</h1>
     <nav class="mode-nav" aria-label="LINE内マイプランの画面"><a href="/liff/my-plan" aria-current="page">お気に入り施設</a><a href="/liff/my-plan/survey">アンケート</a></nav>
+    <section id="web-favorites-import" class="notice" hidden>
+      <strong>Webサイトのお気に入りを引き継ぐ</strong>
+      <p id="import-summary"></p>
+      <div class="actions"><button type="button" id="import-favorites">この端末に取り込む</button></div>
+      <p class="muted">取り込んだ後、内容を確認して「LINEに保存する」を押すと端末間で使えます。保存には下の同意が必要です。</p>
+    </section>
     <h2>お気に入り施設</h2>
     <p class="muted">下の施設ごとに、取得した待ち時間または運行状況を表示します。掲載値は目安です。</p>
     <p id="waits-status" role="status" aria-live="polite">待ち時間を確認中です。</p>

@@ -37,6 +37,19 @@
   let savedPlan = null;
   let currentRides = null;
   let fetchedAt = null;
+  let pendingImport = [];
+
+  function readWebFavorites() {
+    const raw = new URLSearchParams(location.hash.slice(1)).get('favorites');
+    if (!raw || !/^[1-9]\d{0,7}(?:,[1-9]\d{0,7}){0,39}$/.test(raw)) return [];
+    return [...new Set(raw.split(',').map(Number))];
+  }
+
+  function showWebFavoritesImport() {
+    byId('web-favorites-import').hidden = !pendingImport.length;
+    if (pendingImport.length) byId('import-summary').textContent =
+      `${pendingImport.length}施設を受け取りました。現在の登録を残したまま追加できます。`;
+  }
 
   function localFavorites() {
     try {
@@ -173,6 +186,21 @@
   byId('consent').addEventListener('change', () => {
     byId('save').disabled = !byId('consent').checked;
   });
+  byId('import-favorites').addEventListener('click', () => {
+    const merged = [...new Set([...(savedPlan?.favorites || []), ...localFavorites(), ...pendingImport])];
+    if (merged.length > 40) {
+      status('合計40施設を超えます。LINE内の待ち時間ページでお気に入りを整理してください。', 'error');
+      return;
+    }
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(merged));
+      pendingImport = [];
+      showWebFavoritesImport();
+      history.replaceState(null, '', location.pathname + location.search);
+      renderFavorites();
+      status('この端末に取り込みました。内容を確認し、同意して「LINEに保存する」を押してください。', 'success');
+    } catch (_) { status('この端末に保存できませんでした', 'error'); }
+  });
   byId('visit-day').addEventListener('change', () => {
     try { localStorage.setItem(VISIT_DAY_KEY, byId('visit-day').value); } catch (_) {}
   });
@@ -207,9 +235,13 @@
   byId('refresh-waits').addEventListener('click', refreshWaits);
   refreshWaits();
   if (window.usjLiffReady) withBusy(async () => {
+    await window.usjLiffReady;
+    pendingImport = readWebFavorites();
     savedPlan = await api('GET');
     renderSaved();
-    if (savedPlan.saved) status('LINEに保存したプランを読み込みました。', 'success');
+    showWebFavoritesImport();
+    if (pendingImport.length) status('Webサイトのお気に入りを確認し、この端末に取り込んでください。');
+    else if (savedPlan.saved) status('LINEに保存したプランを読み込みました。', 'success');
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' &&

@@ -87,7 +87,7 @@ async function refreshInsights(env) {
 
 async function dataForDashboard(env) {
   const now = Math.floor(Date.now() / 1000);
-  const [plans, answers, linked, recent, favoriteRows, groups, insights] = await Promise.all([
+  const [plans, answers, linked, recent, favoriteRows, favoriteUsers, groups, insights] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS n FROM line_crm_plans WHERE expires_at>?').bind(now).first(),
     env.DB.prepare('SELECT COUNT(*) AS n FROM line_survey_answers WHERE expires_at>?').bind(now).first(),
     env.DB.prepare('SELECT COUNT(*) AS n FROM line_crm_plans p JOIN line_survey_answers s ON p.user_key=s.user_key WHERE p.expires_at>? AND s.expires_at>?').bind(now, now).first(),
@@ -100,12 +100,14 @@ async function dataForDashboard(env) {
       FROM line_crm_plans p,json_each(CASE WHEN json_valid(p.favorites_json) THEN p.favorites_json ELSE '[]' END) j
       WHERE p.expires_at>? AND j.type='integer' AND CAST(j.value AS INTEGER)>0
       GROUP BY CAST(j.value AS INTEGER) ORDER BY n DESC,ride_id`).bind(now).all(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM line_crm_plans p WHERE p.expires_at>?
+      AND json_array_length(CASE WHEN json_valid(p.favorites_json) THEN p.favorites_json ELSE '[]' END)>0`).bind(now).first(),
     Promise.all(['age_band', 'gender', 'prefecture', 'visit_frequency', 'annual_pass'].map(async key => ({
       key, rows: (await env.DB.prepare(`SELECT ${key} AS choice,COUNT(*) AS n FROM line_survey_answers WHERE expires_at>? GROUP BY ${key} ORDER BY n DESC,choice`).bind(now).all()).results || [],
     }))),
     env.DB.prepare('SELECT day,followers,blocks,targeted_reaches FROM line_admin_follower_insights ORDER BY day DESC LIMIT 14').all(),
   ]);
-  return { plans: plans?.n || 0, answers: answers?.n || 0, linked: linked?.n || 0,
+  return { plans: plans?.n || 0, favoriteUsers: favoriteUsers?.n || 0, answers: answers?.n || 0, linked: linked?.n || 0,
     recent: recent.results || [], favorites: favoriteRows.results || [], groups, insights: insights.results || [] };
 }
 
@@ -133,7 +135,7 @@ function dashboard(data, insightState) {
   <section class="grid"><div class="card"><span>友だち追加累計${latest ? `（${dateDisplay(latest.day)}時点）` : ''}</span><strong>${fmt(latest?.followers)}</strong></div><div class="card"><span>ブロック</span><strong>${fmt(latest?.blocks)}</strong></div><div class="card"><span>ターゲットリーチ</span><strong>${fmt(latest?.targeted_reaches)}</strong></div><div class="card"><span>アンケート回答者</span><strong>${fmt(data.answers)}</strong></div><div class="card"><span>マイプラン保存者</span><strong>${fmt(data.plans)}</strong></div><div class="card"><span>両方利用</span><strong>${fmt(data.linked)}</strong></div></section>
   <p class="note muted">友だち数：${escape(insightState.state)}${insightState.detail ? `（${escape(insightState.detail)}）` : ''}。LINE公式アカウントの友だちとLINE内機能の利用者は別集計です。友だち追加累計はブロック後も減らず、ターゲットリーチは配信可能な全員ではありません。</p>
   <section class="panel"><h2>友だち数の推移</h2>${data.insights.length ? `<div class="table-wrap"><table><thead><tr><th>日付</th><th>追加累計</th><th>ブロック</th><th>ターゲットリーチ</th></tr></thead><tbody>${data.insights.map(row => `<tr><td>${dateDisplay(row.day)}</td><td>${fmt(row.followers)}</td><td>${fmt(row.blocks)}</td><td>${fmt(row.targeted_reaches)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">LINE APIの接続後、確定した日次データを表示します。</p>'}</section>
-  <section class="panel"><h2>お気に入り施設の登録状況</h2><p class="note muted">LINE内マイプランに現在保存されている施設です。施設ごとの人数を表示します。1人が複数施設を登録できるため、合計${fmt(favoriteTotal)}件は保存者${fmt(data.plans)}人と一致しない場合があります。端末だけに保存されたお気に入りは含みません。</p>${favoriteItems ? `<div class="bars">${favoriteItems}</div>` : '<p class="muted">LINEに保存されたお気に入り施設はまだありません。</p>'}</section>
+  <section class="panel"><h2>お気に入り施設の登録状況</h2><p class="note muted">LINE保存者${fmt(data.plans)}人のうち、お気に入り施設の登録あり${fmt(data.favoriteUsers)}人・登録なし${fmt(Math.max(0, data.plans - data.favoriteUsers))}人。施設ごとの人数を表示します。1人が複数施設を登録できるため、合計${fmt(favoriteTotal)}件は人数と一致しません。</p><p class="note muted">通常サイトのブラウザー内だけに保存されたお気に入りは集計できません。利用者が通常サイトからLINE内マイプランへ引き継ぎ、同意して「LINEに保存する」を押すと、ここに反映されます。</p>${favoriteItems ? `<div class="bars">${favoriteItems}</div>` : '<p class="muted">LINEに保存されたお気に入り施設はまだありません。</p>'}</section>
   <div class="columns">${data.groups.map(groupHtml).join('')}</div>
   <section class="panel"><h2>LINE内利用者（直近100件）</h2><p class="note muted">照合キーの一部だけを表示。LINE公式アカウントの友だちかどうかは判定していません。回答・保存は180日で失効します。</p><div class="table-wrap"><table><thead><tr><th>管理用ID</th><th>アンケート</th><th>お気に入り施設</th><th>来園予定日</th><th>年代</th><th>性別</th><th>居住地</th><th>来園頻度</th><th>年パス</th><th>最終更新</th></tr></thead><tbody>${rows || '<tr><td colspan="10">利用者データはまだありません。</td></tr>'}</tbody></table></div></section>
   <p class="note muted">この画面から利用者へのメッセージ送信やデータ編集はできません。<a href="https://manager.line.biz/account/@133lotsh/insight/friends" rel="noreferrer">LINE公式管理画面の友だち分析</a>でも数値を確認できます。</p></body></html>`;

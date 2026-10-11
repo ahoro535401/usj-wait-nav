@@ -388,6 +388,8 @@
     .list-state.is-filtered { border-color: #1058a7; background: #eef5ff; }
     .list-state-text { flex: 1; min-width: 0; }
     .list-state-edit { flex: 0 0 auto; min-height: 40px; padding: 0 14px; border: 1px solid #c5d3e3; border-radius: 8px; background: #fff; color: #1058a7; font: inherit; font-weight: 700; }
+    .line-favorites-transfer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:10px 0 15px;padding:12px;border:1px solid #b8d2ea;border-radius:9px;background:#f0f7ff}
+    .line-favorites-transfer[hidden]{display:none}.line-favorites-transfer p{margin:0;font-size:.86rem}.line-favorites-transfer button{min-height:44px;padding:8px 14px;border:1px solid #1058a7;border-radius:9px;background:#1058a7;color:#fff;font:inherit;font-weight:700;cursor:pointer}.line-favorites-transfer button:disabled{opacity:.55;cursor:not-allowed}
     .park-alert { display: block; margin: -8px 0 16px; padding: 10px 12px; border-radius: 10px; background: #fff4d2; color: #654700; font-weight: 700; text-decoration: none; line-height: 1.5; }
     .park-alert[data-level="high"] { background: #ffe4df; color: #822f27; }
     .park-alert[hidden] { display: none; }
@@ -436,6 +438,7 @@
     :root[data-theme="dark"] .list-state { background: #1d2a37; border-color: #2c3b4b; }
     :root[data-theme="dark"] .list-state.is-filtered { background: #1b2c40; border-color: #8fb6ff; }
     :root[data-theme="dark"] .list-state-edit { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
+    :root[data-theme="dark"] .line-favorites-transfer{background:#1b3349;border-color:#577da2}
     :root[data-theme="dark"] .weather-details summary small, :root[data-theme="dark"] .weather-values small,
     :root[data-theme="dark"] .archive-summary small, :root[data-theme="dark"] .event-card small,
     :root[data-theme="dark"] .event-count, :root[data-theme="dark"] .show-label small, :root[data-theme="dark"] .show-hour,
@@ -772,6 +775,10 @@
     <div id="list-state" class="list-state" role="status">
       <span class="list-state-text">並び順：★お気に入り優先・現在の待ち時間が長い順　絞り込み：なし</span>
       <button type="button" class="list-state-edit">変更</button>
+    </div>
+    <div id="line-favorites-transfer" class="line-favorites-transfer" hidden>
+      <p id="line-favorites-transfer-text">選んだお気に入りをLINE内マイプランへ引き継げます。LINE内で保存操作が必要です。</p>
+      <button type="button" id="line-favorites-transfer-button">LINEに引き継ぐ</button>
     </div>
     <details class="ride-tag-notes"><summary>🧒👶🎢💧 記号の意味を見る</summary><p class="muted">🧒 キッズにおすすめ　👶 小さなお子さまと一緒に楽しめる　🎢 絶叫・スリルいっぱい　💧 水に濡れる可能性あり。当サイトの目安です。身長制限・利用条件はUSJ公式でご確認ください。</p></details>
     <div class="today-view-switch" role="group" aria-label="今日の待ち時間の表示方法">
@@ -1113,11 +1120,30 @@
       return meta;
     }
     const FAVORITES_KEY = 'usj-wait-nav-favorites-v1';
+    const LINE_PLAN_URL = 'https://liff.line.me/2011965864-hCyp1wQP/my-plan';
+    const lineTransfer = document.querySelector('#line-favorites-transfer');
+    const lineTransferText = document.querySelector('#line-favorites-transfer-text');
+    const lineTransferButton = document.querySelector('#line-favorites-transfer-button');
     let favorites = new Set();
     try {
       const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
       if (Array.isArray(saved)) favorites = new Set(saved.map(Number).filter(Number.isInteger));
     } catch (_) { /* 閲覧環境が保存に非対応でも絞り込みは動作する。 */ }
+
+    function updateLineTransfer() {
+      const count = favorites.size;
+      lineTransfer.hidden = count === 0;
+      lineTransferButton.disabled = count > 40;
+      lineTransferText.textContent = count > 40
+        ? `お気に入りが${count}施設あります。LINEへ引き継ぐには40施設以下に減らしてください。`
+        : `この端末のお気に入り${count}施設をLINE内マイプランへ引き継げます。LINE内で保存操作が必要です。`;
+    }
+    lineTransferButton.addEventListener('click', () => {
+      const ids = [...favorites].filter(id => Number.isInteger(id) && id > 0 && id <= 99999999);
+      if (!ids.length || ids.length !== favorites.size || ids.length > 40) return;
+      location.assign(`${LINE_PLAN_URL}#favorites=${ids.join(',')}`);
+    });
+    updateLineTransfer();
 
     function matchesRide(id) {
       const numericId = Number(id);
@@ -1143,6 +1169,7 @@
       else favorites.add(numericId);
       window.trackSiteEvent?.(removing ? 'favorite_remove' : 'favorite_add', {ride_id: numericId});
       try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch (_) {}
+      updateLineTransfer();
       if (todayData) renderToday(todayData);
       if (archiveData) renderArchive(archiveData);
     }
