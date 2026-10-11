@@ -17,9 +17,10 @@ const extract = (source, pattern, label) => {
   return Function(`return (${match[1]})`)();
 };
 
-const [events, closures, shows, worker, english] = await Promise.all([
+const [events, closures, shows, worker, english, japanesePage, linePlan] = await Promise.all([
   json('public/events.json'), json('public/closures.json'), json('public/show-translations.json'),
-  read('src/index.js'), read('preview/en/index.html'),
+  read('src/index.js'), read('preview/en/index.html'), read('public/index.html'),
+  read('public/line-plan.js'),
 ]);
 for (const [label, data] of [['events', events.events], ['closures', closures.closures]]) {
   if (!Array.isArray(data)) { errors.push(`${label}: expected an array`); continue; }
@@ -49,6 +50,18 @@ if (browserRides && xRides) {
   for (const id of new Set([...web.keys(), ...x.keys()])) {
     requireEnglish(web.get(id), `English page / attraction ${id}`);
     requireEnglish(x.get(id), `English X / attraction ${id}`);
+  }
+}
+
+const japaneseRides = extract(japanesePage,
+  /const japaneseNames = new Map\((\[[\s\S]*?\])\);/, 'Japanese page attraction names');
+const planRides = extract(linePlan,
+  /const names = new Map\((\[[\s\S]*?\])\);/, 'LINE my-plan attraction names');
+if (japaneseRides && planRides) {
+  const web = new Map(japaneseRides), plan = new Map(planRides);
+  for (const id of new Set([...web.keys(), ...plan.keys()])) {
+    if (web.get(id) !== plan.get(id))
+      errors.push(`LINE my-plan / attraction ${id}: Japanese name differs from today's page`);
   }
 }
 
