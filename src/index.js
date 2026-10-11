@@ -2793,8 +2793,7 @@ export default {
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
     const ttl = request.method === 'GET'
-      ? (/^\/(?:en\/)?attraction\/[a-z0-9-]+$/.test(pathname) || /^\/r\/[1-9]\d{0,7}$/.test(pathname)
-        ? 60 : API_CACHE_SECONDS.get(pathname)) : null;
+      ? (/^\/r\/[1-9]\d{0,7}$/.test(pathname) ? 60 : API_CACHE_SECONDS.get(pathname)) : null;
     const cache = ttl && typeof caches !== 'undefined' ? caches.default : null;
     if (cache) {
       const cached = await cache.match(request);
