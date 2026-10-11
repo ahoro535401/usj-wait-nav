@@ -38,11 +38,11 @@ if (process.env.INCLUDE_LINE_SURVEY === '1') {
   const panel = await readFile(join(base, 'preview', 'line-survey-panel.html'), 'utf8');
   const panelCss = await readFile(join(base, 'preview', 'line-survey-panel.css'), 'utf8');
   const panelJs = await readFile(join(base, 'preview', 'line-survey-panel.js'), 'utf8');
-  if (!plan.includes('</style>') || !plan.includes('<h2>この端末のプラン</h2>') || !plan.includes('</body>'))
+  if (!plan.includes('</style>') || !plan.includes('</main>') || !plan.includes('</body>'))
     throw new Error('LINEマイプランの画面構造が変わりました。アンケートの挿入位置を確認してください。');
   assets['/__line-my-plan-survey.html'] = plan
     .replace('</style>', `${panelCss}\n  </style>`)
-    .replace('<h2>この端末のプラン</h2>', `${panel}\n    <h2>この端末のプラン</h2>`)
+    .replace('</main>', `${panel}\n  </main>`)
     .replace('</body>', `<script>${panelJs}</script>\n</body>`);
 }
 if (process.env.INCLUDE_EN === '1') {

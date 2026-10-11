@@ -31,26 +31,26 @@
   <header><strong>USJ待ち時間ナビ</strong><a href="/liff/">今日のパーク</a><a href="/liff/plan">行く前に</a></header>
   <main>
     <h1>LINE内マイプラン</h1>
-    <p class="muted">お気に入りの施設と来園予定日を、LINEから別の端末にも引き継げます。保存は任意です。</p>
-    <p class="notice">現在の施設別待ち時間やGPSの現在地は保存しません。LINEへの通知は現在行っていません。</p>
-    <h2>お気に入りの最新状況</h2>
+    <h2>お気に入り施設</h2>
     <p class="muted">下の施設ごとに、取得した待ち時間または運行状況を表示します。掲載値は目安です。</p>
     <p id="waits-status" role="status" aria-live="polite">待ち時間を確認中です。</p>
-    <div class="actions"><button type="button" class="secondary" id="refresh-waits">待ち時間を更新</button><a href="/liff/">今日のパークで施設を選ぶ</a></div>
-    <h2>この端末のプラン</h2>
-    <p>お気に入り：<strong id="local-count">確認中</strong></p>
+    <section id="saved-plan" hidden>
+      <h3>LINEに保存したお気に入り</h3>
+      <p id="saved-summary"></p><ul class="favorite-list" id="saved-favorites"></ul>
+      <div class="actions"><button type="button" class="secondary" id="apply">この端末のお気に入りに反映</button><button type="button" class="danger" id="delete">LINE上の保存データを削除</button></div>
+      <p class="muted">削除しても、この端末内のお気に入りは残ります。</p>
+    </section>
+    <h3>この端末のお気に入り：<strong id="local-count">確認中</strong></h3>
     <ul class="favorite-list" id="local-favorites"></ul>
+    <div class="actions"><button type="button" class="secondary" id="refresh-waits">待ち時間を更新</button><a href="/liff/">今日のパークで施設を選ぶ</a></div>
+    <h2>来園予定と保存</h2>
+    <p class="muted">お気に入りの施設と来園予定日を、LINEから別の端末にも引き継げます。保存は任意です。</p>
+    <p class="notice">現在の施設別待ち時間やGPSの現在地は保存しません。LINEへの通知は現在行っていません。</p>
     <label for="visit-day">来園予定日（任意）</label><br>
     <input type="date" id="visit-day">
     <label class="consent"><input type="checkbox" id="consent">お気に入りの施設IDと来園予定日を、端末間の同期のため180日間保存することに同意します。<a href="/liff/privacy">取扱いを確認</a></label>
     <div class="actions"><button type="button" id="save" disabled>LINEに保存する</button><button type="button" class="secondary" id="load">保存済みを確認する</button></div>
     <p id="status" role="status" aria-live="polite"></p>
-    <section id="saved-plan" hidden>
-      <h2>LINEに保存したプラン</h2>
-      <p id="saved-summary"></p><ul class="favorite-list" id="saved-favorites"></ul>
-      <div class="actions"><button type="button" class="secondary" id="apply">この端末のお気に入りに反映</button><button type="button" class="danger" id="delete">LINE上の保存データを削除</button></div>
-      <p class="muted">削除しても、この端末内のお気に入りは残ります。</p>
-    </section>
   </main>
   <footer><a href="/liff/">待ち時間に戻る</a> · <a href="/liff/privacy">プライバシーポリシー</a></footer>
 </body>
