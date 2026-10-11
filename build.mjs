@@ -38,11 +38,18 @@ if (process.env.INCLUDE_LINE_SURVEY === '1') {
   const panel = await readFile(join(base, 'preview', 'line-survey-panel.html'), 'utf8');
   const panelCss = await readFile(join(base, 'preview', 'line-survey-panel.css'), 'utf8');
   const panelJs = await readFile(join(base, 'preview', 'line-survey-panel.js'), 'utf8');
-  if (!plan.includes('</style>') || !plan.includes('</main>') || !plan.includes('</body>'))
-    throw new Error('LINEマイプランの画面構造が変わりました。アンケートの挿入位置を確認してください。');
-  assets['/__line-my-plan-survey.html'] = plan
+  const planScript = /<script src="\/line-plan\.js[^"]*" defer><\/script>/;
+  if (!plan.includes('</style>') || !/<main>[\s\S]*?<\/main>/.test(plan) ||
+      !plan.includes('</body>') || !planScript.test(plan))
+    throw new Error('LINEマイプランの画面構造が変わりました。アンケート画面の生成位置を確認してください。');
+  assets['/__line-survey.html'] = plan
+    .replace('<title>LINE内マイプラン｜USJ待ち時間ナビ</title>', '<title>利用者アンケート｜USJ待ち時間ナビ</title>')
+    .replace(planScript, '')
     .replace('</style>', `${panelCss}\n  </style>`)
-    .replace('</main>', `${panel}\n  </main>`)
+    .replace(/<main>[\s\S]*?<\/main>/,
+      `<main><h1>利用者アンケート</h1><nav class="mode-nav" aria-label="LINE内マイプランの画面"><a href="/liff/my-plan">お気に入り施設</a><a href="/liff/my-plan/survey" aria-current="page">アンケート</a></nav>${panel}</main>`)
+    .replace(/<footer>[\s\S]*?<\/footer>/,
+      '<footer><a href="/liff/my-plan">マイプランに戻る</a> · <a href="/liff/privacy">プライバシーポリシー</a></footer>')
     .replace('</body>', `<script>${panelJs}</script>\n</body>`);
 }
 if (process.env.INCLUDE_EN === '1') {

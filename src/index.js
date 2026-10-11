@@ -2047,16 +2047,17 @@ async function route(request, env) {
   if (liffPage) {
     if (liffPage[1] === 'survey')
       return lineSurveyEnabled(env)
-        ? Response.redirect(new URL('/liff/my-plan', url).toString(), 302)
+        ? Response.redirect(new URL('/liff/my-plan/survey', url).toString(), 302)
         : new Response('Not found', { status: 404 });
     if (liffPage[1] === 'my-plan' || liffPage[1] === 'my-plan/survey') {
-      const surveyIncluded = lineSurveyEnabled(env) &&
+      const surveyAvailable = lineSurveyEnabled(env) &&
         typeof EMBEDDED_ASSETS !== 'undefined' &&
-        Object.hasOwn(EMBEDDED_ASSETS, '/__line-my-plan-survey.html');
-      if (liffPage[1] === 'my-plan/survey' && !surveyIncluded)
+        Object.hasOwn(EMBEDDED_ASSETS, '/__line-survey.html');
+      const isSurvey = liffPage[1] === 'my-plan/survey';
+      if (isSurvey && !surveyAvailable)
         return new Response('Not found', { status: 404 });
       let page = null;
-      if (!surveyIncluded) {
+      if (!isSurvey) {
         page = await assetFetch(new Request(new URL('/my-plan.html', url), request), env);
         if (!page.ok) return page;
       }
@@ -2067,7 +2068,7 @@ async function route(request, env) {
       headers.set('Referrer-Policy', 'no-referrer');
       headers.set('Content-Security-Policy', "script-src 'self' 'unsafe-inline' https://static.line-scdn.net");
       return request.method === 'HEAD' ? new Response(null, { status: 200, headers }) :
-        new Response(liffPageHtml(surveyIncluded ? EMBEDDED_ASSETS['/__line-my-plan-survey.html'] :
+        new Response(liffPageHtml(isSurvey ? EMBEDDED_ASSETS['/__line-survey.html'] :
           await page.text(), env.LIFF_APP_ID), { status: 200, headers });
     }
     const publicUrl = new URL(liffPage[1] ? `/${liffPage[1]}` : '/', url);
@@ -2087,7 +2088,7 @@ async function route(request, env) {
     if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
     let html = await page.text();
     if (!liffPage[1] && lineSurveyEnabled(env))
-      html = html.replace('<main>', '<main><aside style="padding:12px;margin:0 0 16px;border:1px solid #83add4;border-radius:9px;background:#eef5ff;color:#172332"><strong>1分アンケートにご協力ください</strong><br>年代・性別・都道府県・来園頻度・年間パスについて、任意のアンケートに回答できます。<a href="/liff/my-plan">回答する ↗</a></aside>');
+      html = html.replace('<main>', '<main><aside style="padding:12px;margin:0 0 16px;border:1px solid #83add4;border-radius:9px;background:#eef5ff;color:#172332"><strong>1分アンケートにご協力ください</strong><br>年代・性別・都道府県・来園頻度・年間パスについて、任意のアンケートに回答できます。<a href="/liff/my-plan/survey">回答する ↗</a></aside>');
     return new Response(liffPageHtml(html, env.LIFF_APP_ID), { status: 200, headers });
   }
   if (url.pathname === '/en/x' || /^\/en\/x\/day\/20\d\d-\d\d-\d\d$/.test(url.pathname)) {

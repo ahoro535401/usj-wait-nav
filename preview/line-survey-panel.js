@@ -3,9 +3,9 @@
     const status = (message, kind = '') => { byId('status').textContent = message; byId('status').dataset.kind = kind; };
     const fields = ['age','gender','prefecture','frequency','annual-pass'];
     function showAnswered(answered) {
-      byId('summary').textContent = answered ? '回答を確認・変更・削除' : '利用者アンケート（任意）';
+      byId('summary').textContent = answered ? '回答済みです。確認・変更する' : '回答内容を入力する';
       document.getElementById('survey').dataset.answered = String(answered);
-      byId('details').open = !answered || location.pathname.replace(/\/$/, '').endsWith('/survey');
+      byId('details').open = !answered;
     }
     function fill(result) {
       byId('delete').hidden = !result.saved;
@@ -29,9 +29,9 @@
       return result;
     }
     async function busy(action) {
-      for (const id of ['save','load','delete']) byId(id).disabled = true;
+      for (const id of ['save','delete']) byId(id).disabled = true;
       try { await action(); } catch(error) { status(error.message || '処理を完了できません', 'error'); }
-      finally { byId('save').disabled = !byId('consent').checked; byId('load').disabled = false; byId('delete').disabled = false; }
+      finally { byId('save').disabled = !byId('consent').checked; byId('delete').disabled = false; }
     }
     byId('consent').addEventListener('change', () => { byId('save').disabled = !byId('consent').checked; });
     byId('save').addEventListener('click', () => busy(async () => {
@@ -45,15 +45,6 @@
       byId('delete').hidden = !result.saved;
       showAnswered(Boolean(result.saved));
       status('アンケートを保存しました。変更・削除はいつでもできます。','success');
-    }));
-    byId('load').addEventListener('click', () => busy(async () => {
-      const result = await call('GET');
-      const complete = fill(result);
-      byId('summary').textContent = result.saved && complete ? '回答を確認・変更・削除' : '利用者アンケート（任意）';
-      document.getElementById('survey').dataset.answered = String(Boolean(result.saved && complete));
-      status(result.saved ? complete ? '保存済みの回答を表示しました。' :
-        '以前の回答を表示しました。未選択の項目を選び、改めて保存してください。' :
-        '保存済みの回答はありません。', result.saved && complete ? 'success' : '');
     }));
     byId('delete').addEventListener('click', () => busy(async () => {
       if (!confirm('保存したアンケート回答を削除しますか？')) return;
@@ -73,7 +64,5 @@
         showAnswered(false);
         status(error.message || '回答状況を確認できません', 'error');
       }
-      if (location.pathname.replace(/\/$/, '').endsWith('/survey'))
-        document.getElementById('survey').scrollIntoView({block:'start'});
     });
   })();

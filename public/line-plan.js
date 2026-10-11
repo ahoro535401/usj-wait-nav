@@ -161,12 +161,12 @@
     return result;
   }
   async function withBusy(action) {
-    for (const id of ['save', 'load', 'apply', 'delete']) byId(id).disabled = true;
+    for (const id of ['save', 'apply', 'delete']) byId(id).disabled = true;
     try { await action(); }
     catch (error) { status(error.message || '操作を完了できません', 'error'); }
     finally {
       byId('save').disabled = !byId('consent').checked;
-      for (const id of ['load', 'apply', 'delete']) byId(id).disabled = false;
+      for (const id of ['apply', 'delete']) byId(id).disabled = false;
     }
   }
 
@@ -181,13 +181,7 @@
     const local = localFavorites();
     savedPlan = await api('PUT', { consent: true, favorites: local.length ? local : savedPlan?.favorites || [], visit_day: byId('visit-day').value || null });
     renderSaved();
-    status('LINEに保存しました。別の端末では「保存済みを確認する」から読み込めます。', 'success');
-  }));
-  byId('load').addEventListener('click', () => withBusy(async () => {
-    savedPlan = await api('GET');
-    renderSaved();
-    status(savedPlan.saved ? '保存済みのプランを読み込みました。' : 'LINE上に保存したプランはありません。',
-      savedPlan.saved ? 'success' : '');
+    status('LINEに保存しました。別の端末でマイプランを開くと読み込まれます。', 'success');
   }));
   byId('apply').addEventListener('click', () => {
     if (!savedPlan?.saved) return;
