@@ -87,17 +87,23 @@
       return { kind: 'unknown', label: '待ち時間を確認できません' };
     return { kind: 'open', label: `${wait}分` };
   }
-  function renderLocal() {
-    const favorites = localFavorites();
-    byId('local-count').textContent = `${favorites.length}施設`;
-    showList(byId('local-favorites'), favorites);
+  function renderFavorites() {
+    const local = localFavorites();
+    const saved = savedPlan?.saved ? savedPlan.favorites : [];
+    const favorites = local.length ? local : saved;
+    byId('favorites-source').textContent = local.length
+      ? `この端末のお気に入り：${local.length}施設`
+      : saved.length ? `LINEに保存したお気に入り：${saved.length}施設（この端末には未反映）`
+        : 'お気に入りはまだ選んでいません。';
+    showList(byId('favorites'), favorites);
   }
   function renderSaved() {
     byId('saved-plan').hidden = !savedPlan?.saved;
-    if (!savedPlan?.saved) return;
-    const date = savedPlan.visit_day ? `${savedPlan.visit_day.replaceAll('-', '/')} 来園予定` : '来園予定日なし';
-    byId('saved-summary').textContent = `${date}・お気に入り${savedPlan.favorites.length}施設`;
-    showList(byId('saved-favorites'), savedPlan.favorites);
+    if (savedPlan?.saved) {
+      const date = savedPlan.visit_day ? `${savedPlan.visit_day.replaceAll('-', '/')} 来園予定` : '来園予定日なし';
+      byId('saved-summary').textContent = `${date}・お気に入り${savedPlan.favorites.length}施設を保存中`;
+    }
+    renderFavorites();
   }
   function status(message, kind = '') {
     byId('status').textContent = message;
@@ -131,7 +137,6 @@
       currentRides = null;
       byId('waits-status').textContent = '待ち時間を取得できません。しばらくしてから更新してください。';
     } finally {
-      renderLocal();
       renderSaved();
       button.disabled = false;
     }
@@ -173,7 +178,8 @@
   });
   byId('save').addEventListener('click', () => withBusy(async () => {
     if (!byId('consent').checked) return;
-    savedPlan = await api('PUT', { consent: true, favorites: localFavorites(), visit_day: byId('visit-day').value || null });
+    const local = localFavorites();
+    savedPlan = await api('PUT', { consent: true, favorites: local.length ? local : savedPlan?.favorites || [], visit_day: byId('visit-day').value || null });
     renderSaved();
     status('LINEに保存しました。別の端末では「保存済みを確認する」から読み込めます。', 'success');
   }));
@@ -189,7 +195,7 @@
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(savedPlan.favorites));
       localStorage.setItem(VISIT_DAY_KEY, savedPlan.visit_day || '');
       byId('visit-day').value = savedPlan.visit_day || '';
-      renderLocal();
+      renderFavorites();
       status('この端末に反映しました。待ち時間ページでもお気に入りを確認できます。', 'success');
     } catch (_) { status('この端末に保存できませんでした', 'error'); }
   });
@@ -203,7 +209,7 @@
   }));
 
   try { byId('visit-day').value = localStorage.getItem(VISIT_DAY_KEY) || ''; } catch (_) {}
-  renderLocal();
+  renderFavorites();
   byId('refresh-waits').addEventListener('click', refreshWaits);
   refreshWaits();
   if (window.usjLiffReady) withBusy(async () => {
