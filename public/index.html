@@ -121,7 +121,9 @@
       .mobile-card-list:not([hidden]) { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; column-gap: 20px; padding: 4px 12px; border: 1px solid #dce4ed; border-radius: 9px; }
     }
     .ride-card { display: flex; align-items: start; gap: 5px; padding: 9px 6px; border-bottom: 1px solid #dce4ed; }
-    .ride-card details { flex: 1; min-width: 0; }
+    .ride-card-body { flex: 1; min-width: 0; }
+    .ride-card-guide-link { display: inline-block; margin: 2px 8px 8px; font-size: .86rem; font-weight: 700; }
+    .ride-card details { min-width: 0; }
     .ride-card summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 4px; min-height: 58px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
     .ride-card summary::marker { content: ''; }
     .ride-card summary::-webkit-details-marker { display: none; }
@@ -1338,6 +1340,12 @@
       [17893, 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/halloween-horror-nights/factory-of-fear'],
       [15322, 'https://www.usj.co.jp/web/ja/jp/events/halloween-extreme-autumn-2026/jurassic-park-the-ride-in-the-dark'],
     ]);
+    const popularGuideUrls = new Map([
+      [12061, '/attraction/mario-kart-koopas-challenge'],
+      [14402, '/attraction/donkey-kong-country-ride'],
+      [7092, '/attraction/the-flying-dinosaur'],
+      [7077, '/attraction/hollywood-dream-the-ride'],
+    ]);
 
     function favoriteButton(id, label) {
       const favorite = document.createElement('button');
@@ -1350,10 +1358,11 @@
       return favorite;
     }
 
-    function setAttractionName(cell, id, label) {
+    function setAttractionName(cell, id, label, preferGuide = false) {
       cell.title = label;
       const favorite = favoriteButton(id, label);
-      const url = officialAttractionUrls.get(Number(id));
+      const guide = preferGuide ? popularGuideUrls.get(Number(id)) : null;
+      const url = guide || officialAttractionUrls.get(Number(id));
       const meta = rideMeta(id);
       if (!url) {
         cell.replaceChildren(favorite, document.createTextNode(label));
@@ -1362,10 +1371,13 @@
       }
       const link = document.createElement('a');
       link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
+      if (!guide) {
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+      }
       link.textContent = label;
-      link.setAttribute('aria-label', `${label}（USJ公式サイト、新しいタブで開きます）`);
+      link.setAttribute('aria-label', guide ? `${label}の本日と過去7日の比較を見る` :
+        `${label}（USJ公式サイト、新しいタブで開きます）`);
       cell.replaceChildren(favorite, link);
       if (meta) cell.append(meta);
     }
@@ -2458,7 +2470,13 @@
       for (const {ride, cell} of ranked) {
         const item = document.createElement('li');
         const name = document.createElement('span');
-        name.textContent = rideName(ride);
+        const guide = popularGuideUrls.get(Number(ride.id));
+        if (guide) {
+          const link = document.createElement('a');
+          link.href = guide;
+          link.textContent = rideName(ride);
+          name.append(link);
+        } else name.textContent = rideName(ride);
         const wait = document.createElement('strong');
         wait.textContent = `${cell.textContent}分`;
         item.append(name, wait);
@@ -3566,7 +3584,7 @@
         row.dataset.rideId = String(ride.id);
         const name = document.createElement('th');
         name.scope = 'row';
-        setAttractionName(name, ride.id, rideName(ride));
+        setAttractionName(name, ride.id, rideName(ride), true);
         const rowWindBadge = windBadge(ride.id);
         if (rowWindBadge) name.append(rowWindBadge);
         const currentCell = currentCells.get(ride.id);
@@ -3669,7 +3687,18 @@
         } else history.append(document.createTextNode('この時間帯の記録はありません。'));
         history.append(shareBar(() => ridePayload(ride.id, label, wait.textContent), '送る', 'ride', ride.id));
         details.append(summary, history);
-        card.append(favoriteButton(ride.id, label), details);
+        const body = document.createElement('div');
+        body.className = 'ride-card-body';
+        body.append(details);
+        const guide = popularGuideUrls.get(Number(ride.id));
+        if (guide) {
+          const link = document.createElement('a');
+          link.className = 'ride-card-guide-link';
+          link.href = guide;
+          link.textContent = '本日と過去7日の比較を見る ›';
+          body.append(link);
+        }
+        card.append(favoriteButton(ride.id, label), body);
         mobileCards.append(card);
       }
       const emptyMessage = currentData.rides.length

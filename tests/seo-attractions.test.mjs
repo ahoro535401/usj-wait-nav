@@ -23,10 +23,11 @@ const env = { EN_PUBLIC_ENABLED: 'true', DB: {
         return { value: values.get(args[0]) };
       },
       async all() {
-        if (sql.includes('GROUP BY hour')) return { results: [
-          { hour: 10, samples: 12, average_wait: 70 },
-          { hour: 11, samples: 6, average_wait: 90 },
-          { hour: 12, samples: 2, average_wait: 150 },
+        if (sql.includes('GROUP BY period,hour')) return { results: [
+          { period: 'past', hour: 10, samples: 12, average_wait: 70 },
+          { period: 'past', hour: 11, samples: 6, average_wait: 90 },
+          { period: 'past', hour: 12, samples: 2, average_wait: 150 },
+          { period: 'today', hour: 10, samples: 1, average_wait: 95 },
         ] };
         if (sql.includes('ORDER BY h.captured_at DESC')) return { results: [
           { captured_at: Math.floor((Date.parse(fetchedAt) - 20 * 60000) / 1000), wait_minutes: 85,
@@ -54,6 +55,10 @@ test('Japanese and English attraction pages render useful, matching source HTML'
   assert.match(japanese, /1時間前比<\/span><strong>↓25分/);
   assert.match(japanese, /11時台・平均90分/);
   assert.doesNotMatch(japanese, /12:00–13:00/); // fewer than three records
+  assert.match(japanese, /data-series="today"/);
+  assert.match(japanese, /data-series="past"/);
+  assert.match(japanese, /<th scope="col">本日<\/th><th scope="col">過去7日平均<\/th>/);
+  assert.doesNotMatch(japanese, /記録数/);
   assert.match(english, /<html lang="en">/);
   assert.match(english, /<h1>Mario Kart: Koopa&#39;s Challenge wait time<\/h1>/);
   assert.match(english, /95 min/);
@@ -79,7 +84,7 @@ test('English home includes server-rendered wait names before JavaScript runs', 
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Longest listed waits/);
-  assert.match(html, /Mario Kart: Koopa&#39;s Challenge <strong>95 min<\/strong>/);
+  assert.match(html, /<a href="\/en\/attraction\/mario-kart-koopas-challenge">Mario Kart: Koopa&#39;s Challenge<\/a> <strong>95 min<\/strong>/);
   assert.match(html, /href="\/en\/attraction\/mario-kart-koopas-challenge"/);
 });
 
