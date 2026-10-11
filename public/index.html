@@ -1139,6 +1139,8 @@
     } catch (_) { /* 閲覧環境が保存に非対応でも絞り込みは動作する。 */ }
 
     function updateLineTransfer() {
+      // The transfer controls exist on Today's page only; /plan shares this script.
+      if (!lineTransfer || !lineTransferText || !lineTransferButton) return;
       const count = favorites.size;
       lineTransfer.hidden = count === 0;
       lineTransferButton.disabled = count > 40;
@@ -1146,7 +1148,7 @@
         ? `お気に入りが${count}施設あります。LINEへ引き継ぐには40施設以下に減らしてください。`
         : `この端末のお気に入り${count}施設をLINE内マイプランへ引き継げます。LINE内で保存操作が必要です。`;
     }
-    lineTransferButton.addEventListener('click', () => {
+    lineTransferButton?.addEventListener('click', () => {
       const ids = [...favorites].filter(id => Number.isInteger(id) && id > 0 && id <= 99999999);
       if (!ids.length || ids.length !== favorites.size || ids.length > 40) return;
       location.assign(`${LINE_PLAN_URL}#favorites=${ids.join(',')}`);
