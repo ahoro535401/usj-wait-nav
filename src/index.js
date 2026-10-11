@@ -213,7 +213,12 @@ const LINE_SURVEY_CHOICES = {
   prefecture: new Set([...Array.from({ length: 47 }, (_, index) => String(index + 1).padStart(2, '0')), 'overseas']),
   visit_frequency: new Set(['first', 'less_than_yearly', 'yearly', 'yearly_3_5', 'yearly_6_11', 'monthly_1', 'monthly_2_plus']),
   annual_pass: new Set(['standard', 'grand_royal', 'none']),
+  usual_party: new Set(['alone', 'friends_partner', 'with_children', 'other_family', 'varies']),
+  information_goal: new Set(['route_order', 'queue_timing', 'quieter_rides', 'visit_date', 'ride_operations']),
 };
+const LINE_SURVEY_EXPERIENCES = new Set([
+  'thrill_rides', 'nintendo', 'shows_parades', 'seasonal_events', 'kids_attractions', 'food_shopping',
+]);
 
 async function verifiedLineUserKey(request, env) {
   if (!env.CRM_HASH_KEY || !env.LIFF_APP_ID) return { error: privateJson({ error: 'マイプランは準備中です' }, 503) };
@@ -307,9 +312,16 @@ async function handleLineSurvey(request, env) {
   }
   if (request.method === 'GET') {
     const row = await env.DB.prepare(
-      'SELECT age_band,gender,prefecture,visit_frequency,annual_pass,updated_at FROM line_survey_answers WHERE user_key=?'
+      'SELECT age_band,gender,prefecture,visit_frequency,annual_pass,usual_party,experience_priorities_json,information_goal,updated_at FROM line_survey_answers WHERE user_key=?'
     ).bind(userKey).first();
-    return privateJson(row ? { saved: true, ...row } : { saved: false });
+    if (!row) return privateJson({ saved: false });
+    let experiencePriorities = [];
+    try {
+      const parsed = JSON.parse(row.experience_priorities_json || '[]');
+      if (Array.isArray(parsed)) experiencePriorities = parsed;
+    } catch (_) { /* Legacy or invalid saved value is treated as unanswered. */ }
+    const { experience_priorities_json: _stored, ...answer } = row;
+    return privateJson({ saved: true, ...answer, experience_priorities: experiencePriorities });
   }
   if (!request.headers.get('Content-Type')?.startsWith('application/json'))
     return privateJson({ error: 'JSONで送信してください' }, 415);
@@ -322,23 +334,30 @@ async function handleLineSurvey(request, env) {
     body = JSON.parse(raw);
   } catch (_) { return privateJson({ error: '回答を確認してください' }, 400); }
   if (!body || typeof body !== 'object' || Array.isArray(body) || body.consent !== true ||
-      Object.keys(body).some(key => !['consent', ...Object.keys(LINE_SURVEY_CHOICES)].includes(key)))
+      Object.keys(body).some(key => !['consent', 'experience_priorities', ...Object.keys(LINE_SURVEY_CHOICES)].includes(key)))
     return privateJson({ error: '回答を確認してください' }, 400);
   const answer = {};
   for (const [field, allowed] of Object.entries(LINE_SURVEY_CHOICES)) {
     const value = body[field] === '' || body[field] == null ? null : body[field];
-    if (value === null || !allowed.has(value)) return privateJson({ error: '5項目すべてを選択してください' }, 400);
+    if (value === null || !allowed.has(value)) return privateJson({ error: '8項目すべてに回答してください' }, 400);
     answer[field] = value;
   }
+  const priorities = body.experience_priorities;
+  if (!Array.isArray(priorities) || priorities.length < 1 || priorities.length > 2 ||
+      priorities.some(value => typeof value !== 'string' || !LINE_SURVEY_EXPERIENCES.has(value)) ||
+      new Set(priorities).size !== priorities.length)
+    return privateJson({ error: '楽しみにしているものを1～2つ選んでください' }, 400);
   await env.DB.prepare(`INSERT INTO line_survey_answers
-    (user_key,age_band,gender,prefecture,visit_frequency,annual_pass,consented_at,updated_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?)
+    (user_key,age_band,gender,prefecture,visit_frequency,annual_pass,usual_party,experience_priorities_json,information_goal,consented_at,updated_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(user_key) DO UPDATE SET age_band=excluded.age_band,gender=excluded.gender,
     prefecture=excluded.prefecture,visit_frequency=excluded.visit_frequency,
-    annual_pass=excluded.annual_pass,updated_at=excluded.updated_at,expires_at=excluded.expires_at`)
+    annual_pass=excluded.annual_pass,usual_party=excluded.usual_party,
+    experience_priorities_json=excluded.experience_priorities_json,information_goal=excluded.information_goal,
+    consented_at=excluded.consented_at,updated_at=excluded.updated_at,expires_at=excluded.expires_at`)
     .bind(userKey, answer.age_band, answer.gender, answer.prefecture, answer.visit_frequency,
-      answer.annual_pass, now, now,
+      answer.annual_pass, answer.usual_party, JSON.stringify(priorities), answer.information_goal, now, now,
       now + LINE_PLAN_RETENTION_SECONDS).run();
-  return privateJson({ saved: true, ...answer, updated_at: now });
+  return privateJson({ saved: true, ...answer, experience_priorities: priorities, updated_at: now });
 }
 const readMeta = async (db, key) => (await db.prepare('SELECT value FROM app_meta WHERE key = ?').bind(key).first())?.value ?? null;
 const writeMeta = (db, key, value) => db.prepare(
@@ -2088,7 +2107,7 @@ async function route(request, env) {
     if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
     let html = await page.text();
     if (!liffPage[1] && lineSurveyEnabled(env))
-      html = html.replace('<main>', '<main><aside style="padding:12px;margin:0 0 16px;border:1px solid #83add4;border-radius:9px;background:#eef5ff;color:#172332"><strong>1分アンケートにご協力ください</strong><br>年代・性別・都道府県・来園頻度・年間パスについて、任意のアンケートに回答できます。<a href="/liff/my-plan/survey">回答する ↗</a></aside>');
+      html = html.replace('<main>', '<main><aside style="padding:12px;margin:0 0 16px;border:1px solid #83add4;border-radius:9px;background:#eef5ff;color:#172332"><strong>利用者アンケートにご協力ください</strong><br>来園頻度や楽しみにしている体験など、8項目に任意で回答できます。<a href="/liff/my-plan/survey">回答する ↗</a></aside>');
     return new Response(liffPageHtml(html, env.LIFF_APP_ID), { status: 200, headers });
   }
   if (url.pathname === '/en/x' || /^\/en\/x\/day\/20\d\d-\d\d-\d\d$/.test(url.pathname)) {

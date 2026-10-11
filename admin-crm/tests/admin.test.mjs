@@ -44,7 +44,8 @@ test('signed owner token can view aggregate data without exposing raw user keys'
     async first() { return { n: 1 }; },
     async all() {
       if (query.includes('line_admin_follower_insights')) return { results: [] };
-      if (query.includes('FROM (SELECT user_key')) return { results: [{ user_key: 'abcdef0123456789private', favorites_json: '[7077,7092]', visit_day: '2026-10-20', age_band: '20s', gender: 'woman', prefecture: '28', visit_frequency: 'monthly_1', annual_pass: 'standard', plan_updated: 1791600000, survey_updated: 1791600000 }] };
+      if (query.includes('FROM (SELECT user_key')) return { results: [{ user_key: 'abcdef0123456789private', favorites_json: '[7077,7092]', visit_day: '2026-10-20', age_band: '20s', gender: 'woman', prefecture: '28', visit_frequency: 'monthly_1', annual_pass: 'standard', usual_party: 'alone', experience_priorities_json:'["thrill_rides","nintendo"]', information_goal:'route_order', plan_updated: 1791600000, survey_updated: 1791600000 }] };
+      if (query.includes('FROM line_survey_answers s,')) return { results: [{ choice:'thrill_rides', n:1 }, { choice:'nintendo', n:1 }] };
       if (query.includes('json_each')) return { results: [{ ride_id: 7077, n: 1 }, { ride_id: 7092, n: 1 }] };
       return { results: [{ choice: '20s', n: 1 }] };
     },
@@ -57,6 +58,9 @@ test('signed owner token can view aggregate data without exposing raw user keys'
     assert.match(body, /お気に入り施設の登録状況/);
     assert.match(body, /ハリウッド・ドリーム・ザ・ライド/);
     assert.match(body, /ザ・フライング・ダイナソー/);
+    assert.match(body, /普段の同行者/);
+    assert.match(body, /絶叫ライド/);
+    assert.match(body, /8項目回答済み/);
     assert.match(body, /abcdef0123/);
     assert.doesNotMatch(body, /abcdef0123456789private/);
   } finally { globalThis.fetch = originalFetch; }

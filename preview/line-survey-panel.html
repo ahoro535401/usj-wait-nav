@@ -1,7 +1,7 @@
 <section id="survey" class="survey-card" aria-labelledby="survey-summary">
   <details id="survey-details">
   <summary id="survey-summary">回答内容を入力する</summary>
-  <p>待ち時間ナビを使いやすくするため、5項目を教えてください。回答しなくてもマイプランを利用できます。</p>
+  <p>待ち時間ナビを使いやすくするため、8項目を教えてください。回答しなくてもマイプランを利用できます。</p>
   <p class="survey-note">回答はLINE認証に紐づく照合キーで管理し、個人に紐づく情報として扱います。集計とサイト改善に使い、生のLINE ID・表示名・メールアドレスは保存しません。個別回答は公開せず、本人が変更・削除できます。保存期間は最終回答から180日です。<a href="/privacy">取扱いを確認</a></p>
   <label for="survey-age">年代</label>
   <select id="survey-age" required><option value="">選択してください</option><option value="under20">20歳未満</option><option value="20s">20代</option><option value="30s">30代</option><option value="40s">40代</option><option value="50s">50代</option><option value="60plus">60代以上</option></select>
@@ -23,7 +23,23 @@
   <select id="survey-frequency" required><option value="">選択してください</option><option value="first">今回が初めて・まだ行ったことがない</option><option value="less_than_yearly">年1回未満</option><option value="yearly">年1～2回</option><option value="yearly_3_5">年3～5回</option><option value="yearly_6_11">月1回より少なめ（年6～11回）</option><option value="monthly_1">月1回程度（年12～23回）</option><option value="monthly_2_plus">月2回以上（年24回以上）</option></select>
   <label for="survey-annual-pass">年間パス</label>
   <select id="survey-annual-pass" required><option value="">選択してください</option><option value="standard">年間パス（スタンダード）</option><option value="grand_royal">年間パス（グランロイヤル）</option><option value="none">年間パスなし</option></select>
-  <label class="consent"><input type="checkbox" id="survey-consent">上記の目的で、5項目の回答をLINE認証に紐づけて保存することに同意します。</label>
+  <label for="survey-usual-party">普段、誰と来園しますか？</label>
+  <select id="survey-usual-party" required><option value="">選択してください</option><option value="alone">ひとり</option><option value="friends_partner">友人・パートナー</option><option value="with_children">子ども連れ</option><option value="other_family">その他の家族</option><option value="varies">その都度異なる</option></select>
+  <fieldset class="survey-experiences">
+    <legend>来園時に特に楽しみにしているものは？</legend>
+    <p class="survey-note">1～2つ選んでください。</p>
+    <div class="experience-options">
+      <label class="experience-option"><input type="checkbox" name="survey-experience" value="thrill_rides">絶叫ライド</label>
+      <label class="experience-option"><input type="checkbox" name="survey-experience" value="nintendo">ニンテンドー</label>
+      <label class="experience-option"><input type="checkbox" name="survey-experience" value="shows_parades">ショー・パレード</label>
+      <label class="experience-option"><input type="checkbox" name="survey-experience" value="seasonal_events">季節イベント</label>
+      <label class="experience-option"><input type="checkbox" name="survey-experience" value="kids_attractions">子ども向け施設</label>
+      <label class="experience-option"><input type="checkbox" name="survey-experience" value="food_shopping">飲食・買い物</label>
+    </div>
+  </fieldset>
+  <label for="survey-information-goal">待ち時間情報を見て、主に何を決めたいですか？</label>
+  <select id="survey-information-goal" required><option value="">選択してください</option><option value="route_order">施設を回る順番</option><option value="queue_timing">並ぶタイミング</option><option value="quieter_rides">空いている施設</option><option value="visit_date">来園日</option><option value="ride_operations">施設の運行・休止状況</option></select>
+  <label class="consent"><input type="checkbox" id="survey-consent">上記の目的で、8項目の回答をLINE認証に紐づけて保存することに同意します。</label>
   <div class="actions"><button type="button" id="survey-save" disabled>アンケートを保存</button><button type="button" class="danger" id="survey-delete" hidden>回答を削除</button></div>
   <p id="survey-status" role="status" aria-live="polite"></p>
   </details>
