@@ -694,6 +694,53 @@
       .site-header h1 { font-size: 1.4rem; margin-bottom: 3px; }
       .site-header .sub { font-size: .72rem; line-height: 1.4; }
     }
+    .ride-search { display: block; margin: 4px 0 10px; font-weight: 700; }
+    .ride-search input { box-sizing: border-box; display: block; width: 100%; min-height: 44px; margin-top: 5px; padding: 9px 12px; border: 1px solid #9db3c9; border-radius: 9px; background: #fff; color: #172332; font: inherit; }
+    .ride-search input:focus-visible { outline: 2px solid #1058a7; outline-offset: 2px; }
+    :root[data-theme="dark"] .ride-search input { background: #17212c; color: #edf4fc; border-color: #627992; }
+    @media (max-width: 620px) {
+      html[data-page="now"] .site-header { min-height: 56px; margin-bottom: 3px; background: #102238; }
+      html[data-page="now"] .site-header .hero-photo, html[data-page="now"] .site-header::after { display: none; }
+      html[data-page="now"] .site-header .hero-content { min-height: 56px; padding: 8px 10px; justify-content: center; }
+      html[data-page="now"] .site-header .hero-brand { flex-wrap: nowrap; gap: 5px; }
+      html[data-page="now"] .site-header .text-logo { white-space: nowrap; font-size: .9rem; }
+      html[data-page="now"] .site-header .unofficial { padding: 2px 4px; font-size: .6rem; }
+      html[data-page="now"] .site-header .theme-toggle { width: 34px; min-width: 34px; min-height: 34px; padding: 0; margin-left: auto; font-size: 0; }
+      html[data-page="now"] .site-header .theme-toggle::after { content: '◐'; font-size: 1.15rem; }
+      html[data-page="now"] .site-header .language-switch { padding: 3px 5px; font-size: .7rem; }
+      html[data-page="now"] .site-header .hero-copy { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+      html[data-page="now"] .site-header .hero-copy a { display: none; }
+      html[data-page="now"] .sticky-nav { margin-bottom: 4px; padding: 4px 10px; }
+      html[data-page="now"] .sticky-nav .page-tabs { margin-bottom: 0; }
+      html[data-page="now"] .sticky-nav .jump-nav { display: none; }
+      html[data-page="now"] .today-hours { display: flex; flex-wrap: nowrap; gap: 6px; align-items: center; margin: 0 0 4px; padding: 3px 8px; }
+      html[data-page="now"] .today-hours strong, html[data-page="now"] .today-hours-time, html[data-page="now"] .today-hours a { grid-column: auto; grid-row: auto; }
+      html[data-page="now"] .today-hours strong { font-size: .72rem; white-space: nowrap; }
+      html[data-page="now"] .today-hours-time { font-size: .85rem; }
+      html[data-page="now"] .today-hours a { min-height: 32px; margin-left: auto; font-size: .72rem; white-space: nowrap; }
+      html[data-page="now"] .park-alert { margin: 2px 0 5px; padding: 6px 8px; font-size: .8rem; }
+      html[data-page="now"] .bar { margin-bottom: 4px; gap: 5px 9px; font-size: .8rem; }
+      html[data-page="now"] .bar button { min-height: 38px; padding: 5px 10px; font-size: .85rem; }
+      html[data-page="now"] .heatmap-panel { display: flex; flex-direction: column; margin-top: 4px; }
+      html[data-page="now"] .heatmap-panel h2 { order: 0; }
+      html[data-page="now"] .ride-search { order: 1; margin: 0 0 5px; font-size: .85rem; }
+      html[data-page="now"] #heatmap-status { order: 2; margin: 2px 0 4px; font-size: .78rem; }
+      html[data-page="now"] #heatmap-options { order: 3; margin: 2px 0 5px; }
+      html[data-page="now"] #list-state { order: 4; margin: 2px 0 5px; }
+      html[data-page="now"] .today-view-switch { order: 5; margin: 2px 0 7px; }
+      html[data-page="now"] .today-view-switch button { min-height: 36px; }
+      html[data-page="now"] #mobile-cards, html[data-page="now"] #today-table { order: 6; }
+      html[data-page="now"] #rides-more { order: 7; }
+      html[data-page="now"] #trend-legend { order: 8; }
+      html[data-page="now"] .top-waits { order: 9; }
+      html[data-page="now"] .movement-summary { order: 10; }
+      html[data-page="now"] .vote-cta { order: 11; }
+      html[data-page="now"] .mobile-heatmap-hint { order: 12; }
+      html[data-page="now"] #line-favorites-transfer { order: 13; }
+      html[data-page="now"] .ride-tag-notes { order: 14; }
+      html[data-page="now"] #public-summary { order: 15; }
+      html[data-page="now"] .heatmap-panel > p:last-child { order: 16; }
+    }
   </style>
   <script src="/analytics.js" defer></script>
   <script id="night-schedule" type="application/json">{"jaws":[{"start":"2026-09-11","end":"2026-10-09","time":"18:30"},{"start":"2026-10-10","end":"2027-01-31","time":"18:00"}],"jurassic":[{"start":"2026-09-11","end":"2026-10-09","time":"18:30"},{"start":"2026-10-10","end":"2026-11-08","time":"18:00"}]}</script>
@@ -737,6 +784,7 @@
   </div>
   <section class="heatmap-panel" data-only="now" aria-labelledby="heatmap-title">
     <h2 id="heatmap-title">今日の待ち時間</h2>
+    <label class="ride-search" for="ride-search">施設名で探す<input id="ride-search" type="search" placeholder="例：マリオ、ハリドリ" autocomplete="off"></label>
     <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。カードでは5分・20分・1時間前との変化を見られます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
     <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・5分前比・20分前比・今日の推移を一覧できます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
@@ -1033,6 +1081,7 @@
     const heightFilter = document.querySelector('#height-filter');
     const childSwitchFilter = document.querySelector('#child-switch-filter');
     const favoritesFilter = document.querySelector('#favorites-filter');
+    const rideSearch = document.querySelector('#ride-search');
     const tagFilterInputs = [...document.querySelectorAll('[data-tag-filter]')];
     const weatherStatus = document.querySelector('#weather-status');
     const weatherAdvice = document.querySelector('#weather-advice');
@@ -3556,7 +3605,11 @@
         if (cell.textContent === '休') return 2;
         return isWaitCell(cell) ? 0 : 1;
       };
-      const rides = [...currentData.rides].filter(ride => matchesRide(ride.id) || String(ride.id) === linkedRide).sort((a, b) => {
+      const query = (rideSearch?.value || '').trim().normalize('NFKC').toLocaleLowerCase('ja');
+      const rides = [...currentData.rides].filter(ride =>
+        (matchesRide(ride.id) || String(ride.id) === linkedRide) &&
+        (!query || rideName(ride).normalize('NFKC').toLocaleLowerCase('ja').includes(query))
+      ).sort((a, b) => {
         const favoriteOrder = favoriteFirst(a.id, b.id);
         if (favoriteOrder) return favoriteOrder;
         const nameOrder = rideName(a).localeCompare(rideName(b), 'ja');
@@ -3945,6 +3998,7 @@
     }
 
     button.addEventListener('click', refresh);
+    rideSearch?.addEventListener('input', () => { if (todayData) renderToday(todayData); });
     for (const control of [heightFilter, childSwitchFilter, favoritesFilter, ...tagFilterInputs].filter(Boolean)) control.addEventListener('change', () => {
       const filterType = control === heightFilter ? 'height' : control === childSwitchFilter ? 'child_switch'
         : control === favoritesFilter ? 'favorites' : 'tag';

@@ -103,6 +103,7 @@
       #analytics-consent p{margin:0 0 10px}#analytics-consent a{color:#1058a7;text-decoration:underline}
       #analytics-consent .actions{display:flex;gap:8px;flex-wrap:wrap}#analytics-consent button{min-height:44px;padding:8px 15px;border-radius:8px;font:inherit;font-weight:700;cursor:pointer}
       #analytics-consent .allow{border:1px solid #1058a7;background:#1058a7;color:#fff}#analytics-consent .basic,#analytics-consent .deny{border:1px solid #8ba6c1;background:#fff;color:#173b62}
+      @media(max-width:620px){#analytics-consent{bottom:6px;left:6px;right:6px;padding:9px 10px;font-size:12px;line-height:1.4}#analytics-consent p{margin-bottom:6px}#analytics-consent .actions{flex-wrap:nowrap;gap:4px}#analytics-consent button{flex:1;min-width:0;min-height:40px;padding:3px 4px;font-size:11px;line-height:1.2}}
     `;
     document.head.appendChild(style);
     const banner = document.createElement('div');
@@ -110,8 +111,8 @@
     banner.setAttribute('role', 'region');
     banner.setAttribute('aria-label', english ? 'Analytics preference' : 'アクセス解析の設定');
     banner.innerHTML = english
-      ? '<p>Choose how this site uses Google Analytics. The optional Google signals setting can provide aggregate age, gender and interest reports by linking analytics activity with eligible signed-in Google users. This is separate from basic analytics. <a href="/en/privacy">Privacy policy</a></p><div class="actions"><button type="button" class="allow">Analytics + demographics</button><button type="button" class="basic">Analytics only</button><button type="button" class="deny">Do not allow</button></div>'
-      : '<p>Google アナリティクスの利用方法を選んでください。任意のGoogleシグナルを許可すると、条件を満たすGoogleログイン利用者の情報と閲覧データが関連付けられ、年齢層・性別・興味の集計に使われる場合があります。<a href="/privacy">詳しく見る</a></p><div class="actions"><button type="button" class="allow">解析＋属性集計を許可</button><button type="button" class="basic">解析のみ許可</button><button type="button" class="deny">許可しない</button></div>';
+      ? '<p>Choose your Google Analytics setting. Optional Google signals may link eligible signed-in visitors’ activity to aggregate age, gender and interest reports. <a href="/en/privacy">Privacy policy</a></p><div class="actions"><button type="button" class="allow">Analytics + demographics</button><button type="button" class="basic">Analytics only</button><button type="button" class="deny">Do not allow</button></div>'
+      : '<p>Google アナリティクスの設定を選んでください。任意の属性集計では、条件を満たすGoogleログイン利用者の閲覧データを関連付け、年齢層・性別・興味を集計する場合があります。<a href="/privacy">詳しく見る</a></p><div class="actions"><button type="button" class="allow">解析＋属性集計を許可</button><button type="button" class="basic">解析のみ許可</button><button type="button" class="deny">許可しない</button></div>';
     banner.querySelector('.allow').addEventListener('click', () => {
       saveChoice('granted');
       saveSignalsChoice('granted');

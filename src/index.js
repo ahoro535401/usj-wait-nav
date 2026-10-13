@@ -2139,67 +2139,82 @@ async function attractionComparisons(db, ride, fetchedAt, previousRaw) {
   return comparisons;
 }
 
-async function attractionHourlyTrends(db, rideId, seconds) {
+async function attractionWaitTrends(db, rideId, seconds) {
   const todayStart = dayStart(seconds);
   const since = todayStart - 7 * 86400;
   const { results } = await db.prepare(
     "SELECT CASE WHEN h.captured_at>=? THEN 'today' ELSE 'past' END AS period, " +
-    'CAST(((h.captured_at + 32400) / 3600) % 24 AS INTEGER) AS hour, ' +
-    'COUNT(*) AS samples, ROUND(AVG(s.wait_minutes)) AS average_wait ' +
+    'CAST(((h.captured_at + 32400) / 1200) % 72 AS INTEGER) AS bin, ' +
+    'COUNT(*) AS samples, SUM(s.wait_minutes) AS total_wait, ROUND(AVG(s.wait_minutes)) AS average_wait ' +
     'FROM ride_samples s JOIN snapshots h USING(slot) ' +
     'WHERE s.ride_id=? AND s.slot>=? AND h.captured_at>=? AND h.captured_at<=? AND s.is_open=1 ' +
-    'AND s.wait_minutes IS NOT NULL AND s.source<>? GROUP BY period,hour ORDER BY hour,period'
+    'AND s.wait_minutes IS NOT NULL AND s.source<>? GROUP BY period,bin ORDER BY bin,period'
   ).bind(todayStart, rideId, Math.floor(since / SNAPSHOT_SECONDS), since, seconds, DARK_ESTIMATE_SOURCE).all();
+  const hourly = rows => {
+    const byHour = new Map();
+    for (const row of rows) {
+      const hour = Math.floor(Number(row.bin) / 3);
+      const current = byHour.get(hour) || { hour, samples: 0, total_wait: 0 };
+      current.samples += Number(row.samples);
+      current.total_wait += Number(row.total_wait);
+      byHour.set(hour, current);
+    }
+    return [...byHour.values()].map(row => ({
+      hour: row.hour, samples: row.samples, average_wait: Math.round(row.total_wait / row.samples),
+    }));
+  };
+  const past = (results || []).filter(row => row.period === 'past');
+  const today = (results || []).filter(row => row.period === 'today');
   return {
-    past: (results || []).filter(row => row.period === 'past'),
-    today: (results || []).filter(row => row.period === 'today'),
+    past, today, pastHourly: hourly(past), todayHourly: hourly(today),
   };
 }
 
 function attractionTrendChart(past, today, english) {
-  const valid = row => Number.isInteger(Number(row.hour)) && Number(row.hour) >= 0 && Number(row.hour) <= 23 &&
+  const valid = row => Number.isInteger(Number(row.bin)) && Number(row.bin) >= 0 && Number(row.bin) <= 71 &&
     Number.isFinite(Number(row.average_wait)) && Number(row.average_wait) >= 0;
   const series = [
-    { id: 'past', rows: past.filter(valid).sort((a, b) => a.hour - b.hour), color: '#66758a' },
-    { id: 'today', rows: today.filter(valid).sort((a, b) => a.hour - b.hour), color: '#0872cf' },
+    { id: 'past', rows: past.filter(valid).sort((a, b) => a.bin - b.bin), color: '#66758a' },
+    { id: 'today', rows: today.filter(valid).sort((a, b) => a.bin - b.bin), color: '#0872cf' },
   ];
   const points = series.flatMap(item => item.rows);
   if (!points.length) return '';
-  const minHour = Math.max(0, Math.min(...points.map(row => Number(row.hour))) - 1);
-  const maxHour = Math.min(23, Math.max(...points.map(row => Number(row.hour))) + 1);
+  const minBin = Math.max(0, Math.min(...points.map(row => Number(row.bin))) - 3);
+  const maxBin = Math.min(71, Math.max(...points.map(row => Number(row.bin))) + 3);
   const ceiling = Math.max(50, Math.ceil(Math.max(...points.map(row => Number(row.average_wait))) / 50) * 50);
   const left = 52, right = 730, top = 22, bottom = 220;
-  const x = hour => left + (Number(hour) - minHour) / Math.max(1, maxHour - minHour) * (right - left);
+  const x = bin => left + (Number(bin) - minBin) / Math.max(1, maxBin - minBin) * (right - left);
   const y = wait => bottom - Number(wait) / ceiling * (bottom - top);
   const grid = [0, ceiling / 2, ceiling].map(value =>
     `<line class="trend-grid" x1="${left}" x2="${right}" y1="${y(value)}" y2="${y(value)}"/>` +
     `<text class="trend-axis" x="${left - 8}" y="${y(value) + 4}" text-anchor="end">${Math.round(value)}</text>`).join('');
-  const hours = Array.from({ length: maxHour - minHour + 1 }, (_, index) => minHour + index)
-    .filter(hour => hour === minHour || hour === maxHour || hour % 3 === 0)
-    .map(hour => `<text class="trend-axis" x="${x(hour)}" y="247" text-anchor="middle">${String(hour).padStart(2, '0')}</text>`).join('');
+  const hours = Array.from({ length: Math.floor(maxBin / 3) - Math.ceil(minBin / 3) + 1 },
+    (_, index) => Math.ceil(minBin / 3) + index)
+    .filter(hour => hour % 3 === 0 || hour === Math.ceil(minBin / 3) || hour === Math.floor(maxBin / 3))
+    .map(hour => `<text class="trend-axis" x="${x(hour * 3)}" y="247" text-anchor="middle">${String(hour).padStart(2, '0')}</text>`).join('');
   const lines = series.map(item => {
-    let segments = [], segment = [], previousHour = null;
+    let segments = [], segment = [], previousBin = null;
     for (const row of item.rows) {
-      if (previousHour != null && row.hour > previousHour + 1) {
+      if (previousBin != null && row.bin > previousBin + 1) {
         if (segment.length > 1) segments.push(segment);
         segment = [];
       }
       segment.push(row);
-      previousHour = row.hour;
+      previousBin = row.bin;
     }
     if (segment.length > 1) segments.push(segment);
     const paths = segments.map(rows => `<path d="${rows.map((row, index) =>
-      `${index ? 'L' : 'M'}${x(row.hour).toFixed(1)},${y(row.average_wait).toFixed(1)}`).join(' ')}"/>`).join('');
-    const dots = item.rows.map(row => `<circle cx="${x(row.hour).toFixed(1)}" cy="${y(row.average_wait).toFixed(1)}" r="4.5">` +
-      `<title>${String(row.hour).padStart(2, '0')}:00 · ${english ? item.id === 'today' ? 'Today' : 'Past 7 days' : item.id === 'today' ? '本日' : '過去7日'} · ${row.average_wait}${english ? ' min' : '分'}</title></circle>`).join('');
+      `${index ? 'L' : 'M'}${x(row.bin).toFixed(1)},${y(row.average_wait).toFixed(1)}`).join(' ')}"/>`).join('');
+    const dots = item.rows.map(row => `<circle cx="${x(row.bin).toFixed(1)}" cy="${y(row.average_wait).toFixed(1)}" r="4.5">` +
+      `<title>${String(Math.floor(row.bin / 3)).padStart(2, '0')}:${String(row.bin % 3 * 20).padStart(2, '0')} · ${english ? item.id === 'today' ? 'Today recorded wait' : 'Previous 7 days, same 20-min slot average' : item.id === 'today' ? '本日の記録値' : '過去7日の同じ20分枠の平均'} · ${row.average_wait}${english ? ' min' : '分'}</title></circle>`).join('');
     return `<g class="trend-series trend-${item.id}" data-series="${item.id}" stroke="${item.color}">${paths}${dots}</g>`;
   }).join('');
   return `<figure class="trend-chart"><div class="trend-chart-scroll"><svg viewBox="0 0 760 260" role="img" aria-label="${english ?
-    'Hourly standby wait: today compared with the previous 7 days' : '本日と過去7日間の時間帯別平均待ち時間の比較'}">` +
+    '20-minute recorded waits today compared with the previous 7-day same-time average' : '本日の20分ごとの待ち時間と過去7日の同時刻平均の比較'}">` +
     `${grid}<line class="trend-grid" x1="${left}" x2="${left}" y1="${top}" y2="${bottom}"/>${hours}${lines}</svg></div>` +
-    `<figcaption><span class="trend-legend trend-legend-today">${english ? 'Today so far' : '本日ここまで'}</span>` +
-    `<span class="trend-legend trend-legend-past">${english ? 'Previous 7 days' : '昨日までの7日間'}</span>` +
-    `<span class="muted">${english ? 'Scroll sideways for later hours.' : '左右にスクロールして後の時間帯も見られます。'}</span></figcaption></figure>`;
+    `<figcaption><span class="trend-legend trend-legend-today">${english ? 'Today: every 20 min' : '本日：20分ごとの記録値'}</span>` +
+    `<span class="trend-legend trend-legend-past">${english ? 'Previous 7 days: same-time average' : '過去7日：同時刻の平均'}</span>` +
+    `<span class="muted">${english ? 'Vertical axis: wait (min). Horizontal axis: JST. Scroll sideways for later hours.' : '縦軸：待ち時間（分）／横軸：日本時間。左右にスクロールして後の時間帯も見られます。'}</span></figcaption></figure>`;
 }
 
 async function renderAttractionPage(request, env, item, english) {
@@ -2210,8 +2225,8 @@ async function renderAttractionPage(request, env, item, english) {
   const title = english ? `${name} wait time and recent records | USJ Wait Times Guide`
     : `${name}の待ち時間・過去7日の傾向｜USJ待ち時間ナビ`;
   const description = english
-    ? `Check the current listed wait and recorded hourly trends for ${name} at Universal Studios Japan. Updated data is marked with its observation time.`
-    : `${name}の現在の待ち時間と、過去7日の時間帯別の実測を確認できます。取得時刻と欠測の扱いを明示します。`;
+    ? `Check the current listed wait and 20-minute recorded trends for ${name} at Universal Studios Japan. Updated data is marked with its observation time.`
+    : `${name}の現在の待ち時間と、20分ごとの実測・過去7日の同時刻平均を確認できます。取得時刻と欠測の扱いを明示します。`;
   let ride = null, fetchedAt = null, previousRaw = null;
   try {
     const [payload, updated, previous] = await Promise.all([
@@ -2237,11 +2252,11 @@ async function renderAttractionPage(request, env, item, english) {
     timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(verified)) : null;
-  let comparisons = [], trends = { past: [], today: [] };
+  let comparisons = [], trends = { past: [], today: [], pastHourly: [], todayHourly: [] };
   try {
     [comparisons, trends] = await Promise.all([
       fresh ? attractionComparisons(env.DB, ride, fetchedAt, previousRaw) : [],
-      attractionHourlyTrends(env.DB, item.id, Math.floor(now / 1000)),
+      attractionWaitTrends(env.DB, item.id, Math.floor(now / 1000)),
     ]);
   } catch (error) { console.warn('Attraction history unavailable', error); }
   const comparisonList = [5, 20, 60].map(minutes => {
@@ -2253,8 +2268,10 @@ async function renderAttractionPage(request, env, item, english) {
       `${delta > 0 ? '↑' : '↓'}${Math.abs(delta)}${english ? ' min' : '分'}`;
     return `<li><span>${escapeHtml(label)}</span><strong>${change}</strong></li>`;
   }).join('');
-  const sufficient = trends.past.filter(row => Number(row.samples) >= 3);
-  const todayHourly = trends.today.filter(row => Number(row.samples) >= 1);
+  const sufficient = trends.pastHourly.filter(row => Number(row.samples) >= 3);
+  const todayHourly = trends.todayHourly.filter(row => Number(row.samples) >= 1);
+  const pastTwentyMinute = trends.past.filter(row => Number(row.samples) >= 3);
+  const todayTwentyMinute = trends.today.filter(row => Number(row.samples) >= 1);
   const peak = sufficient.reduce((best, row) => !best || row.average_wait > best.average_wait ? row : best, null);
   const peakText = peak ? (english
     ? `${String(peak.hour).padStart(2, '0')}:00 hour · ${peak.average_wait} min average`
@@ -2308,13 +2325,17 @@ async function renderAttractionPage(request, env, item, english) {
       '↑増加、↓減少、→5分未満の変化。—は比較できる記録がありません。過去の変化であり、予測ではありません。'}</p></section>` +
     `<section><h2>${english ? 'About this attraction' : 'アトラクションについて'}</h2><p>${escapeHtml(english ? item.descriptionEn : item.descriptionJa)}</p>` +
     `<p><a href="${official}" target="_blank" rel="noopener noreferrer">${english ? 'Official USJ attraction page ↗' : 'USJ公式の施設案内・利用条件を見る ↗'}</a></p></section>` +
-    `<section><h2>${english ? 'Today vs. the previous 7 days' : '本日と過去7日間の待ち時間推移'}</h2>` +
+    `<section><h2>${english ? 'Today’s 20-minute waits vs. previous 7 days' : '本日の20分ごとの待ち時間と過去7日の比較'}</h2>` +
+    `<p>${english ? 'Blue shows each recorded wait in today’s 20-minute slots. Gray is the average for the same 20-minute slots over the previous seven days. The latest wait shown above may differ from the last blue point because it is updated separately.' : '青線は本日の20分枠ごとに記録した待ち時間、灰色は過去7日間の同じ20分枠の平均です。上の現在値は別のタイミングで更新されるため、青線の最終点と異なる場合があります。'}</p>` +
+    `<p class="muted">${english ? 'Closures, missing data and inferred values are excluded. These values are not 5, 20 or 60-minute changes or forecasts.' :
+      '休止・欠測・推定値は除外しています。5分・20分・1時間前比の増減値や将来の予測ではありません。'}</p>` +
+    (todayTwentyMinute.length ? '' : `<p class="muted">${english ? 'No 20-minute wait record for today yet. The blue line will appear when observations are available.' : '本日の20分記録はまだありません。記録が入り次第、青い線を表示します。'}</p>`) +
+    attractionTrendChart(pastTwentyMinute, todayTwentyMinute, english) +
+    `<h3>${english ? 'Hourly average waits (reference)' : '1時間ごとの平均待ち時間（参考）'}</h3>` +
+    `<p>${english ? 'The table and busiest-hour summary below average recorded waits within each one-hour band. This smooths the 20-minute changes shown in the chart.' : '以下の表と最も混んだ時間帯は、各1時間枠内の記録を平均した参考値です。上のグラフより短時間の変化は見えにくくなります。'}</p>` +
     `<p>${english ? 'Busiest historical hour' : '過去7日で平均待ち時間が最も長かった時間帯'}: <strong>${escapeHtml(peakText)}</strong></p>` +
-    `<p class="muted">${english ? 'Each line shows hourly averages of recorded, operating standby waits. Today includes only observations so far; the current hour may be incomplete. Closures, missing data and inferred values are excluded. This is not a forecast.' :
-      '運行中に記録した通常待ち列の時間帯別平均です。本日の線は現時点までで、進行中の時間帯は途中集計です。休止・欠測・推定値は除外しています。将来の予測ではありません。'}</p>` +
-    (todayHourly.length ? '' : `<p class="muted">${english ? 'No recorded standby wait for today yet. The blue line will appear when observations are available.' : '本日の待ち時間はまだ記録されていません。記録が入り次第、青い線を表示します。'}</p>`) +
-    attractionTrendChart(sufficient, todayHourly, english) +
-    (historyRows ? `<table><thead><tr><th scope="col">${english ? 'JST hour' : '日本時間'}</th><th scope="col">${english ? 'Today so far' : '本日'}</th><th scope="col">${english ? 'Previous 7-day average' : '過去7日平均'}</th></tr></thead><tbody>${historyRows}</tbody></table>` :
+    `<p class="muted">${english ? 'Today includes only observations so far; the current hour may be incomplete.' : '本日は現時点までの記録で、進行中の時間帯は途中集計です。'}</p>` +
+    (historyRows ? `<table><thead><tr><th scope="col">${english ? 'JST hour' : '日本時間'}</th><th scope="col">${english ? 'Today average' : '本日平均'}</th><th scope="col">${english ? 'Previous 7-day average' : '過去7日平均'}</th></tr></thead><tbody>${historyRows}</tbody></table>` :
       `<p>${english ? 'Not enough recorded observations yet.' : '表示できる実測記録がまだありません。'}</p>`) + `</section>` +
     `<section><h2>${english ? 'Explore more' : 'ほかの施設も見る'}</h2><ul>${attractionLinks(english)}</ul>` +
     `<p><a href="${english ? '/en/' : '/'}">${english ? 'All current waits and map' : '全施設の待ち時間と地図へ'}</a> · ` +

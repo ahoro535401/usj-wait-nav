@@ -24,11 +24,15 @@ const env = { EN_PUBLIC_ENABLED: 'true', DB: {
         return { value: values.get(args[0]) };
       },
       async all() {
-        if (sql.includes('GROUP BY period,hour')) return { results: [
-          { period: 'past', hour: 10, samples: 12, average_wait: 70 },
-          { period: 'past', hour: 11, samples: 6, average_wait: 90 },
-          { period: 'past', hour: 12, samples: 2, average_wait: 150 },
-          { period: 'today', hour: 10, samples: 1, average_wait: 95 },
+        if (sql.includes('GROUP BY period,bin')) return { results: [
+          { period: 'past', bin: 30, samples: 4, total_wait: 280, average_wait: 70 },
+          { period: 'past', bin: 31, samples: 4, total_wait: 280, average_wait: 70 },
+          { period: 'past', bin: 32, samples: 4, total_wait: 280, average_wait: 70 },
+          { period: 'past', bin: 33, samples: 3, total_wait: 240, average_wait: 80 },
+          { period: 'past', bin: 34, samples: 3, total_wait: 300, average_wait: 100 },
+          { period: 'past', bin: 36, samples: 2, total_wait: 300, average_wait: 150 },
+          { period: 'today', bin: 30, samples: 1, total_wait: 95, average_wait: 95 },
+          { period: 'today', bin: 31, samples: 1, total_wait: 125, average_wait: 125 },
         ] };
         if (sql.includes('ORDER BY h.captured_at DESC')) return { results: [
           { captured_at: Math.floor((Date.parse(fetchedAt) - 20 * 60000) / 1000), wait_minutes: 85,
@@ -55,14 +59,24 @@ test('Japanese and English attraction pages render useful, matching source HTML'
   assert.match(japanese, /20分前比<\/span><strong>↑10分/);
   assert.match(japanese, /1時間前比<\/span><strong>↓25分/);
   assert.match(japanese, /11時台・平均90分/);
+  assert.match(japanese, /10:00–11:00<\/th><td>110分<\/td><td>70分/);
   assert.doesNotMatch(japanese, /12:00–13:00/); // fewer than three records
   assert.match(japanese, /data-series="today"/);
   assert.match(japanese, /data-series="past"/);
-  assert.match(japanese, /<th scope="col">本日<\/th><th scope="col">過去7日平均<\/th>/);
+  assert.match(japanese, /<th scope="col">本日平均<\/th><th scope="col">過去7日平均<\/th>/);
+  assert.match(japanese, /5分・20分・1時間前比の増減値や将来の予測ではありません/);
+  assert.match(japanese, /本日：20分ごとの記録値/);
+  assert.match(japanese, /過去7日：同時刻の平均/);
+  assert.match(japanese, /10:00 · 本日の記録値 · 95分/);
+  assert.match(japanese, /10:20 · 本日の記録値 · 125分/);
+  assert.match(japanese, /10:00 · 過去7日の同じ20分枠の平均 · 70分/);
   assert.doesNotMatch(japanese, /記録数/);
   assert.match(english, /<html lang="en">/);
   assert.match(english, /<h1>Mario Kart: Koopa&#39;s Challenge wait time<\/h1>/);
   assert.match(english, /95 min/);
+  assert.match(english, /These values are not 5, 20 or 60-minute changes or forecasts/);
+  assert.match(english, /Today: every 20 min/);
+  assert.match(english, /Previous 7 days: same-time average/);
   for (const html of [japanese, english]) {
     assert.match(html, /hreflang="ja" href="https:\/\/uniba-waittimes.com\/attraction\/mario-kart-koopas-challenge"/);
     assert.match(html, /hreflang="en" href="https:\/\/uniba-waittimes.com\/en\/attraction\/mario-kart-koopas-challenge"/);
