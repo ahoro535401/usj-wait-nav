@@ -25,6 +25,7 @@
     .month-grid button .cal-weather{margin-left:2px;font-size:.85em}.month-grid button .cal-average{font-weight:800;padding:2px 3px;border-radius:4px;color:#173b60}.month-grid button .cal-average.crowd-1{background:#e3f4ec}.month-grid button .cal-average.crowd-2{background:#c5ead6}.month-grid button .cal-average.crowd-3{background:#f4ebb8}.month-grid button .cal-average.crowd-4{background:#ffd4aa}.month-grid button .cal-average.crowd-5{background:#f7b9b9}.month-grid button .cal-average.is-partial{background:#e7e0f7}.month-grid button .cal-average.is-pending{background:#e7edf4}
     .weekly-forecast-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin:10px 0}.weekly-forecast-day{padding:9px;border:1px solid #d4e0ee;border-radius:9px;background:#f4f8fd;font-size:.84rem}.weekly-forecast-day strong,.weekly-forecast-day span{display:block}.weekly-forecast-day .forecast-condition{font-weight:700;margin:3px 0}[data-theme="dark"] .weekly-forecast-day{background:#203346;border-color:#3e536a;color:#e9f2fc}
     .share-links .facebook{background:#1877f2;color:#fff;border-color:#1877f2}
+    .geo-pin.is-compact{box-sizing:border-box;width:22px;height:22px;min-width:22px;min-height:22px;padding:0;border-radius:50%;font-size:0;line-height:0;overflow:hidden}
     .controls label{min-width:0;max-width:100%}
     .controls select,.controls input{min-width:0;max-width:100%;width:100%}
     .ride-search{display:block;font-weight:700;margin:8px 0}.ride-search input{display:block;width:100%;min-height:44px;margin-top:4px;border:1px solid #9fb5cb;border-radius:8px;background:#fff;color:#172b40;padding:8px 11px;font:inherit}.ride-search input:focus-visible{outline:2px solid #1765ac;outline-offset:2px}
@@ -74,7 +75,7 @@
   <main>
     <div class="notice"><strong>English preview</strong>This page uses the same wait time records and APIs as the Japanese site. Times are Japan Standard Time (JST). Always confirm operations in the <a href="https://www.usj.co.jp/web/en/us" target="_blank" rel="noopener noreferrer">official USJ app or site</a>.</div>
     <section id="today"><h2>Today's wait times</h2><p id="today-status" class="muted status loading" role="status">Loading the latest data…</p><button id="refresh-waits" class="action" type="button">↻ Refresh wait times</button><label class="ride-search" for="ride-search-en">Find an attraction<input id="ride-search-en" type="search" placeholder="e.g. Mario, Donkey Kong" autocomplete="off"></label><div class="summary"><div class="stat">Park hours<strong id="today-hours">Checking…</strong></div><div class="stat">Attractions with waits<strong id="open-count">—</strong></div><div class="stat">Longest listed wait<strong id="max-wait">—</strong></div></div><p class="muted small">Waits update about every five minutes. Comparisons show the change from 5 minutes, 20 minutes and one hour ago, using available records. ↑ longer, ↓ shorter, → little change; — means no reliable comparison.</p><div class="controls"><label>Sort by <select id="sort"><option value="wait">Longest wait</option><option value="short">Shortest wait</option><option value="name">Name</option></select></label><label>Show <select id="filter"><option value="all">All attractions</option><option value="favorites">Favorites only</option><option value="open">Open with a wait</option></select></label><div class="segmented" role="group" aria-label="Display mode"><button id="cards-button" type="button" aria-pressed="true">Cards</button><button id="table-button" type="button" aria-pressed="false">Timeline</button></div></div><div id="ride-cards" class="cards"></div><div id="ride-table-wrap" class="table-wrap" hidden><table class="table"><thead id="ride-head"></thead><tbody id="ride-body"></tbody></table></div><details class="notes"><summary>About these figures</summary><p>These are provider-listed estimates for the regular standby line, not single rider or Express Pass. "Closed" is the provider's operational status; "Unknown" means a current value could not be verified. Colors represent the length of the wait, not a whole-park crowd score. Some provider updates may arrive late.</p></details></section>
-    <section id="map"><h2>Explore the park map</h2><p class="muted">Find attraction waits and restaurant locations. The map faces south by default.</p><div class="map-controls"><button id="map-location" class="action" type="button">📍 Show my location</button><button id="map-reset" class="action" type="button">Show whole park · south up</button><button id="map-refresh" class="action" type="button">↻ Refresh waits</button><label><input id="map-restaurants" type="checkbox"> Show restaurants</label></div><p id="map-status" class="muted" role="status">Loading the map…</p><div id="geo-map" class="geo-map" role="region" aria-label="Interactive map of Universal Studios Japan"></div><div id="map-detail" class="map-detail" hidden></div><p class="muted small">Map: <a href="https://openfreemap.org/">OpenFreeMap</a> / <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>. Attraction and restaurant positions: ThemeParks.wiki. Locations are approximate; the pins do not identify entrances or accessible walking routes. GPS works only after you allow browser location access and is not sent to this site's server.</p></section>
+    <section id="map"><h2>Explore the park map</h2><p class="muted">Find attraction waits and restaurant locations. The map faces south by default.</p><div class="map-controls"><button id="map-location" class="action" type="button">📍 Show my location</button><button id="map-reset" class="action" type="button">Show whole park · south up</button><button id="map-refresh" class="action" type="button">↻ Refresh waits</button><label><input id="map-restaurants" type="checkbox"> Show restaurants</label></div><p id="map-status" class="muted" role="status">Loading the map…</p><p class="muted small">All 23 attraction locations appear as colored dots when viewing the whole park. Tap a dot to zoom in and see its wait time. Green: under 40 min · Orange: 40–89 min · Red: 90+ min · Gray: closed or unavailable.</p><div id="geo-map" class="geo-map" role="region" aria-label="Interactive map of Universal Studios Japan"></div><div id="map-detail" class="map-detail" hidden></div><p class="muted small">Map: <a href="https://openfreemap.org/">OpenFreeMap</a> / <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>. Attraction and restaurant positions: ThemeParks.wiki. Locations are approximate; the pins do not identify entrances or accessible walking routes. GPS works only after you allow browser location access and is not sent to this site's server.</p></section>
     <section id="history"><h2>Plan your visit: crowd calendar</h2><p class="muted">Choose a past day for recorded crowd levels or a future day for published park hours. Wait records began on October 5, 2026. Times are JST.</p><div class="month-nav"><button id="month-prev" class="action" type="button" aria-label="Previous month">‹</button><strong id="month-label"></strong><button id="month-next" class="action" type="button" aria-label="Next month">›</button></div><div id="month-grid" class="month-grid" aria-label="Crowd calendar"></div><p class="muted small">Past-day minutes are the average of recorded open-ride waits; days with too few records show “Partial.” Weather symbols use Osaka Observatory data: ☂ rain, ☀ sun, ☁ cloud, ? insufficient observations.</p><p id="plan-day-info" class="plan-day-info" role="status"></p><div id="past-record"><div class="controls"><label>Recorded date <select id="archive-date"><option value="">Loading dates…</option></select></label></div><p id="archive-status" class="muted status" role="status"></p><div class="summary"><div class="stat">Daily average<strong id="archive-average">—</strong></div><div class="stat">Records saved<strong id="archive-count">—</strong></div></div><h3>Average by hour</h3><div id="hour-bars" class="hour-bars"></div><h3>Attraction averages by hour</h3><p class="muted small">Jaws and Jurassic Park are paired as daytime then nighttime versions. “Closed” applies to that version only, not necessarily the whole attraction.</p><div id="archive-wrap" class="table-wrap"><table class="table"><thead id="archive-head"></thead><tbody id="archive-body"></tbody></table></div><details class="notes"><summary>About the archive</summary><p>Hourly values are rounded to the nearest minute from available open-attraction records. A missing record or closure is not counted as a zero-minute wait. Past data can be incomplete.</p></details></div></section>
     <section id="shows"><h2>Show start times</h2><div id="show-dates" class="date-pills" role="group" aria-label="Choose a show date"></div><p id="show-status" class="muted status" role="status">Loading show times…</p><ul id="show-list" class="show-list"></ul><p class="muted small">Times are show starts, not performance durations. Schedules can change or be canceled. Check the <a href="https://www.usj.co.jp/web/en/us/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">official daily schedule</a>.</p></section>
     <section id="hours"><h2>Upcoming park hours</h2><p id="schedule-status" class="muted status" role="status">Loading park hours…</p><div id="calendar-days" class="calendar-days"></div><p class="muted small">Published hours can change. <a href="https://www.usj.co.jp/web/en/us/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">Check official park hours</a> before your visit.</p></section>
@@ -397,7 +398,6 @@
       [12073,'flight_of_the_hippogriff'],[12197,'ollivanders'],[12061,'mario_kart_koopas_challenge'],
       [12071,'yoshis_adventure'],[14402,'donkey_kong_country_ride']
     ];
-    const mapOverview=new Set([7077,12066,7092,12068,12065,12061]);
     const mapVariants=new Map([[7077,[7077,12070,17912]],[12082,[12082,12324]],[13925,[12083,12084,13925]],[12067,[12067,15322]],[12068,[12068,17894]]]);
     let geoMap=null,geoPins=[],restaurantPins=[],locationPin=null;
     function selectMapPlace(place,ride){
@@ -412,13 +412,17 @@
       link.target='_blank';link.rel='noopener noreferrer';box.append(link);
       box.scrollIntoView({block:'nearest'});
     }
-    function mapPin(place,ride){
+    function mapPin(place,ride,compact=false){
       const trend=ride?change(ride,20):'—';
       const arrow=trend==='—'?'':` ${trend[0]}`;
       const button=el('button','geo-pin '+(place.type==='RESTAURANT'?'restaurant':available(ride)?waitClass(ride.wait_time):'unknown'),place.type==='RESTAURANT'?'🍽':waitLabel(ride)+arrow);
+      if(compact)button.classList.add('is-compact');
       button.type='button';button.title=place.type==='RESTAURANT'?place.name:`${ride?nameOf(ride):place.name}: ${waitLabel(ride)}${trend==='—'?'':'; compared with 20 min ago: '+trend}`;
-      button.setAttribute('aria-label',button.title+'; show details');
-      button.addEventListener('click',()=>selectMapPlace(place,ride));
+      button.setAttribute('aria-label',button.title+(compact?'; zoom in to see the wait time':'; show details'));
+      button.addEventListener('click',()=>{
+        if(compact){geoMap?.easeTo({center:[place.lng,place.lat],zoom:17.2,duration:350});return;}
+        selectMapPlace(place,ride);
+      });
       return new maplibregl.Marker({element:button,anchor:'bottom'}).setLngLat([place.lng,place.lat]).addTo(geoMap);
     }
     function renderMapPins(){
@@ -427,11 +431,10 @@
       const overview=geoMap.getZoom()<16.7;
       const rides=new Map((live?.rides||[]).map(ride=>[Number(ride.id),ride]));
       for(const [id,key] of mapRides){
-        if(overview&&!mapOverview.has(id))continue;
         const place=placeByKey.get(key);if(!place)continue;
         const ids=mapVariants.get(id)||[id];
         const ride=ids.map(variant=>rides.get(variant)).find(available)||(ids.length===1?rides.get(id):null);
-        geoPins.push(mapPin(place,ride));
+        geoPins.push(mapPin(place,ride,overview));
       }
       renderRestaurants();
     }
@@ -448,7 +451,7 @@
         geoMap=new maplibregl.Map({container:'geo-map',style:'https://tiles.openfreemap.org/styles/liberty',center:[135.43305,34.6661],zoom:15.2,bearing:180,pitch:0,dragRotate:false,minZoom:13,maxZoom:19});
         geoMap.touchZoomRotate.disableRotation();
         geoMap.on('zoomend',renderMapPins);
-        geoMap.on('load',()=>{$('map-status').textContent='Select a pin for details. Zoom in to see every attraction and restaurant.';renderMapPins();});
+        geoMap.on('load',()=>{$('map-status').textContent='Tap a colored dot to zoom in and see its wait time.';renderMapPins();});
         resetMap();renderMapPins();
       }catch(error){$('map-status').textContent=`The map could not load: ${error.message}`;}
     }
