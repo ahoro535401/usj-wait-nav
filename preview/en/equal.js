@@ -78,7 +78,7 @@
     .archive-charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:9px}.archive-chart{padding:10px;border:1px solid #d4e0ed;border-radius:9px}.archive-chart strong{display:block;min-height:2.5em}.mini-bars{display:flex;align-items:end;gap:2px;height:78px;border-bottom:1px solid #9fb5cb}.mini-bars i{display:block;flex:1;background:#64a6de;min-width:2px;border-radius:3px 3px 0 0}.mini-bars i.missing{background:#ccd8e4;height:2px!important}
     .weather-periods{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.weather-periods div{border:1px solid #d5e0ec;border-radius:8px;padding:7px;background:#f8fbff}.weather-periods strong{display:block}
     .map-mode{display:flex;gap:6px;margin:10px 0}.map-mode button[aria-pressed="true"],.archive-mode button[aria-pressed="true"]{background:#1765ac;color:#fff}
-    .map-frame{height:min(75vh,720px);min-height:420px;overflow:hidden;border:1px solid #cddbec;border-radius:12px;touch-action:none;position:relative;background:#ecf3ec}.map-stage{position:absolute;inset:0;transform-origin:0 0}.map-stage img{width:100%;height:100%;object-fit:fill;display:block}.illustration-pin{position:absolute;transform:translate(-50%,-100%);border:2px solid white;border-radius:8px;box-shadow:0 2px 7px #0009;padding:4px 6px;background:#43586e;color:white;font-size:.8rem;font-weight:750;white-space:nowrap}.illustration-pin.low{background:#087c60}.illustration-pin.mid,.illustration-pin.high{background:#a45d12}.illustration-pin.very-high{background:#a02a3b}.map-frame[data-zoom="overview"] .illustration-pin.not-overview{display:none}
+    .map-frame{height:min(75vh,720px);min-height:420px;overflow:hidden;border:1px solid #cddbec;border-radius:12px;touch-action:none;position:relative;background:#ecf3ec}.map-stage{position:absolute;inset:0;transform-origin:0 0}.map-stage img{width:100%;height:100%;object-fit:fill;display:block}.illustration-pin{position:absolute;transform:translate(-50%,-100%) scale(var(--inverse-scale,1));transform-origin:center bottom;border:2px solid white;border-radius:8px;box-shadow:0 2px 7px #0009;padding:4px 6px;background:#43586e;color:white;font-size:.8rem;font-weight:750;white-space:nowrap;cursor:pointer}.illustration-pin.low{background:#087c60}.illustration-pin.mid,.illustration-pin.high{background:#a45d12}.illustration-pin.very-high{background:#a02a3b}.map-frame[data-zoom="overview"] .illustration-pin{width:22px;height:22px;min-width:22px;min-height:22px;padding:0;border-radius:50%;font-size:0;line-height:0;overflow:hidden}
     .poll-frame{width:100%;min-height:680px;border:0}.poll-bars{padding:0;list-style:none}.poll-bars li{padding:7px 0;border-bottom:1px solid #dce7f1}.poll-track{display:block;height:12px;background:#e6eff8;border-radius:6px;overflow:hidden}.poll-track i{display:block;height:100%;background:#2e81cb}
     .footer-link{margin-right:12px}.footer p{line-height:1.7}
     [data-theme="dark"]{color-scheme:dark;background:#0e1721;color:#e9f2fc}[data-theme="dark"] body{background:#0e1721}[data-theme="dark"] section{background:#172534;border-color:#344b61;color:#e9f2fc}[data-theme="dark"] .nav{background:#192b3d;border-color:#344b61}[data-theme="dark"] .nav a{color:#b9d9ff}[data-theme="dark"] .nav a.active{color:white}[data-theme="dark"] .muted,[data-theme="dark"] .small{color:#b4c8df}[data-theme="dark"] .feature-panel,[data-theme="dark"] .stat,[data-theme="dark"] .plan-day-info,[data-theme="dark"] .map-detail,[data-theme="dark"] .weather-periods div,[data-theme="dark"] .archive-chart{background:#203346;border-color:#3e536a;color:#e9f2fc}[data-theme="dark"] .ride,[data-theme="dark"] .day,[data-theme="dark"] .month-grid button,[data-theme="dark"] .table td:first-child,[data-theme="dark"] .table th:first-child{background:#1c2d40;color:#e9f2fc}[data-theme="dark"] .table th,[data-theme="dark"] .table td{border-color:#3c536c}[data-theme="dark"] .table thead th{background:#274464;color:#e9f2fc}[data-theme="dark"] .notice{background:#203b58;color:#e9f2fc}[data-theme="dark"] .notice a{color:#a7d4ff}[data-theme="dark"] a{color:#a7d4ff}[data-theme="dark"] .movement-grid p{background:#294766}[data-theme="dark"] .month-grid button:disabled{background:#1a2735;color:#8497a8}
@@ -749,6 +749,10 @@
     }
     const level=el('span','small muted','100%');level.id='en-map-zoom';tools.append(level);
     section.insertBefore(tools,$('map-status'));
+    const mapStatus=$('map-status');
+    const geoGuide=mapStatus.nextElementSibling;
+    const illustrationGuide=el('p','small muted','On the whole illustrated map, colored dots mark all 23 attractions. Tap one to zoom in and see its wait time.');
+    illustrationGuide.hidden=true;section.insertBefore(illustrationGuide,mapStatus);
     const frame=el('div','map-frame');frame.id='en-illustration';frame.hidden=true;
     frame.style.cssText='height:auto;min-height:0;aspect-ratio:1280/1169;';
     const stage=el('div','map-stage');stage.id='en-map-stage';
@@ -763,7 +767,9 @@
       state.x=Math.max(w*(1-state.scale),Math.min(0,state.x));
       state.y=Math.max(h*(1-state.scale),Math.min(0,state.y));
       stage.style.transform=`translate(${state.x}px,${state.y}px) scale(${state.scale})`;
+      stage.style.setProperty('--inverse-scale',1/state.scale);
       frame.dataset.zoom=state.scale<1.45?'overview':'detail';
+      for(const pin of pins.children)pin.setAttribute('aria-label',pin.dataset.baseLabel+(state.scale<1.45?'; zoom in to see the wait time':'; show details'));
       level.textContent=`${Math.round(state.scale*100)}%`;
     }
     function zoom(factor,cx=frame.clientWidth/2,cy=frame.clientHeight/2) {
@@ -771,6 +777,11 @@
       state.x=cx-(cx-state.x)*state.scale/old;state.y=cy-(cy-state.y)*state.scale/old;apply();
     }
     function resetIllustration(){state.scale=1;state.x=0;state.y=0;apply();}
+    function focusIllustration(x,y){
+      const w=frame.clientWidth,h=frame.clientHeight;
+      state.scale=2.25;state.x=w/2-w*x/100*state.scale;state.y=h/2-h*y/100*state.scale;
+      apply();frame.scrollIntoView({block:'nearest',behavior:'smooth'});
+    }
     function renderPins() {
       pins.replaceChildren();
       const rides=new Map((app.live?.rides||[]).map(ride=>[Number(ride.id),ride]));
@@ -782,11 +793,12 @@
         const text=value+(delta==='—'?'':' '+delta[0]);
         const pin=el('button','illustration-pin '+(app.available(ride)?app.waitClass(ride.wait_time):'unknown'),text);
         pin.type='button';pin.style.left=`${x}%`;pin.style.top=`${y}%`;
-        if (![0,7,10,12,17,20].includes(index)) pin.classList.add('not-overview');
         pin.title=`${ride?app.nameOf(ride):place?.name||'Attraction'}: ${value}`;
-        pin.setAttribute('aria-label',pin.title+'; show details');
+        pin.dataset.baseLabel=pin.title;
+        pin.setAttribute('aria-label',pin.title+(state.scale<1.45?'; zoom in to see the wait time':'; show details'));
         pin.addEventListener('click',event=>{
           event.stopPropagation();
+          if(state.scale<1.45){focusIllustration(x,y);return;}
           const detail=$('map-detail');detail.replaceChildren();detail.hidden=false;
           detail.append(el('h3',null,ride?app.nameOf(ride):place?.name||'Attraction'));
           detail.append(el('p',null,`Current standby wait: ${value}`));
@@ -808,12 +820,12 @@
     }
     geoButton.addEventListener('click',()=>{
       geoButton.setAttribute('aria-pressed','true');illusButton.setAttribute('aria-pressed','false');
-      geoControls.hidden=false;$('geo-map').hidden=false;tools.hidden=true;frame.hidden=true;
+      geoControls.hidden=false;$('geo-map').hidden=false;tools.hidden=true;illustrationGuide.hidden=true;mapStatus.hidden=false;geoGuide.hidden=false;frame.hidden=true;
       app.geoMap?.resize();
     });
     illusButton.addEventListener('click',()=>{
       geoButton.setAttribute('aria-pressed','false');illusButton.setAttribute('aria-pressed','true');
-      geoControls.hidden=true;$('geo-map').hidden=true;tools.hidden=false;frame.hidden=false;
+      geoControls.hidden=true;$('geo-map').hidden=true;tools.hidden=false;illustrationGuide.hidden=false;mapStatus.hidden=true;geoGuide.hidden=true;frame.hidden=false;
       renderPins();apply();
     });
     const zoomControls=el('span','feature-grid');

@@ -117,8 +117,9 @@
     .area-pin .area-name { flex:1; }
     .area-pin.entrance { justify-content:center; padding-left:10px; }
     .area-pin:hover { outline:2px solid #fff; outline-offset:2px; }
-    .map-viewport[data-zoom="pins"] .area-pin,.map-viewport[data-zoom="detail"] .area-pin { pointer-events:none; }
-    .map-viewport[data-zoom="overview"] .map-pin { display:none; }
+    .map-viewport[data-zoom="pins"] .area-pin,.map-viewport[data-zoom="detail"] .area-pin { display:none; }
+    .map-viewport[data-zoom="overview"] .map-pin { width:22px; height:22px; min-width:22px; min-height:22px; padding:0; border-radius:50%; overflow:hidden; }
+    .map-viewport[data-zoom="overview"] .map-pin > * { display:none; }
     .map-viewport[data-zoom="overview"] .area-pin:focus-visible { outline:3px solid #ffd34f; }
     .map-foot { margin:10px 2px 0; display:flex; gap:6px 14px; flex-wrap:wrap; color:#415268; font-size:.84rem; }
     .map-foot span { white-space:nowrap; }
@@ -232,6 +233,7 @@
       <div id="illustration-view" hidden><div class="toolbar" role="group" aria-label="イラスト地図の操作">
         <button type="button" id="zoom-in" aria-label="地図を拡大">＋ 拡大</button><button type="button" id="zoom-out" aria-label="地図を縮小">－ 縮小</button><button type="button" id="zoom-reset">全体を見る</button><button type="button" class="waits-refresh">↻ 待ち時間を更新</button><span id="zoom-level">100%</span><span id="map-status" role="status">待ち時間を読み込み中…</span>
       </div>
+      <p class="notes">全体表示では施設を色付きの点で示します。点を押すと拡大し、待ち時間が数字で表示されます。エリア名からも拡大できます。</p>
       <div id="map-viewport" class="map-viewport" data-zoom="overview" aria-label="USJの地図。ドラッグで移動、ピンチまたはボタンで拡大できます">
         <div id="map-stage" class="map-stage"><img src="/park-map.jpg" alt="運営者制作のUSJエリア地図" draggable="false"><div id="pin-layer" class="pin-layer"></div><div id="area-pins" class="area-pins"></div></div>
       </div>
@@ -397,6 +399,9 @@
       stage.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
       stage.style.setProperty('--inverse-scale',1/scale);
       viewport.dataset.zoom=scale<1.45?'overview':scale<2.15?'pins':'detail';
+      for(const pin of pinLayer.children){
+        pin.setAttribute('aria-label',`${pin.dataset.baseLabel}。${scale<1.45?'拡大して待ち時間を表示':'詳細を表示'}`);
+      }
       document.querySelector('#zoom-level').textContent=`${Math.round(scale*100)}%`;
     }
     function zoomTo(next,clientX,clientY){
@@ -591,9 +596,11 @@
         }
         const label=document.createElement('span');label.className='pin-label';label.textContent=spot.name;
         button.append(label);
-        button.setAttribute('aria-label',`${spot.name}、${/^\d+分$/.test(value)?`${value}待ち`:value}${trend?`。${trend.detail}`:''}。詳細を表示`);
+        button.dataset.baseLabel=`${spot.name}、${/^\d+分$/.test(value)?`${value}待ち`:value}${trend?`。${trend.detail}`:''}`;
+        button.setAttribute('aria-label',`${button.dataset.baseLabel}。${scale<1.45?'拡大して待ち時間を表示':'詳細を表示'}`);
         button.setAttribute('aria-pressed',String(activeSpot===spot));
         button.addEventListener('click',()=>{
+          if(scale<1.45){focusAt(spot.x,spot.y,2.25);return;}
           window.trackSiteEvent?.('map_place_open',{place_type:'ride',ride_id:spotState(spot).ride?.id||spot.ids[0]});
           showSpot(spot);renderPins();
         });
