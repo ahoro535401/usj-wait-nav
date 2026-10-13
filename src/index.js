@@ -61,8 +61,7 @@ const X_POST_TIMES = ['09:30', '12:00', '15:00', '17:00', '19:00'];
 const X_EVENING_FIRST_DAY = '2026-10-09';
 const X_EVENING_LAST_DAY = '2026-11-03';
 const X_DAILY_POST_TIME = '22:30';
-const X_PREVIOUS_DAY_TEST_DATE = '2026-10-10';
-const X_PREVIOUS_DAY_TEST_TIME = '05:30';
+const X_PREVIOUS_DAY_POST_TIME = '05:30';
 const X_POST_WINDOW_SECONDS = 15 * 60;
 const X_WAIT_URL = 'https://uniba-waittimes.com/?utm_source=x&utm_medium=social&utm_campaign=live_waits';
 const X_DAILY_URL = day => `https://uniba-waittimes.com/plan?date=${day}&utm_source=x&utm_medium=social&utm_campaign=daily_recap`;
@@ -390,6 +389,13 @@ function dueDailyXPost(seconds) {
   const day = jstDay(seconds);
   if (day < X_EVENING_FIRST_DAY || day > X_EVENING_LAST_DAY) return false;
   const [hour, minute] = X_DAILY_POST_TIME.split(':').map(Number);
+  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
+  const start = hour * 3600 + minute * 60;
+  return now >= start && now < start + X_POST_WINDOW_SECONDS;
+}
+
+function duePreviousDayXPost(seconds) {
+  const [hour, minute] = X_PREVIOUS_DAY_POST_TIME.split(':').map(Number);
   const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
   const start = hour * 3600 + minute * 60;
   return now >= start && now < start + X_POST_WINDOW_SECONDS;
@@ -725,6 +731,19 @@ function xDailyPost(day, data) {
   return xWeightedLength(post) <= 250 ? post : null;
 }
 
+function xPreviousDayPost(day, data) {
+  if (!Number.isFinite(data.average_wait)) return null;
+  const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
+  if (!peak) return null;
+  const post = `【昨日 ${xDateLabel(day)}のUSJ混雑実績】\n` +
+    `平均待ち時間：${Math.round(data.average_wait)}分\n` +
+    `混雑ピーク：${hhmm(peak.at).slice(0, 2)}時台（平均${Math.round(peak.average_wait)}分）\n` +
+    `時間帯ごとの記録はこちら👇\n${X_DAILY_URL(day)}\n\n` +
+    `※休止・欠測を除いた過去の実績です。\n#USJ #ユニバ #USJ待ち時間`;
+  return xWeightedLength(post) <= 250 ? post : null;
+}
+
 function xDailyReply(data) {
   const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
     Number.isFinite(hour.average_wait));
@@ -737,7 +756,7 @@ function xDailyReply(data) {
   return xWeightedLength(reply) <= 280 ? reply : null;
 }
 
-function xDailyCardPayload(day, data) {
+function xDailyCardPayload(day, data, previousDay = false) {
   const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
     Number.isFinite(hour.average_wait));
   if (hours.length < 2 || !Number.isFinite(data.average_wait)) return null;
@@ -747,7 +766,7 @@ function xDailyCardPayload(day, data) {
   return {
     captured_at: new Date(data.last_at * 1000).toISOString(),
     label: `${xDateLabel(day)}の実績`,
-    title: '今日の混雑実績',
+    title: previousDay ? '昨日の混雑実績' : '今日の混雑実績',
     rows: [
       { name: 'この日の平均待ち時間', wait: Math.round(data.average_wait) },
       { name: `混雑ピーク ${hhmm(peak.at).slice(0, 2)}時台`, wait: Math.round(peak.average_wait) },
@@ -756,42 +775,52 @@ function xDailyCardPayload(day, data) {
   };
 }
 
-async function maybePostDailyX(env, seconds) {
-  if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
-      !dueDailyXPost(seconds)) return;
-  const day = jstDay(seconds);
+async function dailyRecapData(env, day, seconds) {
   const schedule = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?').bind(day).first();
-  if (schedule?.status !== 'OPERATING' || !schedule.opens || !schedule.closes) return;
+  if (schedule?.status !== 'OPERATING' || !schedule.opens || !schedule.closes) return null;
   const opening = Date.parse(`${day}T${schedule.opens}:00+09:00`) / 1000;
   const closing = Date.parse(`${day}T${schedule.closes}:00+09:00`) / 1000;
   if (!Number.isFinite(opening) || !Number.isFinite(closing) || closing <= opening ||
-      seconds < closing + 20 * 60) return;
+      seconds < closing + 20 * 60) return null;
   const coverage = await env.DB.prepare('SELECT COUNT(*) AS count FROM snapshots WHERE captured_at>=? AND captured_at<?')
     .bind(opening, closing).first();
-  if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
+  if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return null;
   const data = await archiveDay(env.DB, day);
-  if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
-      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
-  const post = xDailyPost(day, data);
-  if (!post) return;
+  return data && Number.isFinite(data.average_wait) && data.last_at &&
+    data.first_at <= opening + 40 * 60 && data.last_at >= closing - 40 * 60 ? data : null;
+}
+
+async function japaneseDailyXImage(env, seconds, slot, day, data, previousDay = false) {
   let imageUrl = X_POST_IMAGE;
   let imageAlt = null;
-  const card = xDailyCardPayload(day, data);
+  const card = xDailyCardPayload(day, data, previousDay);
   if (card && env.IMAGES) {
     try {
       const preview = await renderXCard(env, card);
       const bytes = preview.ok && preview.headers.get('Content-Type')?.startsWith('image/png') ?
         (await preview.arrayBuffer()).byteLength : 0;
       if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid recap image: ${preview.status}, ${bytes} bytes`);
-      await writeMeta(env.DB, xCardKey(day, X_DAILY_POST_TIME), JSON.stringify(card));
-      imageUrl = xCardUrl(day, X_DAILY_POST_TIME);
+      await writeMeta(env.DB, xCardKey(jstDay(seconds), slot), JSON.stringify(card));
+      imageUrl = xCardUrl(jstDay(seconds), slot);
       imageAlt = `${card.label}。${card.rows.map(row => `${row.name} ${row.wait}分`).join('、')}。`;
     } catch (error) {
       console.error('X recap card unavailable; using photo', error);
     }
   }
+  return { url: imageUrl, alt: imageAlt };
+}
+
+async function maybePostDailyX(env, seconds) {
+  if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
+      !dueDailyXPost(seconds)) return;
+  const day = jstDay(seconds);
+  const data = await dailyRecapData(env, day, seconds);
+  if (!data) return;
+  const post = xDailyPost(day, data);
+  if (!post) return;
+  const image = await japaneseDailyXImage(env, seconds, X_DAILY_POST_TIME, day, data);
   await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post,
-    new Date(data.last_at * 1000).toISOString(), xDailyReply(data), imageUrl, imageAlt);
+    new Date(data.last_at * 1000).toISOString(), xDailyReply(data), image.url, image.alt);
 }
 
 function englishXEnabled(env) {
@@ -968,6 +997,19 @@ function englishXDailyPost(day, data) {
   return xWeightedLength(post) <= 280 ? post : null;
 }
 
+function englishXPreviousDayPost(day, data) {
+  if (!Number.isFinite(data.average_wait)) return null;
+  const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
+    Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
+  if (!peak) return null;
+  const post = `Yesterday at USJ | ${englishXDate(day)}\n` +
+    `Average standby wait: ${Math.round(data.average_wait)} min\n` +
+    `Busiest hour: ${hhmm(peak.at).slice(0, 2)}:00 (${Math.round(peak.average_wait)} min avg)\n` +
+    `See the recorded waits ↓\n${EN_X_DAILY_URL(day)}\n\n` +
+    `Historical data; closed and missing waits excluded.\n${EN_X_HASHTAGS}`;
+  return xWeightedLength(post) <= 280 ? post : null;
+}
+
 function englishXDailyReply(data) {
   const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
     Number.isFinite(hour.average_wait));
@@ -987,28 +1029,13 @@ function dueEnglishDailyXPost(seconds) {
   return now >= start && now < start + X_POST_WINDOW_SECONDS;
 }
 
-async function maybePostEnglishDailyX(env, seconds) {
-  if (!englishXEnabled(env) || !dueEnglishDailyXPost(seconds)) return;
-  const day = jstDay(seconds);
-  const schedule = await env.DB.prepare('SELECT opens,closes,status FROM park_days WHERE day=?').bind(day).first();
-  if (schedule?.status !== 'OPERATING' || !schedule.opens || !schedule.closes) return;
-  const opening = Date.parse(`${day}T${schedule.opens}:00+09:00`) / 1000;
-  const closing = Date.parse(`${day}T${schedule.closes}:00+09:00`) / 1000;
-  if (!Number.isFinite(opening) || !Number.isFinite(closing) || closing <= opening ||
-      seconds < closing + 20 * 60) return;
-  const coverage = await env.DB.prepare('SELECT COUNT(*) AS count FROM snapshots WHERE captured_at>=? AND captured_at<?')
-    .bind(opening, closing).first();
-  if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
-  const data = await archiveDay(env.DB, day);
-  if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
-      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
-  const post = englishXDailyPost(day, data);
-  if (!post) return;
+function englishDailyCardPayload(day, data, previousDay = false) {
   const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
     Number.isFinite(hour.average_wait)).sort((a, b) => a.average_wait - b.average_wait);
-  const card = {
+  if (hours.length < 2) return null;
+  return {
     language: 'en', captured_at: new Date(data.last_at * 1000).toISOString(),
-    label: `${englishXDate(day)} recap`, title: 'Daily crowd recap',
+    label: `${englishXDate(day)} recap`, title: previousDay ? 'Yesterday at USJ' : 'Daily crowd recap',
     subtitle: 'Historical hourly averages',
     rows: [
       { name: 'Daily average', wait: Math.round(data.average_wait) },
@@ -1016,31 +1043,46 @@ async function maybePostEnglishDailyX(env, seconds) {
       { name: `Quietest: ${hhmm(hours[0].at).slice(0, 2)}:00`, wait: Math.round(hours[0].average_wait) },
     ],
   };
+}
+
+async function maybePostEnglishDailyX(env, seconds) {
+  if (!englishXEnabled(env) || !dueEnglishDailyXPost(seconds)) return;
+  const day = jstDay(seconds);
+  const data = await dailyRecapData(env, day, seconds);
+  if (!data) return;
+  const post = englishXDailyPost(day, data);
+  if (!post) return;
+  const card = englishDailyCardPayload(day, data);
   const image = await englishXImage(env, seconds, X_DAILY_POST_TIME, card);
   await sendBufferPost(env, seconds, X_DAILY_POST_TIME, post,
     new Date(data.last_at * 1000).toISOString(), englishXDailyReply(data), image.url, image.alt, englishXOptions(env));
 }
 
-// 10/9の混雑実績を翌朝に1回だけ配信し、Bufferの認証復旧も確認する。
-async function maybePostPreviousDayTestX(env, seconds) {
+async function maybePostPreviousDayX(env, seconds) {
   if (env.X_AUTOPOST_ENABLED !== 'true' || !env.BUFFER_API_KEY || !env.BUFFER_X_CHANNEL_ID ||
-      jstDay(seconds) !== X_PREVIOUS_DAY_TEST_DATE) return;
-  const now = jstHour(seconds) * 3600 + jstMinute(seconds) * 60 + seconds % 60;
-  const start = 5 * 3600 + 30 * 60;
-  if (now < start || now >= start + X_POST_WINDOW_SECONDS) return;
+      !duePreviousDayXPost(seconds)) return;
+  const day = jstDay(seconds - 86400);
+  const data = await dailyRecapData(env, day, seconds);
+  if (!data) return;
+  const post = xPreviousDayPost(day, data);
+  if (!post) return;
+  const image = await japaneseDailyXImage(env, seconds, X_PREVIOUS_DAY_POST_TIME, day, data, true);
+  await sendBufferPost(env, seconds, X_PREVIOUS_DAY_POST_TIME, post,
+    new Date(data.last_at * 1000).toISOString(), xDailyReply(data), image.url, image.alt);
+}
 
-  const day = '2026-10-09';
-  const opening = Date.parse(`${day}T08:00:00+09:00`) / 1000;
-  const closing = Date.parse(`${day}T22:00:00+09:00`) / 1000;
-  const coverage = await env.DB.prepare('SELECT COUNT(*) AS count FROM snapshots WHERE captured_at>=? AND captured_at<?')
-    .bind(opening, closing).first();
-  if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return;
-  const data = await archiveDay(env.DB, day);
-  if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
-      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return;
-  const post = xDailyPost(day, data);
-  if (post) await sendBufferPost(env, seconds, X_PREVIOUS_DAY_TEST_TIME, post,
-    new Date(data.last_at * 1000).toISOString());
+async function maybePostPreviousDayEnglishX(env, seconds) {
+  if (!englishXEnabled(env) || !duePreviousDayXPost(seconds)) return;
+  const day = jstDay(seconds - 86400);
+  const data = await dailyRecapData(env, day, seconds);
+  if (!data) return;
+  const post = englishXPreviousDayPost(day, data);
+  if (!post) return;
+  const image = await englishXImage(env, seconds, X_PREVIOUS_DAY_POST_TIME,
+    englishDailyCardPayload(day, data, true));
+  await sendBufferPost(env, seconds, X_PREVIOUS_DAY_POST_TIME, post,
+    new Date(data.last_at * 1000).toISOString(), englishXDailyReply(data),
+    image.url, image.alt, englishXOptions(env));
 }
 function parsePollAnalytics(html) {
   const marker = 'var ANALYTICS_LOAD_DATA_ = ';
@@ -1663,9 +1705,10 @@ async function scheduled(event, env) {
         new Date(Date.now() - HOLIDAY_REFRESH_MS + HOLIDAY_RETRY_MS).toISOString());
     }
   }
-  // 閉園後の実績投稿は収集時間外でも実行する。営業時間と記録量が不足すれば見送る。
+  // 閉園後と翌朝の実績投稿は収集時間外でも実行する。営業時間と記録量が不足すれば見送る。
   await maybePostDailyX(env, seconds);
-  await maybePostPreviousDayTestX(env, seconds);
+  await maybePostPreviousDayX(env, seconds).catch(error => console.error('Morning Japanese recap skipped', error));
+  await maybePostPreviousDayEnglishX(env, seconds).catch(error => console.error('Morning English recap skipped', error));
   await maybePostPollX(env, seconds);
   await maybePostEnglishDailyX(env, seconds).catch(error => console.error('English recap skipped', error));
   if (!(await inCollectionWindow(env.DB, seconds))) {
