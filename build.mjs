@@ -69,6 +69,7 @@ const binaryFiles = {
   '/og-photo-labeled.jpg': 'og-photo-labeled.jpg',
   '/x-card-base.png': 'x-card-base.png',
   '/x-card-font.ttf': 'x-card-font.ttf',
+  '/x-card-font-v2.ttf': 'x-card-font-v2.ttf',
   '/poll-campaign-1.jpg': 'poll-campaign-1.jpg',
   '/poll-campaign-2.jpg': 'poll-campaign-2.jpg',
   '/poll-campaign-3.jpg': 'poll-campaign-3.jpg',

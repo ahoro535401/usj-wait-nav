@@ -66,7 +66,7 @@ const X_POST_WINDOW_SECONDS = 15 * 60;
 const X_WAIT_URL = 'https://uniba-waittimes.com/?utm_source=x&utm_medium=social&utm_campaign=live_waits';
 const X_DAILY_URL = day => `https://uniba-waittimes.com/plan?date=${day}&utm_source=x&utm_medium=social&utm_campaign=daily_recap`;
 const X_POST_IMAGE = 'https://uniba-waittimes.com/og-photo-labeled.jpg';
-const X_CARD_FONT = 'https://uniba-waittimes.com/x-card-font.ttf';
+const X_CARD_FONT = 'https://uniba-waittimes.com/x-card-font-v2.ttf';
 const X_POLL_FIRST_DAY = '2026-10-10';
 const X_POLL_LAST_DAY = '2026-11-09';
 const X_POLL_POST_TIME = '13:30';
