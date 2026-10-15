@@ -420,6 +420,7 @@
       if(!ride) return '未取得';
       if(ride.data_unavailable) return '未取得/不明';
       if(!isFresh(ride)) return '未取得/不明';
+      if(ride.operation_status==='DOWN') return '一時休止中';
       if(!ride.is_open) return '休止中';
       return Number.isInteger(ride.wait_time)?`${ride.wait_time}分`:'未取得/不明';
     }
@@ -523,7 +524,7 @@
       const selected=rides.get(schedule.after?schedule.nightId:schedule.dayId);
       let label=waitLabel(selected);
       if(label==='休止中'&&!hasOpenedToday(selected.id)) label=schedule.after?'夜版情報待ち':'運行確認中';
-      return {ride:selected,label,tone:label==='休止中'?'closed':'unknown'};
+      return {ride:selected,label,tone:label==='休止中'||label==='一時休止中'?'closed':'unknown'};
     }
     function appendWalkingRoute(place){
       if(!place||!Number.isFinite(place.lat)||!Number.isFinite(place.lng))return;
@@ -584,7 +585,7 @@
         button.style.left=`${spot.x}%`;button.style.top=`${spot.y}%`;
         button.dataset.tone=state.tone;
         const value=state.label;
-        const short=document.createElement('span');short.className='pin-value';short.textContent=value==='未取得/不明'||value==='未取得'?'不明':value==='休止中'?'休止':value==='運行確認中'?'確認中':value==='夜版情報待ち'?'夜版待ち':value.replace('分','');
+        const short=document.createElement('span');short.className='pin-value';short.textContent=value==='未取得/不明'||value==='未取得'?'不明':value==='休止中'||value==='一時休止中'?'休止':value==='運行確認中'?'確認中':value==='夜版情報待ち'?'夜版待ち':value.replace('分','');
         const trend=twentyMinuteTrend(ride);
         if(/^\d+分$/.test(value)){
           const main=document.createElement('span');main.className='pin-main';main.append(short);

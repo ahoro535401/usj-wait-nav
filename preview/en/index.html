@@ -63,6 +63,8 @@
       body[data-page="today"] #today>.feature-panel.en-extra-filters{order:6;margin:2px 0 7px;padding:8px 11px}
       body[data-page="today"] #today>.muted.small,body[data-page="today"] #today>.notes{order:9}
     }
+    .wait.down{background:#fff0df;color:#85410e}.geo-pin.down{background:#b45d16;color:#fff}
+    @media(prefers-color-scheme:dark){.wait.down{background:#57351e;color:#ffd09b}}
   </style>
   <script src="/analytics.js" defer></script>
   <script src="/en/show-translations.js?v=SHOW_TRANSLATIONS_VERSION"></script>
@@ -99,9 +101,9 @@
     const get = async path => { const response=await fetch(path, path==='/api/waits'||path==='/api/today'?{cache:'no-store'}:undefined); const body=await response.json(); if(!response.ok)throw new Error(body.error||`HTTP ${response.status}`); return body; };
     const waitClass = n => n>=90?'very-high':n>=60?'high':n>=40?'mid':'low';
     const isFresh = ride => { const stamp=Date.parse(ride?.verified_at||ride?.last_updated); const age=(window.__EN_PREVIEW_TIME__||Date.now())-stamp; return Number.isFinite(stamp)&&age>=-120000&&age<=900000; };
-    const waitLabel = ride => !ride||ride.data_unavailable||!isFresh(ride)?'Unknown':ride.is_open&&Number.isInteger(ride.wait_time)?`${ride.wait_time} min`:'Closed';
+    const waitLabel = ride => !ride||ride.data_unavailable||!isFresh(ride)?'Unknown':ride.operation_status==='DOWN'?'Temporarily down':ride.is_open&&Number.isInteger(ride.wait_time)?`${ride.wait_time} min`:'Not operating';
     const available = ride => !!ride&&!ride.data_unavailable&&isFresh(ride)&&ride.is_open&&Number.isInteger(ride.wait_time);
-    const waitBadge = ride => el('span','wait '+(available(ride)?waitClass(ride.wait_time):'unknown'),waitLabel(ride));
+    const waitBadge = ride => el('span','wait '+(ride?.operation_status==='DOWN'&&isFresh(ride)?'down':available(ride)?waitClass(ride.wait_time):'unknown'),waitLabel(ride));
     const showNames = new Map(Object.entries(window.USJ_SHOW_TRANSLATIONS || {}));
     const rideNames = new Map([
       [13925, 'Chainsaw Man: The Chaos 4-D'],
@@ -415,7 +417,7 @@
     function mapPin(place,ride,compact=false){
       const trend=ride?change(ride,20):'—';
       const arrow=trend==='—'?'':` ${trend[0]}`;
-      const button=el('button','geo-pin '+(place.type==='RESTAURANT'?'restaurant':available(ride)?waitClass(ride.wait_time):'unknown'),place.type==='RESTAURANT'?'🍽':waitLabel(ride)+arrow);
+      const button=el('button','geo-pin '+(place.type==='RESTAURANT'?'restaurant':ride?.operation_status==='DOWN'&&isFresh(ride)?'down':available(ride)?waitClass(ride.wait_time):'unknown'),place.type==='RESTAURANT'?'🍽':ride?.operation_status==='DOWN'&&isFresh(ride)?'Down':waitLabel(ride)+arrow);
       if(compact)button.classList.add('is-compact');
       button.type='button';button.title=place.type==='RESTAURANT'?place.name:`${ride?nameOf(ride):place.name}: ${waitLabel(ride)}${trend==='—'?'':'; compared with 20 min ago: '+trend}`;
       button.setAttribute('aria-label',button.title+(compact?'; zoom in to see the wait time':'; show details'));

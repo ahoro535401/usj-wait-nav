@@ -163,6 +163,25 @@ const DISTINCT_RIDES = [
   { externalId: 'usj.usj.rides.jaws', id: 12068, name: 'JAWS' },
   { externalId: 'usj.usj.rides.jaws_discoveru_version_2026', id: 17894, name: 'JAWS: Red Alert' },
 ];
+// Queue-Times IDs and ThemeParks.wiki external IDs are different namespaces.
+// Only an explicit match may turn a missing/old wait into a confirmed DOWN state.
+const WIKI_RIDE_IDS = new Map([
+  [12066, 'despicable_me_minion_mayhem'], [13005, 'conan_4d_live_show'],
+  [12073, 'flight_of_the_hippogriff'], [12072, 'freeze_ray_sliders'],
+  [12065, 'harry_potter_forbidden_journey'], [7065, 'hello_kittys_cupcake_dream'],
+  [7063, 'hello_kittys_ribbon_collection'], [14918, 'illuminations_villain_con_minion_blast'],
+  [12068, 'jaws'], [17894, 'jaws_discoveru_version_2026'],
+  [12067, 'jurassic_park_the_ride'], [15322, 'jurassic_park_the_ride_in_the_dark_2026'],
+  [12061, 'mario_kart_koopas_challenge'], [14402, 'donkey_kong_country_ride'],
+  [12197, 'ollivanders'], [12091, 'playing_with_curious_george'],
+  [12324, 'sadakos_curse_dark_horror_ride_2026'], [7214, 'sing_on_tour'],
+  [14919, 'snoopys_adventure'], [12082, 'space_fantasy_the_ride'],
+  [7092, 'the_flying_dinosaur'], [12075, 'the_flying_snoopy'],
+  [12071, 'yoshis_adventure'], [7077, 'hollywood_dream_the_ride'],
+  [12070, 'hollywood_dream_the_ride_backdrop'],
+  [13925, 'chainsawman_the_chaos_4D_2026'],
+  [17893, 'factory_of_fear_zombie_tour_2026'],
+]);
 const SHOW_NAMES = {
   'usj.usj.shows.minions_belloween_greeting_2026': 'ミニオン・ベロウィーン・グリーティング',
   'usj.usj.shows.zombie_de_dance_2026': 'ゾンビ・デ・ダンス',
@@ -1452,6 +1471,23 @@ function parseRides(queueRaw, wikiRaw, fetchedAt) {
     ride.verified_at = fetchedAt;
     ride.last_updated = item.lastUpdated || null;
   }
+  for (const ride of rides) {
+    const suffix = WIKI_RIDE_IDS.get(ride.id);
+    const item = suffix && (byExternal.get(`usj.usj.rides.${suffix}`) ||
+      byExternal.get(`usj.usj.show.${suffix}`) || byExternal.get(`usj.usj.shows.${suffix}`));
+    if (!item || !['DOWN', 'OPERATING', 'CLOSED'].includes(item.status)) continue;
+    ride.operation_status = item.status;
+    ride.operation_entity_id = item.id;
+    ride.operation_checked_at = fetchedAt;
+    if (item.status === 'DOWN') {
+      ride.is_open = false;
+      ride.wait_time = null;
+      ride.data_unavailable = false;
+      ride.source = 'ThemeParks.wiki';
+      ride.verified_at = fetchedAt;
+      ride.last_updated = item.lastUpdated || null;
+    }
+  }
   return rides;
 }
 
@@ -2213,7 +2249,35 @@ async function attractionWaitTrends(db, rideId, seconds) {
   };
 }
 
-function attractionTrendChart(past, today, english) {
+async function attractionDowntimes(ride, seconds) {
+  if (!/^[0-9a-f-]{36}$/i.test(ride?.operation_entity_id || '')) return [];
+  const date = new Date((seconds + 9 * 3600) * 1000).toISOString().slice(0, 10);
+  const startOfDay = dayStart(seconds);
+  try {
+    const url = `https://api.themeparks.wiki/v1/entity/${ride.operation_entity_id}/history?date=${date}`;
+    const response = await fetch(url, { headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(3500), cf: { cacheEverything: true, cacheTtl: 180 } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (data.id !== ride.operation_entity_id || !Array.isArray(data.history)) return [];
+    const intervals = [];
+    let downAt = null;
+    for (const event of data.history) {
+      const at = Date.parse(event.time) / 1000;
+      if (!Number.isFinite(at) || at < startOfDay || at > seconds + 120) continue;
+      if (event.status === 'DOWN' && downAt === null) downAt = at;
+      else if (event.status !== 'DOWN' && downAt !== null) {
+        if (at > downAt) intervals.push({ start: downAt, end: at });
+        downAt = null;
+      }
+    }
+    // An unclosed historical DOWN is shown only if the latest live status agrees.
+    if (downAt !== null && ride.operation_status === 'DOWN') intervals.push({ start: downAt, end: seconds, ongoing: true });
+    return intervals.slice(0, 12);
+  } catch (_) { return []; }
+}
+
+function attractionTrendChart(past, today, english, downtimes = []) {
   const valid = row => Number.isInteger(Number(row.bin)) && Number(row.bin) >= 0 && Number(row.bin) <= 71 &&
     Number.isFinite(Number(row.average_wait)) && Number(row.average_wait) >= 0;
   const series = [
@@ -2221,9 +2285,11 @@ function attractionTrendChart(past, today, english) {
     { id: 'today', rows: today.filter(valid).sort((a, b) => a.bin - b.bin), color: '#0872cf' },
   ];
   const points = series.flatMap(item => item.rows);
-  if (!points.length) return '';
-  const minBin = Math.max(0, Math.min(...points.map(row => Number(row.bin))) - 3);
-  const maxBin = Math.min(71, Math.max(...points.map(row => Number(row.bin))) + 3);
+  if (!points.length && !downtimes.length) return '';
+  const downBins = downtimes.flatMap(row => [row.start, row.end]
+    .map(at => ((at + 32400) % 86400) / SNAPSHOT_SECONDS));
+  const minBin = Math.max(0, Math.min(...points.map(row => Number(row.bin)), ...downBins) - 3);
+  const maxBin = Math.min(71, Math.max(...points.map(row => Number(row.bin)), ...downBins) + 3);
   const ceiling = Math.max(50, Math.ceil(Math.max(...points.map(row => Number(row.average_wait))) / 50) * 50);
   const left = 52, right = 730, top = 22, bottom = 220;
   const x = bin => left + (Number(bin) - minBin) / Math.max(1, maxBin - minBin) * (right - left);
@@ -2231,6 +2297,12 @@ function attractionTrendChart(past, today, english) {
   const grid = [0, ceiling / 2, ceiling].map(value =>
     `<line class="trend-grid" x1="${left}" x2="${right}" y1="${y(value)}" y2="${y(value)}"/>` +
     `<text class="trend-axis" x="${left - 8}" y="${y(value) + 4}" text-anchor="end">${Math.round(value)}</text>`).join('');
+  const downBands = downtimes.map(row => {
+    const from = Math.max(minBin, ((row.start + 32400) % 86400) / SNAPSHOT_SECONDS);
+    const to = Math.min(maxBin, ((row.end + 32400) % 86400) / SNAPSHOT_SECONDS);
+    if (to <= from) return '';
+    return `<rect class="trend-down-band" x="${x(from).toFixed(1)}" y="${top}" width="${(x(to) - x(from)).toFixed(1)}" height="${bottom - top}"><title>${english ? 'Temporary downtime confirmed by provider history' : '取得元の履歴で確認された一時休止'}</title></rect>`;
+  }).join('');
   const hours = Array.from({ length: Math.floor(maxBin / 3) - Math.ceil(minBin / 3) + 1 },
     (_, index) => Math.ceil(minBin / 3) + index)
     .filter(hour => hour % 3 === 0 || hour === Math.ceil(minBin / 3) || hour === Math.floor(maxBin / 3))
@@ -2254,9 +2326,15 @@ function attractionTrendChart(past, today, english) {
   }).join('');
   return `<figure class="trend-chart"><div class="trend-chart-scroll"><svg viewBox="0 0 760 260" role="img" aria-label="${english ?
     '20-minute recorded waits today compared with the previous 7-day same-time average' : '本日の20分ごとの待ち時間と過去7日の同時刻平均の比較'}">` +
-    `${grid}<line class="trend-grid" x1="${left}" x2="${left}" y1="${top}" y2="${bottom}"/>${hours}${lines}</svg></div>` +
+    `${grid}${downBands}<line class="trend-grid" x1="${left}" x2="${left}" y1="${top}" y2="${bottom}"/>${hours}${lines}</svg></div>` +
     `<figcaption><span class="trend-legend trend-legend-today">${english ? 'Today: every 20 min' : '本日：20分ごとの記録値'}</span>` +
     `<span class="trend-legend trend-legend-past">${english ? 'Previous 7 days: same-time average' : '過去7日：同時刻の平均'}</span>` +
+    (downtimes.length ? `<span class="trend-down-note">${english ? 'Orange: provider-recorded downtime' : '橙色：取得元が記録した一時休止'}（${downtimes.map(row => {
+      const format = at => new Intl.DateTimeFormat(english ? 'en-GB' : 'ja-JP', {
+        timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false,
+      }).format(new Date(at * 1000));
+      return `${format(row.start)}–${row.ongoing ? english ? 'ongoing' : '継続中' : format(row.end)}`;
+    }).join('、')}）</span>` : '') +
     `<span class="muted">${english ? 'Vertical axis: wait (min). Horizontal axis: JST. Scroll sideways for later hours.' : '縦軸：待ち時間（分）／横軸：日本時間。左右にスクロールして後の時間帯も見られます。'}</span></figcaption></figure>`;
 }
 
@@ -2287,7 +2365,8 @@ async function renderAttractionPage(request, env, item, english) {
     now - fetched >= -120000 && now - fetched <= 900000 &&
     now - verified >= -120000 && now - verified <= 900000;
   const currentText = !fresh ? (english ? 'Current wait unavailable' : '現在の待ち時間は確認できません')
-    : ride.is_open && Number.isInteger(ride.wait_time)
+    : ride.operation_status === 'DOWN' ? (english ? 'Temporarily down' : '一時休止中')
+      : ride.is_open && Number.isInteger(ride.wait_time)
       ? (english ? `${ride.wait_time} min` : `${ride.wait_time}分`)
       : ride.is_open ? (english ? 'Standby wait unavailable' : '通常待ち列の時間は確認できません')
         : (english ? 'Not operating according to the data provider' : '提供元では運行していない表示です');
@@ -2295,11 +2374,12 @@ async function renderAttractionPage(request, env, item, english) {
     timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(verified)) : null;
-  let comparisons = [], trends = { past: [], today: [], pastHourly: [], todayHourly: [] };
+  let comparisons = [], downtimes = [], trends = { past: [], today: [], pastHourly: [], todayHourly: [] };
   try {
-    [comparisons, trends] = await Promise.all([
+    [comparisons, trends, downtimes] = await Promise.all([
       fresh ? attractionComparisons(env.DB, ride, fetchedAt, previousRaw) : [],
       attractionWaitTrends(env.DB, item.id, Math.floor(now / 1000)),
+      attractionDowntimes(ride, Math.floor(now / 1000)),
     ]);
   } catch (error) { console.warn('Attraction history unavailable', error); }
   const comparisonList = [5, 20, 60].map(minutes => {
@@ -2349,13 +2429,14 @@ async function renderAttractionPage(request, env, item, english) {
     `table{width:100%;border-collapse:collapse}th,td{padding:8px;text-align:left;border-bottom:1px solid #d8e1eb}` +
     `.trend-chart{margin:16px 0}.trend-chart-scroll{overflow-x:auto}.trend-chart svg{display:block;width:760px;height:auto}` +
     `.trend-grid{stroke:#d6e0ea;stroke-width:1}.trend-axis{fill:#506079;font:13px system-ui,sans-serif}` +
+    `.trend-down-band{fill:#d87922;opacity:.26}.trend-down-note{color:#9b4c0d;font-weight:700}` +
     `.trend-series{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}` +
     `.trend-series circle{fill:white;stroke-width:3}.trend-chart figcaption{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}` +
     `.trend-legend:before{content:'';display:inline-block;width:20px;margin-right:6px;vertical-align:middle;border-top:3px solid}` +
     `.trend-legend-today:before{border-color:#0872cf}.trend-legend-past:before{border-color:#66758a}` +
     `@media(prefers-color-scheme:dark){body{background:#121d2a;color:#eef4fc}section{background:#1c2b3b;border-color:#40546c}` +
     `a{color:#9dcbff}.muted{color:#b9c9d8}.comparison li{background:#283c51}th,td{border-color:#40546c}` +
-    `.trend-grid{stroke:#40546c}.trend-axis{fill:#b9c9d8}.trend-series circle{fill:#1c2b3b}}</style></head><body>` +
+    `.trend-grid{stroke:#40546c}.trend-axis{fill:#b9c9d8}.trend-series circle{fill:#1c2b3b}.trend-down-note{color:#ffbd85}}</style></head><body>` +
     `<header><a href="${english ? '/en/' : '/'}">${english ? 'USJ Wait Times Guide' : 'USJ待ち時間ナビ'}</a>` +
     `<a href="${english ? jaPath : enPath}" hreflang="${english ? 'ja' : 'en'}">${english ? '日本語' : 'English'}</a></header>` +
     `<main><nav aria-label="${english ? 'Breadcrumb' : 'パンくずリスト'}"><a href="${english ? '/en/' : '/'}">${english ? 'Today at the park' : '今日のパーク'}</a> › ${escapeHtml(name)}</nav>` +
@@ -2373,7 +2454,7 @@ async function renderAttractionPage(request, env, item, english) {
     `<p class="muted">${english ? 'Closures, missing data and inferred values are excluded. These values are not 5, 20 or 60-minute changes or forecasts.' :
       '休止・欠測・推定値は除外しています。5分・20分・1時間前比の増減値や将来の予測ではありません。'}</p>` +
     (todayTwentyMinute.length ? '' : `<p class="muted">${english ? 'No 20-minute wait record for today yet. The blue line will appear when observations are available.' : '本日の20分記録はまだありません。記録が入り次第、青い線を表示します。'}</p>`) +
-    attractionTrendChart(pastTwentyMinute, todayTwentyMinute, english) +
+    attractionTrendChart(pastTwentyMinute, todayTwentyMinute, english, downtimes) +
     `<h3>${english ? 'Hourly average waits (reference)' : '1時間ごとの平均待ち時間（参考）'}</h3>` +
     `<p>${english ? 'The table and busiest-hour summary below average recorded waits within each one-hour band. This smooths the 20-minute changes shown in the chart.' : '以下の表と最も混んだ時間帯は、各1時間枠内の記録を平均した参考値です。上のグラフより短時間の変化は見えにくくなります。'}</p>` +
     `<p>${english ? 'Busiest historical hour' : '過去7日で平均待ち時間が最も長かった時間帯'}: <strong>${escapeHtml(peakText)}</strong></p>` +

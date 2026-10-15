@@ -179,6 +179,7 @@
     .heatmap-legend .heat-3::before { background: #bd7024; }
     .heatmap-legend .heat-4::before { background: #ae4052; }
     .heatmap-legend .heat-empty::before { background: #7b899a; }
+    .heatmap-legend .heat-down::before { background: #d87922; }
     .heatmap-legend .heat-unknown::before { background: repeating-linear-gradient(135deg, #748498, #748498 2px, #e6ebf0 2px, #e6ebf0 4px); }
     .heatmap-scroll { max-height: 650px; overflow: auto; border: 1px solid #dce4ed; border-radius: 9px; }
     .heatmap-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: .86rem; }
@@ -273,6 +274,7 @@
     .heat-3 { background: #ffd09b; color: #733d00; }
     .heat-4 { background: #f5a5a5; color: #722525; }
     .heat-empty { background: #f4f6f8; color: #687584; }
+    .heat-down { background: #fff0df; color: #85410e; font-weight: 800; }
     .heat-unknown { background: repeating-linear-gradient(135deg, #fff, #fff 6px, #f0f2f5 6px, #f0f2f5 12px); color: #5d6873; }
     .events-panel h2 { margin: 0 0 6px; font-size: 1.35rem; }
     .events-panel h3 { margin: 20px 0 9px; font-size: 1rem; }
@@ -467,6 +469,7 @@
     :root[data-theme="dark"] .heat-3 { background: #57360f; color: #ffc98a; }
     :root[data-theme="dark"] .heat-4 { background: #5a2222; color: #ffb4b4; }
     :root[data-theme="dark"] .heat-empty { background: #1d2730; color: #9aa8b6; }
+    :root[data-theme="dark"] .heat-down { background: #57351e; color: #ffd09b; }
     :root[data-theme="dark"] .heat-unknown { background: repeating-linear-gradient(135deg, #17212c, #17212c 6px, #1f2b37 6px, #1f2b37 12px); color: #9aa8b6; }
     :root[data-theme="dark"] .trend-up { color: #ff8a80; }
     :root[data-theme="dark"] .trend-down { color: #6fd3a0; }
@@ -819,7 +822,7 @@
     <p id="sort-note" class="muted sort-note">★お気に入りを先頭に表示し、それぞれ現在の待ち時間が長い順で並べます。未取得・休止中は末尾です。</p>
     <p class="muted">★でお気に入り登録できます（この端末のブラウザに保存され、閲覧履歴の削除やプライベートブラウズでは消える場合があります）。絞り込みは下の過去の表にも反映します。身長条件が公式一覧で確認できない施設は、身長で絞ると表示されません。122cm未満では付き添いなど別の条件がある場合があります。<a href="https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction" target="_blank" rel="noopener noreferrer">公式の身長制限</a>・<a href="https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch" target="_blank" rel="noopener noreferrer">チャイルドスイッチ</a>で必ず確認してください。</p>
     <div class="heatmap-legend" aria-label="待ち時間の色分け">
-      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-empty">休＝休止</span><span class="heat-empty">—＝記録なし</span><span class="heat-unknown">未取得／不明</span>
+      <span class="heat-0">0〜19分</span><span class="heat-1">20〜39分</span><span class="heat-2">40〜59分</span><span class="heat-3">60〜89分</span><span class="heat-4">90分以上</span><span class="heat-down">休止中＝取得元がDOWNを確認</span><span class="heat-empty">休＝非運行の記録</span><span class="heat-empty">—＝記録なし</span><span class="heat-unknown">未取得／不明</span>
     </div>
     </details>
     <div id="list-state" class="list-state" role="status">
@@ -2205,9 +2208,12 @@
         }
       }
       if (!sample.is_open) {
-        cell.className = 'heat-empty';
-        cell.textContent = '休';
-        cell.title = `${label}：休止中`;
+        const confirmedDown = isCurrent && sample.operation_status === 'DOWN';
+        const checkedAt = Date.parse(sample.operation_checked_at);
+        cell.className = confirmedDown ? 'heat-down' : 'heat-empty';
+        cell.textContent = confirmedDown ? '一時休止中' : '休';
+        cell.title = confirmedDown ? `${label}：取得元が一時休止を確認${Number.isFinite(checkedAt) ? `（${timeFormat.format(new Date(checkedAt))}時点）` : ''}`
+          : `${label}：提供元では運行していない表示です`;
         return cell;
       }
       const wait = isCurrent ? sample.wait_time : sample.wait_minutes;
@@ -3602,7 +3608,7 @@
       const isWaitCell = cell => /^heat-[0-4]$/.test(cell.className);
       const currentRank = ride => {
         const cell = currentCells.get(ride.id);
-        if (cell.textContent === '休') return 2;
+        if (cell.textContent === '休' || cell.className === 'heat-down') return 2;
         return isWaitCell(cell) ? 0 : 1;
       };
       const query = (rideSearch?.value || '').trim().normalize('NFKC').toLocaleLowerCase('ja');
@@ -3828,7 +3834,8 @@
       if (!ride) return;
       const comparison = currentData.comparisons?.[ride.id] ?? {};
       const open = !ride.data_unavailable && ride.is_open && Number.isFinite(ride.wait_time);
-      currentValue.textContent = ride.data_unavailable ? '確認できません' : open ? `${ride.wait_time}分` : '休止中';
+      currentValue.textContent = ride.data_unavailable ? '確認できません' : ride.operation_status === 'DOWN'
+        ? '一時休止中' : open ? `${ride.wait_time}分` : '運行していない表示';
       const isWiki = ride.source === 'ThemeParks.wiki';
       const updated = new Date(isWiki ? ride.verified_at : ride.last_updated);
       currentDetail.textContent = Number.isNaN(updated.getTime()) ? '提供元の時刻不明'
