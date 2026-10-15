@@ -2249,32 +2249,34 @@ async function attractionWaitTrends(db, rideId, seconds) {
   };
 }
 
-async function attractionDowntimes(ride, seconds) {
-  if (!/^[0-9a-f-]{36}$/i.test(ride?.operation_entity_id || '')) return [];
-  const date = new Date((seconds + 9 * 3600) * 1000).toISOString().slice(0, 10);
-  const startOfDay = dayStart(seconds);
+async function attractionDowntimes(ride, seconds, dayOffset = 0) {
+  if (!/^[0-9a-f-]{36}$/i.test(ride?.operation_entity_id || '')) return null;
+  const startOfDay = dayStart(seconds) - dayOffset * 86400;
+  const date = new Date((startOfDay + 9 * 3600) * 1000).toISOString().slice(0, 10);
+  const endOfDay = startOfDay + 86400;
   try {
     const url = `https://api.themeparks.wiki/v1/entity/${ride.operation_entity_id}/history?date=${date}`;
     const response = await fetch(url, { headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(3500), cf: { cacheEverything: true, cacheTtl: 180 } });
-    if (!response.ok) return [];
+      signal: AbortSignal.timeout(3500), cf: { cacheEverything: true, cacheTtl: dayOffset ? 86400 : 180 } });
+    if (!response.ok) return null;
     const data = await response.json();
-    if (data.id !== ride.operation_entity_id || !Array.isArray(data.history)) return [];
+    if (data.id !== ride.operation_entity_id || !Array.isArray(data.history)) return null;
     const intervals = [];
     let downAt = null;
-    for (const event of data.history) {
+    for (const event of [...data.history].sort((a, b) => Date.parse(a.time) - Date.parse(b.time))) {
       const at = Date.parse(event.time) / 1000;
-      if (!Number.isFinite(at) || at < startOfDay || at > seconds + 120) continue;
+      if (!Number.isFinite(at) || at < startOfDay || at >= endOfDay || (!dayOffset && at > seconds + 120)) continue;
       if (event.status === 'DOWN' && downAt === null) downAt = at;
       else if (event.status !== 'DOWN' && downAt !== null) {
-        if (at > downAt) intervals.push({ start: downAt, end: at });
+        if (at > downAt) intervals.push({ start: downAt, end: at, endedWithStatus: event.status });
         downAt = null;
       }
     }
     // An unclosed historical DOWN is shown only if the latest live status agrees.
-    if (downAt !== null && ride.operation_status === 'DOWN') intervals.push({ start: downAt, end: seconds, ongoing: true });
+    if (downAt !== null && !dayOffset && ride.operation_status === 'DOWN') intervals.push({ start: downAt, end: seconds, ongoing: true });
+    if (downAt !== null && dayOffset) intervals.push({ start: downAt, end: null, endUnconfirmed: true });
     return intervals.slice(0, 12);
-  } catch (_) { return []; }
+  } catch (_) { return null; }
 }
 
 function attractionTrendChart(past, today, english, downtimes = []) {
@@ -2374,14 +2376,37 @@ async function renderAttractionPage(request, env, item, english) {
     timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(verified)) : null;
-  let comparisons = [], downtimes = [], trends = { past: [], today: [], pastHourly: [], todayHourly: [] };
+  const nowSeconds = Math.floor(now / 1000);
+  const pastDates = Array.from({ length: 7 }, (_, index) => {
+    const start = dayStart(nowSeconds) - (index + 1) * 86400;
+    return new Date((start + 9 * 3600) * 1000).toISOString().slice(0, 10);
+  });
+  const requestedPastDate = new URL(request.url).searchParams.get('history');
+  const selectedPastDate = pastDates.includes(requestedPastDate) ? requestedPastDate : pastDates[0];
+  const pastDayOffset = pastDates.indexOf(selectedPastDate) + 1;
+  const historyRide = ride?.operation_entity_id ? ride : { operation_entity_id: item.operation_entity_id };
+  let comparisons = [], downtimes = null, pastDowntimes = null;
+  let trends = { past: [], today: [], pastHourly: [], todayHourly: [] };
   try {
-    [comparisons, trends, downtimes] = await Promise.all([
+    [comparisons, trends, downtimes, pastDowntimes] = await Promise.all([
       fresh ? attractionComparisons(env.DB, ride, fetchedAt, previousRaw) : [],
-      attractionWaitTrends(env.DB, item.id, Math.floor(now / 1000)),
-      attractionDowntimes(ride, Math.floor(now / 1000)),
+      attractionWaitTrends(env.DB, item.id, nowSeconds),
+      attractionDowntimes(historyRide, nowSeconds),
+      attractionDowntimes(historyRide, nowSeconds, pastDayOffset),
     ]);
   } catch (error) { console.warn('Attraction history unavailable', error); }
+  const formatDowntime = at => new Intl.DateTimeFormat(english ? 'en-GB' : 'ja-JP', {
+    timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date(at * 1000));
+  const pastDateLinks = pastDates.map(date => `<a href="${path}?history=${date}"${date === selectedPastDate ? ' aria-current="date"' : ''}>${date.slice(5).replace('-', '/')}</a>`).join(' ');
+  const pastDowntimeText = pastDowntimes === null
+    ? (english ? 'Provider history could not be verified for this date.' : 'この日の取得元の運行履歴は確認できませんでした。')
+    : pastDowntimes.length ? pastDowntimes.map(row => row.endUnconfirmed
+      ? `${formatDowntime(row.start)}${english ? ' onward (no restart recorded)' : '以降（再開記録なし）'}`
+      : `${formatDowntime(row.start)}–${formatDowntime(row.end)}` +
+        (row.endedWithStatus === 'CLOSED' ? (english ? ' (then closed)' : '（その後、閉園状態）') : ''))
+      .join(english ? ', ' : '、')
+      : (english ? 'No downtime is recorded in the available provider history for this date.' : '取得できた履歴には、この日の運行休止の記録はありません。');
   const comparisonList = [5, 20, 60].map(minutes => {
     const match = comparisons.find(row => row.minutes === minutes);
     const label = english ? `${minutes === 60 ? '1 hour' : `${minutes} min`} ago` :
@@ -2434,9 +2459,13 @@ async function renderAttractionPage(request, env, item, english) {
     `.trend-series circle{fill:white;stroke-width:3}.trend-chart figcaption{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}` +
     `.trend-legend:before{content:'';display:inline-block;width:20px;margin-right:6px;vertical-align:middle;border-top:3px solid}` +
     `.trend-legend-today:before{border-color:#0872cf}.trend-legend-past:before{border-color:#66758a}` +
+    `.past-downtime{border-top:1px solid #d8e1eb;margin-top:20px;padding-top:8px}.past-downtime nav{display:flex;gap:8px;flex-wrap:wrap}` +
+    `.past-downtime nav a{display:inline-block;padding:4px 9px;border:1px solid #ced9e6;border-radius:8px}` +
+    `.past-downtime nav a[aria-current]{background:#075aab;color:#fff;border-color:#075aab;font-weight:700}` +
     `@media(prefers-color-scheme:dark){body{background:#121d2a;color:#eef4fc}section{background:#1c2b3b;border-color:#40546c}` +
     `a{color:#9dcbff}.muted{color:#b9c9d8}.comparison li{background:#283c51}th,td{border-color:#40546c}` +
-    `.trend-grid{stroke:#40546c}.trend-axis{fill:#b9c9d8}.trend-series circle{fill:#1c2b3b}.trend-down-note{color:#ffbd85}}</style></head><body>` +
+    `.trend-grid{stroke:#40546c}.trend-axis{fill:#b9c9d8}.trend-series circle{fill:#1c2b3b}.trend-down-note{color:#ffbd85}` +
+    `.past-downtime{border-color:#40546c}.past-downtime nav a{border-color:#62758b}}</style></head><body>` +
     `<header><a href="${english ? '/en/' : '/'}">${english ? 'USJ Wait Times Guide' : 'USJ待ち時間ナビ'}</a>` +
     `<a href="${english ? jaPath : enPath}" hreflang="${english ? 'ja' : 'en'}">${english ? '日本語' : 'English'}</a></header>` +
     `<main><nav aria-label="${english ? 'Breadcrumb' : 'パンくずリスト'}"><a href="${english ? '/en/' : '/'}">${english ? 'Today at the park' : '今日のパーク'}</a> › ${escapeHtml(name)}</nav>` +
@@ -2454,7 +2483,11 @@ async function renderAttractionPage(request, env, item, english) {
     `<p class="muted">${english ? 'Closures, missing data and inferred values are excluded. These values are not 5, 20 or 60-minute changes or forecasts.' :
       '休止・欠測・推定値は除外しています。5分・20分・1時間前比の増減値や将来の予測ではありません。'}</p>` +
     (todayTwentyMinute.length ? '' : `<p class="muted">${english ? 'No 20-minute wait record for today yet. The blue line will appear when observations are available.' : '本日の20分記録はまだありません。記録が入り次第、青い線を表示します。'}</p>`) +
-    attractionTrendChart(pastTwentyMinute, todayTwentyMinute, english, downtimes) +
+    attractionTrendChart(pastTwentyMinute, todayTwentyMinute, english, downtimes || []) +
+    `<div class="past-downtime"><h3>${english ? 'Past ride downtime' : '過去の運行休止記録'}</h3>` +
+    `<nav aria-label="${english ? 'Select a past date' : '過去の日付を選択'}">${pastDateLinks}</nav>` +
+    `<p><strong>${selectedPastDate}</strong> · ${escapeHtml(pastDowntimeText)}</p>` +
+    `<p class="muted">${english ? 'Based on the provider’s status history for this attraction. An unrecorded restart has no confirmed end time. The gray line above averages seven days and does not show downtime for one specific date.' : 'この施設の取得元の状態履歴に基づきます。再開記録がない場合は終了時刻を確定できません。上の灰色の線は過去7日の平均で、特定の日の休止を表すものではありません。'}</p></div>` +
     `<h3>${english ? 'Hourly average waits (reference)' : '1時間ごとの平均待ち時間（参考）'}</h3>` +
     `<p>${english ? 'The table and busiest-hour summary below average recorded waits within each one-hour band. This smooths the 20-minute changes shown in the chart.' : '以下の表と最も混んだ時間帯は、各1時間枠内の記録を平均した参考値です。上のグラフより短時間の変化は見えにくくなります。'}</p>` +
     `<p>${english ? 'Busiest historical hour' : '過去7日で平均待ち時間が最も長かった時間帯'}: <strong>${escapeHtml(peakText)}</strong></p>` +

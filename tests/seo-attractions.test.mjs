@@ -141,6 +141,8 @@ test('stale values, unknown slugs and sitemap behave safely', async () => {
 
 test('confirmed downtime is labelled separately from missing chart observations in both languages', async () => {
   const day = new Date(now + 9 * 3600000).toISOString().slice(0, 10);
+  const yesterday = new Date(Date.parse(`${day}T00:00:00+09:00`) - 86400000 + 9 * 3600000).toISOString().slice(0, 10);
+  const earlier = new Date(Date.parse(`${day}T00:00:00+09:00`) - 2 * 86400000 + 9 * 3600000).toISOString().slice(0, 10);
   const testNow = Date.parse(`${day}T12:00:00+09:00`);
   const testFetchedAt = new Date(testNow - 60000).toISOString();
   const originalNow = Date.now;
@@ -148,15 +150,19 @@ test('confirmed downtime is labelled separately from missing chart observations 
   values.set('rides_fetched_at', testFetchedAt);
   const entityId = 'e1bee688-c11a-477a-bec3-866037d2601d';
   const down = `${day}T08:18:47+09:00`, resumed = `${day}T08:57:44+09:00`;
+  const yesterdayDown = `${yesterday}T13:10:00+09:00`, yesterdayResumed = `${yesterday}T13:45:00+09:00`;
+  const earlierDown = `${earlier}T08:03:00+09:00`, earlierClosed = `${earlier}T22:02:00+09:00`;
   values.set('rides_payload', JSON.stringify([{ ...ride, id: 14402,
     last_updated: new Date(testNow - 90000).toISOString(), operation_entity_id: entityId,
     operation_status: 'OPERATING', operation_checked_at: testFetchedAt }]));
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async url => {
-    assert.match(String(url), new RegExp(`/entity/${entityId}/history\\?date=${day}`));
+    assert.match(String(url), new RegExp(`/entity/${entityId}/history\\?date=(?:${day}|${yesterday}|${earlier})`));
+    const historical = String(url).includes(`date=${yesterday}`);
+    const closed = String(url).includes(`date=${earlier}`);
     return Response.json({ id: entityId, history: [
-      { time: new Date(down).toISOString(), status: 'DOWN' },
-      { time: new Date(resumed).toISOString(), status: 'OPERATING' },
+      { time: new Date(closed ? earlierDown : historical ? yesterdayDown : down).toISOString(), status: 'DOWN' },
+      { time: new Date(closed ? earlierClosed : historical ? yesterdayResumed : resumed).toISOString(), status: closed ? 'CLOSED' : 'OPERATING' },
     ] });
   };
   try {
@@ -164,8 +170,15 @@ test('confirmed downtime is labelled separately from missing chart observations 
     const en = await (await get('/en/attraction/donkey-kong-country-ride')).text();
     assert.match(ja, /class="trend-down-band"/);
     assert.match(ja, /08:18–08:57/);
+    assert.match(ja, /過去の運行休止記録/);
+    assert.match(ja, new RegExp(`${yesterday}.*13:10–13:45`));
+    assert.match(ja, /上の灰色の線は過去7日の平均/);
     assert.match(en, /provider-recorded downtime/);
     assert.match(en, /08:18–08:57/);
+    assert.match(en, /Past ride downtime/);
+    assert.match(en, new RegExp(`${yesterday}.*13:10–13:45`));
+    const pastClosed = await (await get(`/attraction/donkey-kong-country-ride?history=${earlier}`)).text();
+    assert.match(pastClosed, new RegExp(`${earlier}.*08:03–22:02（その後、閉園状態）`));
     values.set('rides_payload', JSON.stringify([{ ...ride, id: 14402, is_open: false,
       wait_time: null, source: 'ThemeParks.wiki', verified_at: testFetchedAt,
       operation_entity_id: entityId, operation_status: 'DOWN', operation_checked_at: testFetchedAt }]));
