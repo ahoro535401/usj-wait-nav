@@ -736,10 +736,17 @@ async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null
   }
 }
 
+function recapHours(data) {
+  const opening = data.opening_at;
+  const closing = data.closing_at;
+  if (!Number.isFinite(opening) || !Number.isFinite(closing) || closing <= opening) return [];
+  return data.hours.filter(hour => hour.at >= opening && hour.at + 3600 <= closing &&
+    hour.snapshots >= 2 && hour.ride_count >= 5 && Number.isFinite(hour.average_wait));
+}
+
 function xDailyPost(day, data) {
   if (!Number.isFinite(data.average_wait)) return null;
-  const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
+  const peak = recapHours(data).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const date = xDateLabel(day);
   const post = `【USJ ${date}｜非公式】ピークは${hhmm(peak.at).slice(0, 2)}時台、平均${Math.round(peak.average_wait)}分。\n${X_DAILY_URL(day)}\n\n` +
@@ -752,8 +759,7 @@ function xDailyPost(day, data) {
 
 function xPreviousDayPost(day, data) {
   if (!Number.isFinite(data.average_wait)) return null;
-  const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
+  const peak = recapHours(data).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const post = `【昨日 ${xDateLabel(day)}のUSJ混雑実績】\n` +
     `平均待ち時間：${Math.round(data.average_wait)}分\n` +
@@ -764,8 +770,7 @@ function xPreviousDayPost(day, data) {
 }
 
 function xDailyReply(data) {
-  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait));
+  const hours = recapHours(data);
   if (hours.length < 2) return null;
   const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
   const quiet = ranked[0];
@@ -776,8 +781,7 @@ function xDailyReply(data) {
 }
 
 function xDailyCardPayload(day, data, previousDay = false) {
-  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait));
+  const hours = recapHours(data);
   if (hours.length < 2 || !Number.isFinite(data.average_wait)) return null;
   const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
   const quiet = ranked[0];
@@ -806,7 +810,8 @@ async function dailyRecapData(env, day, seconds) {
   if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return null;
   const data = await archiveDay(env.DB, day);
   return data && Number.isFinite(data.average_wait) && data.last_at &&
-    data.first_at <= opening + 40 * 60 && data.last_at >= closing - 40 * 60 ? data : null;
+    data.first_at <= opening + 40 * 60 && data.last_at >= closing - 40 * 60 ?
+    { ...data, opening_at: opening, closing_at: closing } : null;
 }
 
 async function japaneseDailyXImage(env, seconds, slot, day, data, previousDay = false) {
@@ -1006,8 +1011,7 @@ async function maybePostEnglishX(env, seconds) {
 
 function englishXDailyPost(day, data) {
   if (!Number.isFinite(data.average_wait)) return null;
-  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait));
+  const hours = recapHours(data);
   const peak = [...hours].sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const post = `USJ crowd recap | ${englishXDate(day)}\nBusiest hour: ${hhmm(peak.at).slice(0, 2)}:00 (${Math.round(peak.average_wait)} min average) ↓\n` +
@@ -1018,8 +1022,7 @@ function englishXDailyPost(day, data) {
 
 function englishXPreviousDayPost(day, data) {
   if (!Number.isFinite(data.average_wait)) return null;
-  const peak = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait)).sort((a, b) => b.average_wait - a.average_wait)[0];
+  const peak = recapHours(data).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const post = `Yesterday at USJ | ${englishXDate(day)}\n` +
     `Average standby wait: ${Math.round(data.average_wait)} min\n` +
@@ -1030,8 +1033,7 @@ function englishXPreviousDayPost(day, data) {
 }
 
 function englishXDailyReply(data) {
-  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait));
+  const hours = recapHours(data);
   if (hours.length < 2) return null;
   const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
   const quiet = ranked[0];
@@ -1049,8 +1051,7 @@ function dueEnglishDailyXPost(seconds) {
 }
 
 function englishDailyCardPayload(day, data, previousDay = false) {
-  const hours = data.hours.filter(hour => hour.snapshots >= 2 && hour.ride_count >= 5 &&
-    Number.isFinite(hour.average_wait)).sort((a, b) => a.average_wait - b.average_wait);
+  const hours = recapHours(data).sort((a, b) => a.average_wait - b.average_wait);
   if (hours.length < 2) return null;
   return {
     language: 'en', captured_at: new Date(data.last_at * 1000).toISOString(),

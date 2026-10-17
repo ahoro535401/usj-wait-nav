@@ -14,11 +14,14 @@ vm.runInContext(source, context, { filename: 'src/index.js' });
 const at = value => Date.parse(value) / 1000;
 const sample = {
   average_wait: 52,
+  opening_at: at('2026-10-13T08:00:00+09:00'),
+  closing_at: at('2026-10-13T22:00:00+09:00'),
   first_at: at('2026-10-13T08:20:00+09:00'),
   last_at: at('2026-10-13T21:40:00+09:00'),
   hours: [
     { at: at('2026-10-13T09:00:00+09:00'), snapshots: 3, ride_count: 12, average_wait: 43 },
     { at: at('2026-10-13T17:00:00+09:00'), snapshots: 3, ride_count: 12, average_wait: 75 },
+    { at: at('2026-10-13T22:00:00+09:00'), snapshots: 2, ride_count: 12, average_wait: 10 },
   ],
 };
 
@@ -79,6 +82,8 @@ test('05:30 JST posts the previous date to both language channels', async () => 
   assert.equal(sent[1][8].channelId, 'en-channel');
   assert.equal(sent[1][8].keyPrefix, 'buffer_en_x');
   assert.ok(sent.every(args => args[5])); // both languages have a recap reply
+  assert.match(sent[0][5], /比較的空いていたのは09時台/);
+  assert.match(sent[1][5], /quietest recorded hour was 09:00/);
   assert.equal(context.xDailyCardPayload('2026-10-13', sample, true).title, '昨日の混雑実績');
   assert.equal(context.englishDailyCardPayload('2026-10-13', sample, true).title, 'Yesterday at USJ');
 });
@@ -99,6 +104,26 @@ test('the 05:30 cards describe yesterday in both languages', async () => {
   assert.deepEqual(stored.map(item => item.key), ['xcard_2026-10-14_0530', 'xcard_en_2026-10-14_0530']);
   assert.equal(stored[0].card.title, '昨日の混雑実績');
   assert.equal(stored[1].card.title, 'Yesterday at USJ');
+  assert.equal(stored[0].card.rows[2].name, '比較的空いた 09時台');
+  assert.equal(stored[1].card.rows[2].name, 'Quietest: 09:00');
+});
+
+test('recap ranking excludes hours after closing and partially open hours', () => {
+  const partialClosing = {
+    ...sample,
+    opening_at: at('2026-10-13T08:30:00+09:00'),
+    closing_at: at('2026-10-13T21:30:00+09:00'),
+    hours: [
+      { at: at('2026-10-13T08:00:00+09:00'), snapshots: 2, ride_count: 12, average_wait: 5 },
+      ...sample.hours,
+      { at: at('2026-10-13T21:00:00+09:00'), snapshots: 2, ride_count: 12, average_wait: 4 },
+    ],
+  };
+  assert.equal(context.xDailyCardPayload('2026-10-13', partialClosing, true).rows[2].name,
+    '比較的空いた 09時台');
+  assert.equal(context.englishDailyCardPayload('2026-10-13', partialClosing, true).rows[2].name,
+    'Quietest: 09:00');
+  assert.doesNotMatch(context.xDailyReply(partialClosing), /08時台|21時台|22時台/);
 });
 
 test('the morning window and data quality gates prevent a stale recap', async () => {
