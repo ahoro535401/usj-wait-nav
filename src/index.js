@@ -2222,14 +2222,19 @@ async function attractionComparisons(db, ride, fetchedAt, previousRaw) {
 async function attractionWaitTrends(db, rideId, seconds) {
   const todayStart = dayStart(seconds);
   const since = todayStart - 7 * 86400;
+  const currentSlot = Math.floor(seconds / SNAPSHOT_SECONDS);
+  // A 20-minute slot stays in the same JST hour as its capture time; 9 hours = 27 slots.
+  // Only the current slot needs a capture-time check before it is included.
   const { results } = await db.prepare(
-    "SELECT CASE WHEN h.captured_at>=? THEN 'today' ELSE 'past' END AS period, " +
-    'CAST(((h.captured_at + 32400) / 1200) % 72 AS INTEGER) AS bin, ' +
+    "SELECT CASE WHEN s.slot>=? THEN 'today' ELSE 'past' END AS period, " +
+    'CAST((s.slot + 27) % 72 AS INTEGER) AS bin, ' +
     'COUNT(*) AS samples, SUM(s.wait_minutes) AS total_wait, ROUND(AVG(s.wait_minutes)) AS average_wait ' +
-    'FROM ride_samples s JOIN snapshots h USING(slot) ' +
-    'WHERE s.ride_id=? AND s.slot>=? AND h.captured_at>=? AND h.captured_at<=? AND s.is_open=1 ' +
+    'FROM ride_samples s WHERE s.ride_id=? AND s.slot>=? AND s.slot<=? ' +
+    'AND (s.slot<? OR EXISTS(SELECT 1 FROM snapshots h WHERE h.slot=s.slot AND h.captured_at<=?)) ' +
+    'AND s.is_open=1 ' +
     'AND s.wait_minutes IS NOT NULL AND s.source<>? GROUP BY period,bin ORDER BY bin,period'
-  ).bind(todayStart, rideId, Math.floor(since / SNAPSHOT_SECONDS), since, seconds, DARK_ESTIMATE_SOURCE).all();
+  ).bind(todayStart / SNAPSHOT_SECONDS, rideId, since / SNAPSHOT_SECONDS,
+    currentSlot, currentSlot, seconds, DARK_ESTIMATE_SOURCE).all();
   const hourly = rows => {
     const byHour = new Map();
     for (const row of rows) {
@@ -3007,8 +3012,9 @@ const API_CACHE_SECONDS = new Map([
 export default {
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
+    const attractionPage = /^\/(?:en\/)?attraction\/[a-z0-9-]+$/.test(pathname);
     const ttl = request.method === 'GET'
-      ? (/^\/r\/[1-9]\d{0,7}$/.test(pathname) ? 60 : API_CACHE_SECONDS.get(pathname)) : null;
+      ? (attractionPage || /^\/r\/[1-9]\d{0,7}$/.test(pathname) ? 60 : API_CACHE_SECONDS.get(pathname)) : null;
     const cache = ttl && typeof caches !== 'undefined' ? caches.default : null;
     if (cache) {
       const cached = await cache.match(request);
