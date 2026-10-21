@@ -2716,6 +2716,16 @@
       const date = new Date(Date.UTC(year, month - 1 + delta, 1));
       return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
     }
+    function replacePlanHistory(day) {
+      const next = new URL(location.pathname.startsWith('/liff/') ? '/liff/plan' : '/plan', location.href);
+      const current = new URLSearchParams(location.search);
+      for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+        const value = current.get(key);
+        if (value) next.searchParams.set(key, value);
+      }
+      if (day) next.searchParams.set('date', day);
+      history.replaceState(null, '', next.pathname + next.search);
+    }
     function selectArchiveDay(day) {
       selectedDay.hidden = true;
       selectedDate = null;
@@ -2725,7 +2735,7 @@
       loadArchiveDay();
       renderArchiveCalendar();
       document.querySelector('.archive-summary').scrollIntoView({behavior: 'smooth', block: 'start'});
-      history.replaceState(null, '', `/plan?date=${encodeURIComponent(day)}`);
+      replacePlanHistory(day);
     }
     function renderArchiveTicketPrice(day) {
       const line = document.querySelector('#archive-ticket-price');
@@ -2851,7 +2861,7 @@
             window.trackSiteEvent?.('archive_future_select');
             showSelectedDay(key);
             renderArchiveCalendar();
-            history.replaceState(null, '', '/plan');
+            replacePlanHistory();
             selectedDay.scrollIntoView({behavior: 'smooth', block: 'nearest'});
           });
           cell.append(label, value);

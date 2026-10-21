@@ -12,7 +12,8 @@
     'favorite_add', 'favorite_remove', 'ride_detail_open', 'view_mode_change',
     'filter_apply', 'archive_past_select', 'archive_future_select',
     'map_place_open', 'map_location_request', 'map_location_success',
-    'map_location_failure', 'walking_route_open', 'share_click', 'follow_click'
+    'map_location_failure', 'walking_route_open', 'share_click', 'follow_click',
+    'attraction_link_click'
   ]);
   const values = {
     view_mode: new Set(['today_cards', 'today_heatmap', 'archive_chart', 'archive_table',
@@ -21,7 +22,8 @@
     place_type: new Set(['ride', 'restaurant']),
     share_channel: new Set(['line', 'x', 'threads', 'other', 'copy']),
     content_type: new Set(['top_waits', 'ride', 'archive_day', 'map_ride', 'poll', 'site',
-      'en_today', 'en_map', 'en_plan', 'en_vote'])
+      'en_today', 'en_map', 'en_plan', 'en_vote']),
+    entry_page: new Set(['today', 'plan', 'map', 'en_today', 'en_plan', 'en_map'])
   };
 
   function readChoice() {
@@ -89,6 +91,14 @@
   document.addEventListener('click', event => {
     if (event.target.closest('[data-follow-x]')) window.trackSiteEvent('follow_click');
     if (event.target.closest('#analytics-settings')) showBanner();
+    const link = event.target.closest('a[href]');
+    if (!link) return;
+    const destination = new URL(link.href, location.href);
+    if (destination.origin !== location.origin ||
+        !/^\/(?:en\/)?attraction\/[a-z0-9-]+\/?$/.test(destination.pathname)) return;
+    const entryPage = ({'/': 'today', '/plan': 'plan', '/map': 'map',
+      '/en/': 'en_today', '/en/plan': 'en_plan', '/en/map': 'en_map'})[location.pathname];
+    if (entryPage) window.trackSiteEvent('attraction_link_click', {entry_page: entryPage});
   });
 
   function removeBanner() {

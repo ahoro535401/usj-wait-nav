@@ -17,13 +17,14 @@
 | `filter_apply` | 身長、チャイルドスイッチ、お気に入り、特徴、並び順、地図の飲食店表示の変更 | `filter_type` |
 | `archive_past_select` / `archive_future_select` | 過去実績日・予定日をカレンダーから選ぶ | なし |
 | `map_place_open` | 地図上のアトラクション・飲食店の詳細を開く | `place_type`, 該当時 `ride_id` |
+| `attraction_link_click` | 今日・行く前に・地図から施設別ページへのリンクを押す | `entry_page`（日英別の入口） |
 | `map_location_request` / `map_location_success` / `map_location_failure` | GPSボタンの押下と結果 | なし |
 | `walking_route_open` | 徒歩ルートへのリンクを押す | `place_type` |
 | `share_click` | LINE・X・その他の共有操作を押す（投票ページを含む） | `share_channel`, `content_type`, 該当時 `ride_id` |
 
 `share_click` は投稿・送信の完了数ではない。`walking_route_open` は実際の来店・乗車を意味しない。GA4 の自動 `click`（外部リンク）とサイト固有の `share_click` を加算しない。
 
-GA4 のイベントスコープのカスタム ディメンションには `ride_id`、`view_mode`、`filter_type`、`place_type`、`share_channel`、`content_type` を登録済み。施設IDは公開データのIDに限る。GPS座標・精度、氏名、メールアドレス、お気に入り一覧は送らない。`public/analytics.js` はイベント名・パラメータ値を許可リストで制限する。
+GA4 のイベントスコープのカスタム ディメンションには `ride_id`、`view_mode`、`filter_type`、`place_type`、`share_channel`、`content_type`、`entry_page` を登録済み。施設IDは公開データのIDに限る。GPS座標・精度、氏名、メールアドレス、お気に入り一覧は送らない。`public/analytics.js` はイベント名・パラメータ値を許可リストで制限する。
 
 ## 設定と品質確認
 
@@ -40,6 +41,8 @@ GA4 のイベントスコープのカスタム ディメンションには `ride
 ## X自動投稿からの流入
 
 - 待ち時間上位5施設の投稿URLには `utm_source=x&utm_medium=social&utm_campaign=live_waits`、混雑実績の投稿URLには `utm_source=x&utm_medium=social&utm_campaign=daily_recap` を付ける。表記は小文字で固定する。
+- `/plan?date=...` の初期表示や日付選択でブラウザー履歴を書き換えるときは、流入時の `utm_source`・`utm_medium`・`utm_campaign`・`utm_content`・`utm_term` を維持する。解析同意が日付の読み込み後でも、投稿別キャンペーンが失われないようにする。日付切替そのものは追加ページビューにしない。
+- Xの効果は、GA4の同意済みセッションのキャンペーン別流入と `attraction_link_click`・`archive_past_select` を組み合わせて確認する。Cloudflare Web Analyticsのt.co参照元にはブラウザー種別不明の訪問が多く、表示値を人間の閲覧者数と断定しない。
 - サイト内のX・LINE・Threads共有ボタンには、それぞれ `utm_source=x`・`line`・`threads` と `utm_medium=social`、内容別の `utm_campaign`（`share_site`、`share_top_waits`、`share_ride`、`share_archive_day`、`share_map`、`share_map_ride`、`share_poll`）を付ける。存在する共有ボタンだけが対象で、コピーと端末標準の共有URLには付けない。
 - GA4の「レポート > 集客 > トラフィック獲得」でセッションの参照元・メディアとキャンペーンを確認する。X上の閲覧数やリンククリック数とは異なり、GA4は解析を許可したサイト訪問のみを数える。
 - Xはリンクを投稿文字数上23文字として扱うため、長いUTM付きURLでも本文の文字数判定には23文字を使う。出典: [GA4 URLビルダー](https://support.google.com/analytics/answer/10917952)、[Xのリンク投稿](https://help.x.com/en/using-twitter/how-to-tweet-a-link.html)（2026-10-10確認）。

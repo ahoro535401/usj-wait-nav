@@ -2539,7 +2539,6 @@ function liffPageHtml(html, liffId) {
   html = html.replace(/\bhref="\/(plan|map|vote|privacy|install)?([?#][^"]*)?"/g,
     (_, page = '', suffix = '') => `href="/liff/${page}${suffix}"`);
   html = html.replace('anchor.href=`/r/', 'anchor.href=`/liff/r/')
-    .replace("history.replaceState(null, '', '/plan');", "history.replaceState(null, '', '/liff/plan');")
     .replace('location.pathname.match(/^\\/r\\/', 'location.pathname.match(/^\\/liff\\/r\\/');
   // The primary LIFF redirect can contain credentials. Do not load GA on LIFF pages.
   html = html.replace(/<script src="\/analytics\.js" defer><\/script>/g, '');
