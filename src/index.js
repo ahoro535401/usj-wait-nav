@@ -3,7 +3,20 @@ const WIKI_LIVE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-
 const WIKI_SCHEDULE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/schedule';
 const WIKI_MAP_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/children';
 const OFFICIAL_SHOW_API = 'https://mobile-service.usj.co.jp/api/Web/ShowsAndAttractions';
-const OFFICIAL_SCHEDULE_URL = 'https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2';
+const OFFICIAL_SCHEDULE_URL = 'https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour';
+// USJ公式カレンダーで2026-10-23に確認。提供元の取得範囲外や旧時刻より優先する。
+const OFFICIAL_HOURS_OVERRIDES = [
+  ['2026-11-15', '08:00', '22:00'],
+  ['2026-11-23', '09:00', '20:00'],
+  ['2026-11-24', '09:00', '22:00'],
+  ['2026-11-25', '09:00', '21:00'],
+  ['2026-11-26', '08:30', '21:30'],
+  ['2026-11-27', '08:30', '19:00'],
+  ['2026-11-28', '08:30', '22:00'],
+  ['2026-11-29', '08:30', '22:00'],
+  ['2026-11-30', '08:30', '22:00'],
+].map(([day, opens, closes]) => ({ day, opens, closes, status: 'OPERATING',
+  source: 'USJ公式', checked_at: '2026-10-23' }));
 const WEATHER_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.6654&lon=135.4334';
 const WEATHER_AGENT = 'USJWaitNav/1.0 github.com/ahoro535401/usj-wait-nav';
 const JMA_LATEST_URL = 'https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
@@ -1593,21 +1606,34 @@ async function refreshSchedule(db) {
     }
   }
   if (!days.length) throw new Error('営業時間データが空です');
-  const { results: existing } = await db.prepare('SELECT day,opens,closes,status FROM park_days').all();
-  const previous = new Map(existing.map(item => [item.day, item]));
-  const next = new Set(days.map(item => item.day));
-  const statements = [];
   const today = jstDay(epoch());
+  const { results: existing } = await db.prepare('SELECT day,opens,closes,status,source,checked_at FROM park_days').all();
+  const previous = new Map(existing.map(item => [item.day, item]));
+  const mergedDays = new Map(days.map(item => [item.day, item]));
+  for (const item of OFFICIAL_HOURS_OVERRIDES) {
+    if (item.day >= today) mergedDays.set(item.day, item);
+  }
+  // 後から確認した公式値は、この時点の固定値や第三者データより優先する。
+  for (const item of existing) {
+    if (item.day >= today && item.source === 'USJ公式' &&
+        (!mergedDays.get(item.day)?.checked_at || item.checked_at >= mergedDays.get(item.day).checked_at)) {
+      mergedDays.set(item.day, item);
+    }
+  }
+  const next = new Set(mergedDays.keys());
+  const statements = [];
   const fetchedAt = new Date().toISOString();
-  for (const item of days) {
+  for (const item of mergedDays.values()) {
     const old = previous.get(item.day);
     if (item.day < today && old) continue;
-    if (old && old.opens === item.opens && old.closes === item.closes && old.status === item.status) continue;
+    if (old && old.opens === item.opens && old.closes === item.closes && old.status === item.status &&
+        (!item.source || old.source === item.source && old.checked_at === item.checked_at)) continue;
     statements.push(db.prepare(
       'INSERT INTO park_days (day,opens,closes,status,source,checked_at) VALUES (?,?,?,?,?,?) ' +
       'ON CONFLICT(day) DO UPDATE SET opens=excluded.opens,closes=excluded.closes,' +
       'status=excluded.status,source=excluded.source,checked_at=excluded.checked_at'
-    ).bind(item.day, item.opens, item.closes, item.status, 'ThemeParks.wiki', fetchedAt));
+    ).bind(item.day, item.opens, item.closes, item.status,
+      item.source || 'ThemeParks.wiki', item.checked_at || fetchedAt));
   }
   // 過去日に表示する公表営業時間は保持する。提供元から消えた将来の予定だけを取り除く。
   for (const item of existing) {
