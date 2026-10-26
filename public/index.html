@@ -230,13 +230,16 @@
     .archive-cal-dow { text-align: center; color: #526477; font-size: .8rem; }
     .archive-cal-dow.sun, .archive-cal-day.sun, .archive-cal-day.holiday { color: #7b1f1f; }
     .archive-cal-dow.sat, .archive-cal-day.sat { color: #315b97; }
-    .archive-cal-day { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: 58px; padding: 4px 1px; border: 1px solid #dce4ed; border-radius: 7px; background: #f8fafc; font-size: .75rem; }
+    .archive-cal-day { display: grid; align-content: start; gap: 2px; min-width: 0; min-height: 58px; padding: 4px 1px; border: 1px solid #dce4ed; border-radius: 7px; background: #f8fafc; font-size: .75rem; }
     button.archive-cal-day { width: 100%; cursor: pointer; }
     .archive-cal-day[aria-pressed="true"] { outline: 2px solid #1058a7; outline-offset: -2px; }
     .archive-cal-day.today { border-color: #1058a7; }
     .archive-cal-date { font-weight: 700; white-space: nowrap; }
     .archive-cal-holiday { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .62rem; line-height: 1.2; font-weight: 600; }
     .archive-cal-value { font-size: .7rem; white-space: nowrap; }
+    .archive-cal-value .average-label, .archive-cal-value .average-number { display: block; }
+    .archive-cal-value .average-label { font-size: .66rem; line-height: 1.1; }
+    .archive-cal-value .average-number { font-size: .8rem; line-height: 1.2; font-weight: 700; }
     .archive-cal-hours { display: block; color: #355777; font-size: .68rem; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
     .archive-cal-hours span { display: block; white-space: nowrap; }
     .archive-cal-day.is-future .archive-cal-hours { color: #1058a7; }
@@ -870,7 +873,7 @@
     <details id="archive-notes" class="archive-notes">
       <summary>凡例・注記を見る</summary>
       <div id="archive-notes-calendar"></div>
-    <p id="ticket-price-note" class="muted">1デイ・スタジオ・パスの価格は、<a href="https://www.usj.co.jp/web/ja/jp/tickets/buy/price-calendar" target="_blank" rel="noopener noreferrer">USJ公式の価格カレンダー</a>をご確認ください。</p>
+    <p id="ticket-price-note" class="muted"><a href="https://store.usj.co.jp/ja/jp/store/c/ticket/1DBASIC?config=true" target="_blank" rel="noopener noreferrer">USJ公式WEBチケットストア ↗</a></p>
     <p id="pass-exclusion-note" class="muted">年間パス（スタンダード）の入場除外日は、<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/exclusion-dates/universal-prime-annual-pass-standard-exclusison-date" target="_blank" rel="noopener noreferrer">USJ公式の除外日一覧</a>をご確認ください。</p>
     <p class="muted">営業時間・休止予定は変更される場合があります。来場前に<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ公式の営業時間</a>をご確認ください。</p>
     </details>
@@ -1110,7 +1113,7 @@
     let weeklyForecastCheckedAt = 0;
     let scheduleDays = new Map();
     let passExclusion = { days: new Set(), months: new Set(), checkedAt: null, url: null, label: '' };
-    let ticketPrices = { adult: new Map(), checkedAt: null, url: null };
+    let ticketPrices = { adult: new Map(), url: null };
     let holidayDays = new Map();
     const HOLIDAY_LABELS = { substitute: '振替休日', citizens: '国民の休日' };
     let closuresData = null;
@@ -1555,7 +1558,11 @@
       const adultPrice = ticketPrices.adult.get(day);
       if (Number.isInteger(adultPrice)) {
         const priceLine = document.createElement('span');
-        priceLine.textContent = `1デイ・スタジオ・パス（大人・税込）：${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認）`;
+        priceLine.textContent = `1デイ・スタジオ・パス（大人・税込）：${adultPrice.toLocaleString('ja-JP')}円`;
+        selectedDay.append(priceLine);
+      } else if (day >= jstToday()) {
+        const priceLine = document.createElement('span');
+        priceLine.textContent = '1デイ・スタジオ・パス（大人）の価格：未掲載';
         selectedDay.append(priceLine);
       }
       if (passExclusion.url) {
@@ -1720,14 +1727,14 @@
             throw new Error('チケット価格データの日付または価格が不正です');
           adult.set(day, price);
         }
-        ticketPrices = {adult, checkedAt: data.checked_at, url: data.source_url};
+        ticketPrices = {adult, url: data.source_url};
         const note = document.querySelector('#ticket-price-note');
         const link = document.createElement('a');
         link.href = data.source_url;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
-        link.textContent = 'USJ公式の価格カレンダー';
-        note.replaceChildren('1デイ・スタジオ・パスの大人（12歳以上・小学生除く）税込価格です。価格は変わる場合があります。掲載のない日は価格未確認です。購入前に', link, 'で最新価格をご確認ください。');
+        link.textContent = 'USJ公式WEBチケットストア ↗';
+        note.replaceChildren(link);
         renderArchiveCalendar();
         if (selectedDate) showSelectedDay(selectedDate);
         if (archiveData) renderArchiveTicketPrice(archiveData.day);
@@ -2742,7 +2749,7 @@
       const price = ticketPrices.adult.get(day);
       line.hidden = !Number.isInteger(price);
       line.textContent = Number.isInteger(price)
-        ? `当日の1デイ・スタジオ・パス（大人・税込）：${price.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認の掲載価格）`
+        ? `1デイ・スタジオ・パス（大人・税込）：${price.toLocaleString('ja-JP')}円`
         : '';
     }
     function renderArchiveCalendar() {
@@ -2833,7 +2840,13 @@
           } else if (Number.isFinite(stats?.average)) {
             const level = crowdLevel(stats.average);
             cell.classList.add(level.cls);
-            value.textContent = `${Math.round(stats.average)}分`;
+            const averageLabel = document.createElement('span');
+            averageLabel.className = 'average-label';
+            averageLabel.textContent = '平均';
+            const averageNumber = document.createElement('span');
+            averageNumber.className = 'average-number';
+            averageNumber.textContent = `${Math.round(stats.average)}分`;
+            value.append(averageLabel, averageNumber);
             cell.title = `${month}/${date}：平均${Math.round(stats.average)}分（${level.label}）`;
           } else {
             value.textContent = stats?.error ? '—' : '…';
@@ -2853,7 +2866,7 @@
           if (plan.opens && plan.closes) value.hidden = true;
           const closureCount = closuresFor(key).filter(item => item.end).length;
           cell.title = `${month}/${date}${key === today ? '（今日）' : ''}：営業時間 ${hoursLabel(plan)}` +
-            (Number.isInteger(adultPrice) ? `・1デイ大人${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認）` : '') +
+            (Number.isInteger(adultPrice) ? `・1デイ大人${adultPrice.toLocaleString('ja-JP')}円` : '') +
             (closureCount ? `・休止予定${closureCount}件` : '') +
             (forecast ? `・${weeklyForecastLabel(forecast)}` : '');
           cell.setAttribute('aria-label', `${cell.title}。タップで詳細を表示`);
@@ -2870,12 +2883,6 @@
             closures.className = 'archive-cal-closures';
             closures.textContent = `休止${closureCount}`;
             cell.append(closures);
-          }
-          if (Number.isInteger(adultPrice)) {
-            const price = document.createElement('span');
-            price.className = 'archive-cal-price';
-            price.textContent = `¥${adultPrice.toLocaleString('ja-JP')}`;
-            cell.append(price);
           }
         } else if (key === today) value.textContent = '今日';
         if (!cell.firstChild) cell.append(label, value);
@@ -2895,14 +2902,16 @@
             cell.setAttribute('aria-label', `${cell.title}。タップでこの日の詳細を表示`);
           }
         }
-        if (key < today && Number.isInteger(adultPrice)) {
+        if (Number.isInteger(adultPrice)) {
           const price = document.createElement('span');
           price.className = 'archive-cal-price';
           price.textContent = `¥${adultPrice.toLocaleString('ja-JP')}`;
           cell.append(price);
-          const priceLabel = `1デイ大人${adultPrice.toLocaleString('ja-JP')}円（${formatEventDate(ticketPrices.checkedAt)}確認の掲載価格）`;
-          cell.title = `${cell.title || `${month}/${date}`}・${priceLabel}`;
-          if (cell.hasAttribute('aria-label')) cell.setAttribute('aria-label', `${cell.getAttribute('aria-label')}。${priceLabel}`);
+          if (key < today) {
+            const priceLabel = `1デイ大人${adultPrice.toLocaleString('ja-JP')}円`;
+            cell.title = `${cell.title || `${month}/${date}`}・${priceLabel}`;
+            if (cell.hasAttribute('aria-label')) cell.setAttribute('aria-label', `${cell.getAttribute('aria-label')}。${priceLabel}`);
+          }
         }
         const holiday = holidayDays.get(key);
         if (holiday) {

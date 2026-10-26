@@ -531,6 +531,7 @@
     const meta = el('div','plan-meta');
     const price = plan.prices?.adult_prices?.[day];
     if (price) meta.append(el('span',null,`1-Day Studio Pass, adult: ¥${price.toLocaleString('en-US')}`));
+    else if (day >= today()) meta.append(el('span',null,'1-Day Studio Pass adult price: not listed'));
     if (plan.pass?.days.has(day)) meta.append(el('span',null,'Universal Prime Annual Pass Standard: excluded date'));
     if (plan.holidays.has(day)) meta.append(el('span',null,`Japan public holiday: ${plan.holidays.get(day)}`));
     box.append(meta);
@@ -553,9 +554,8 @@
       }
       box.append(list);
     }
-    if (price && plan.prices?.checked_at) box.append(el('p','muted small',`Adult ticket price is manually transcribed from the official purchase screen, checked ${plan.prices.checked_at}. It may change; confirm before buying.`));
     const links=el('p','small muted');
-    if(price && plan.prices?.source_url){const a=el('a',null,'Official ticket price calendar ↗');a.href=plan.prices.source_url;a.target='_blank';a.rel='noopener noreferrer';links.append(a);}
+    if(plan.prices?.source_url){const a=el('a',null,'Official WEB Ticket Store ↗');a.href=plan.prices.source_url;a.target='_blank';a.rel='noopener noreferrer';links.append(a);}
     if(plan.pass?.source_url){if(links.childNodes.length)links.append(document.createTextNode(' · '));const a=el('a',null,'Official Standard Pass exclusions ↗');a.href=plan.pass.source_url;a.target='_blank';a.rel='noopener noreferrer';links.append(a);}
     if(links.childNodes.length)box.append(links);
   }
@@ -660,7 +660,7 @@
     record.insertBefore(switcher,$('archive-wrap'));
     const charts=el('div','archive-charts');charts.id='en-archive-charts';
     record.insertBefore(charts,$('archive-wrap'));$('archive-wrap').hidden=true;
-    const source=el('p','muted small');source.innerHTML='Park hours: <a href="https://www.usj.co.jp/web/en/us/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ official schedule</a>. Ticket prices and Standard Pass exclusions are manually checked; see their linked official sources in Japanese. Past hourly values exclude closed and missing records.';
+    const source=el('p','muted small');source.innerHTML='Park hours: <a href="https://www.usj.co.jp/web/en/us/park-guide/schedule/park-hour2" target="_blank" rel="noopener noreferrer">USJ official schedule</a>. Past hourly values exclude closed and missing records.';
     history.append(source);
     const events=el('section');events.id='en-plan-events';events.append(el('h2',null,'Events'));$('hours').after(events);
     $('event-list').closest('details').hidden=true;
