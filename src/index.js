@@ -1505,22 +1505,54 @@ function parseRides(queueRaw, wikiRaw, fetchedAt) {
   return rides;
 }
 
-function isRecent(ride, capturedAt) {
-  if (ride.data_unavailable) return false;
+function inspectSnapshotRide(ride, capturedAt) {
   const stamp = ride.source === 'ThemeParks.wiki' ? ride.verified_at : ride.last_updated;
   const updated = Date.parse(stamp);
-  if (!Number.isFinite(updated)) return false;
-  const age = capturedAt - updated / 1000;
-  return age >= -120 && age <= SOURCE_MAX_AGE;
+  const upstreamUpdated = Date.parse(ride.last_updated);
+  const rawAge = Number.isFinite(updated) ? capturedAt - updated / 1000 : null;
+  const age = rawAge === null ? null : Math.round(rawAge * 1000) / 1000;
+  const upstreamAge = Number.isFinite(upstreamUpdated)
+    ? Math.round((capturedAt - upstreamUpdated / 1000) * 1000) / 1000 : null;
+  let reason = 'included';
+  if (ride.data_unavailable) reason = 'data_unavailable';
+  else if (age === null) reason = 'missing_timestamp';
+  else if (rawAge < -120) reason = 'future_timestamp';
+  else if (rawAge > SOURCE_MAX_AGE) reason = 'stale_timestamp';
+  else if (ride.is_open && (!Number.isInteger(Number(ride.wait_time)) ||
+      Number(ride.wait_time) < 0 || Number(ride.wait_time) > 9999)) reason = 'invalid_wait';
+  return { ride_id: ride.id, source: ride.source, is_open: !!ride.is_open,
+    freshness_timestamp: stamp || null, age_seconds: age,
+    upstream_last_updated: ride.last_updated || null, upstream_age_seconds: upstreamAge,
+    reason };
+}
+
+function snapshotDiagnosticKey(capturedAt) {
+  return `snapshot_diag_${jstDay(capturedAt)}_${Math.floor(capturedAt / SNAPSHOT_SECONDS)}_${capturedAt}`;
+}
+
+async function recordSnapshotDiagnostic(db, capturedAt, diagnostic) {
+  try {
+    await writeMeta(db, snapshotDiagnosticKey(capturedAt), JSON.stringify({
+      slot: Math.floor(capturedAt / SNAPSHOT_SECONDS), captured_at: capturedAt,
+      recorded_at: new Date().toISOString(), source_max_age_seconds: SOURCE_MAX_AGE,
+      ...diagnostic,
+    }));
+  } catch (error) {
+    // 診断記録の失敗で通常の20分収集を止めない。
+    console.error('Snapshot diagnostic write failed', error);
+  }
 }
 
 async function refreshLive(env, capturedAt = epoch(), save = false) {
+  let snapshotAttempted = false;
   let wikiRaw = null;
+  let wikiError = null;
   try {
     wikiRaw = await fetchJson(WIKI_LIVE_URL);
     await writeMeta(env.DB, 'shows_payload', JSON.stringify(parseShows(wikiRaw, new Date().toISOString())));
     await writeMeta(env.DB, 'shows_error', '');
   } catch (error) {
+    wikiError = String(error).slice(0, 400);
     await writeMeta(env.DB, 'shows_error', String(error));
   }
   try {
@@ -1544,48 +1576,85 @@ async function refreshLive(env, capturedAt = epoch(), save = false) {
       env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('rides_fetched_at', fetchedAt),
       env.DB.prepare('INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE value <> excluded.value').bind('rides_error', ''),
     ]);
-    if (save) await saveSnapshot(env.DB, rides, capturedAt);
+    if (save) {
+      snapshotAttempted = true;
+      await saveSnapshot(env.DB, rides, capturedAt, {
+        fetched_at: fetchedAt,
+        queue_rides: (queueRaw.rides || []).length +
+          (queueRaw.lands || []).reduce((count, land) => count + (land.rides || []).length, 0),
+        wiki_live_data: wikiRaw?.liveData?.length ?? null,
+        wiki_error: wikiError,
+      });
+    }
     return true;
   } catch (error) {
+    if (save && !snapshotAttempted) await recordSnapshotDiagnostic(env.DB, capturedAt, {
+      status: 'refresh_error', error: String(error).slice(0, 400), wiki_error: wikiError,
+    });
     await writeMeta(env.DB, 'rides_error', String(error));
     return false;
   }
 }
 
-async function saveSnapshot(db, rides, capturedAt) {
+async function saveSnapshot(db, rides, capturedAt, sourceCounts = {}) {
   const slot = Math.floor(capturedAt / SNAPSHOT_SECONDS);
-  const recent = rides.filter(ride => isRecent(ride, capturedAt));
-  if (!recent.length) return false;
-  const existing = await db.prepare('SELECT slot FROM snapshots WHERE slot = ?').bind(slot).first();
-  if (existing) return false;
-  const day = jstDay(capturedAt);
-  let today = null;
-  try { today = JSON.parse(await readMeta(db, 'today_payload')); } catch (_) { /* 初回はD1の記録から構築する */ }
-  const latest = await db.prepare('SELECT slot FROM snapshots WHERE slot>=? AND slot<? ORDER BY slot DESC LIMIT 1')
-    .bind(dayStart(capturedAt) / SNAPSHOT_SECONDS, (dayStart(capturedAt) + 86400) / SNAPSHOT_SECONDS).first();
-  if (today?.day !== day || !Array.isArray(today.snapshots) ||
-      (latest?.slot ?? null) !== (today.snapshots[0]?.slot ?? null)) {
-    today = await readTodayMatrix(db, capturedAt);
+  const inspections = rides.map(ride => inspectSnapshotRide(ride, capturedAt));
+  const recent = rides.filter((_, index) => inspections[index].reason === 'included');
+  const excluded = {};
+  for (const item of inspections) {
+    if (item.reason !== 'included') excluded[item.reason] = (excluded[item.reason] || 0) + 1;
   }
-  const snapshot = { slot, captured_at: capturedAt, rides: {} };
-  const statements = [db.prepare('INSERT OR IGNORE INTO snapshots (slot,captured_at) VALUES (?,?)').bind(slot, capturedAt)];
-  for (const ride of recent) {
-    const wait = ride.is_open ? Number(ride.wait_time) : null;
-    if (ride.is_open && (!Number.isInteger(wait) || wait < 0 || wait > 9999)) continue;
-    const sample = { ride_id: ride.id, source: ride.source };
-    if (visibleSample(sample)) snapshot.rides[String(ride.id)] = {
-      wait_minutes: wait, is_open: !!ride.is_open, source: ride.source,
-      estimated: ride.source === DARK_ESTIMATE_SOURCE,
-    };
+  const diagnostic = { source_counts: sourceCounts, observed_rides: rides.length,
+    planned_samples: recent.length, excluded, rides: inspections };
+  try {
+    const existing = await db.prepare('SELECT slot FROM snapshots WHERE slot = ?').bind(slot).first();
+    if (existing) return false;
+    if (!recent.length) {
+      await recordSnapshotDiagnostic(db, capturedAt, { ...diagnostic, status: 'no_recent_samples', stored_samples: 0 });
+      return false;
+    }
+    const day = jstDay(capturedAt);
+    let today = null;
+    try { today = JSON.parse(await readMeta(db, 'today_payload')); } catch (_) { /* 初回はD1の記録から構築する */ }
+    const latest = await db.prepare('SELECT slot FROM snapshots WHERE slot>=? AND slot<? ORDER BY slot DESC LIMIT 1')
+      .bind(dayStart(capturedAt) / SNAPSHOT_SECONDS, (dayStart(capturedAt) + 86400) / SNAPSHOT_SECONDS).first();
+    if (today?.day !== day || !Array.isArray(today.snapshots) ||
+        (latest?.slot ?? null) !== (today.snapshots[0]?.slot ?? null)) {
+      today = await readTodayMatrix(db, capturedAt);
+    }
+    const snapshot = { slot, captured_at: capturedAt, rides: {} };
+    const statements = [db.prepare('INSERT OR IGNORE INTO snapshots (slot,captured_at) VALUES (?,?)').bind(slot, capturedAt)];
+    for (const ride of recent) {
+      const wait = ride.is_open ? Number(ride.wait_time) : null;
+      if (ride.is_open && (!Number.isInteger(wait) || wait < 0 || wait > 9999)) continue;
+      const sample = { ride_id: ride.id, source: ride.source };
+      if (visibleSample(sample)) snapshot.rides[String(ride.id)] = {
+        wait_minutes: wait, is_open: !!ride.is_open, source: ride.source,
+        estimated: ride.source === DARK_ESTIMATE_SOURCE,
+      };
+      statements.push(db.prepare(
+        'INSERT OR IGNORE INTO ride_samples (slot,ride_id,wait_minutes,is_open,source) VALUES (?,?,?,?,?)'
+      ).bind(slot, ride.id, wait, ride.is_open ? 1 : 0, ride.source));
+    }
     statements.push(db.prepare(
-      'INSERT OR IGNORE INTO ride_samples (slot,ride_id,wait_minutes,is_open,source) VALUES (?,?,?,?,?)'
-    ).bind(slot, ride.id, wait, ride.is_open ? 1 : 0, ride.source));
+      'INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value'
+    ).bind('today_payload', JSON.stringify({ day, snapshots: [snapshot, ...today.snapshots] })));
+    await db.batch(statements);
+    try {
+      const stored = await db.prepare('SELECT COUNT(*) AS count FROM ride_samples WHERE slot=?').bind(slot).first();
+      await recordSnapshotDiagnostic(db, capturedAt, {
+        ...diagnostic, status: 'saved', stored_samples: Number(stored?.count ?? 0),
+      });
+    } catch (error) {
+      console.error('Snapshot diagnostic count failed', error);
+    }
+    return true;
+  } catch (error) {
+    await recordSnapshotDiagnostic(db, capturedAt, {
+      ...diagnostic, status: 'save_error', error: String(error).slice(0, 400),
+    });
+    throw error;
   }
-  statements.push(db.prepare(
-    'INSERT INTO app_meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value'
-  ).bind('today_payload', JSON.stringify({ day, snapshots: [snapshot, ...today.snapshots] })));
-  await db.batch(statements);
-  return true;
 }
 
 async function refreshSchedule(db) {
@@ -1733,6 +1802,8 @@ async function scheduled(event, env) {
       .bind(`buffer_en_x_${jstDay(seconds - 30 * 86400)}`).run();
     await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'xcard_en_%' AND key < ?")
       .bind(`xcard_en_${jstDay(seconds - 35 * 86400)}`).run();
+    await env.DB.prepare("DELETE FROM app_meta WHERE key LIKE 'snapshot_diag_%' AND key < ?")
+      .bind(`snapshot_diag_${jstDay(seconds - 30 * 86400)}`).run();
   }
   const scheduleFetchedAt = Date.parse(await readMeta(env.DB, 'schedule_fetched_at'));
   if (!Number.isFinite(scheduleFetchedAt) || Date.now() - scheduleFetchedAt > 6 * 3600 * 1000) {
