@@ -39,8 +39,20 @@ test('all-ride averages compare only matching recorded slots and ignore closed o
     assert.equal(data.rides['2'].past_average, null);
     assert.equal(data.rides['3'], undefined);
     assert.equal(data.rides['4'], undefined);
+    const chartResponse = await worker.fetch(new Request(`https://uniba-waittimes.com/api/ride-trends?ride_id=1&slot=${firstSlot}`), env, {});
+    assert.equal(chartResponse.status, 200);
+    const chart = await chartResponse.json();
+    assert.equal(chart.ride_id, 1);
+    assert.equal(chart.through_slot, firstSlot);
+    assert.match(chart.html, /本日の20分ごとの待ち時間と過去7日の同時刻平均の比較/);
+    assert.match(chart.html, /trend-series trend-today/);
+    assert.match(chart.html, /trend-series trend-past/);
+    const englishChart = await worker.fetch(new Request(`https://uniba-waittimes.com/api/ride-trends?ride_id=1&slot=${firstSlot}&lang=en`), env, {});
+    assert.match((await englishChart.json()).html, /previous 7-day same-time average/);
     const future = await worker.fetch(new Request(`https://uniba-waittimes.com/api/ride-averages?slot=${Math.floor(now / 1200) + 1}`), env, {});
     assert.equal(future.status, 400);
+    const futureChart = await worker.fetch(new Request(`https://uniba-waittimes.com/api/ride-trends?ride_id=1&slot=${Math.floor(now / 1200) + 1}`), env, {});
+    assert.equal(futureChart.status, 400);
   } finally {
     sqlite.close();
   }

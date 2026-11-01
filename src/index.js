@@ -2340,10 +2340,10 @@ async function attractionComparisons(db, ride, fetchedAt, previousRaw) {
   return comparisons;
 }
 
-async function attractionWaitTrends(db, rideId, seconds) {
+async function attractionWaitTrends(db, rideId, seconds, throughSlot = Math.floor(seconds / SNAPSHOT_SECONDS)) {
   const todayStart = dayStart(seconds);
   const since = todayStart - 7 * 86400;
-  const currentSlot = Math.floor(seconds / SNAPSHOT_SECONDS);
+  const currentSlot = throughSlot;
   // A 20-minute slot stays in the same JST hour as its capture time; 9 hours = 27 slots.
   // Only the current slot needs a capture-time check before it is included.
   const { results } = await db.prepare(
@@ -3053,6 +3053,20 @@ async function route(request, env) {
       return json({ error: '本日の20分枠を指定してください' }, 400);
     return json(await rideDailyAverages(env.DB, seconds, throughSlot));
   }
+  if (url.pathname === '/api/ride-trends') {
+    const seconds = epoch();
+    const rideId = Number(url.searchParams.get('ride_id'));
+    const throughSlot = Number(url.searchParams.get('slot'));
+    const firstSlot = dayStart(seconds) / SNAPSHOT_SECONDS;
+    const english = url.searchParams.get('lang') === 'en';
+    if (!Number.isInteger(rideId) || rideId <= 0 || rideId > 99999999 ||
+        !Number.isInteger(throughSlot) || throughSlot < firstSlot || throughSlot > Math.floor(seconds / SNAPSHOT_SECONDS))
+      return json({ error: '施設IDと本日の20分枠を指定してください' }, 400);
+    const trends = await attractionWaitTrends(env.DB, rideId, seconds, throughSlot);
+    return json({ day: jstDay(seconds), through_slot: throughSlot, ride_id: rideId,
+      html: attractionTrendChart(trends.past.filter(row => Number(row.samples) >= 3),
+        trends.today.filter(row => Number(row.samples) >= 1), english) });
+  }
   if (url.pathname === '/api/archive/days') return json(await archiveDates(env.DB, epoch()));
   if (url.pathname === '/api/archive/day') {
     const day = url.searchParams.get('date') || '';
@@ -3143,7 +3157,7 @@ async function fallbackRoute(request, env) {
 
 const API_CACHE_SECONDS = new Map([
   ['/', 60], ['/en', 60], ['/en/', 60], ['/plan', 60], ['/map', 300], ['/vote', 300],
-  ['/api/waits', 300], ['/api/today', 300], ['/api/ride-averages', 1200], ['/api/weather', 600],
+  ['/api/waits', 300], ['/api/today', 300], ['/api/ride-averages', 1200], ['/api/ride-trends', 1200], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400], ['/api/history', 300],
   ['/api/poll-results', 300],

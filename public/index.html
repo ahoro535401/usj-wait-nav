@@ -214,6 +214,20 @@
     .card-chart-now, .card-chart-value { fill: #1058a7; font-weight: 700; }
     .card-chart-value { font-size: 13px; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
     .card-chart-empty { font-size: 13px; color: #526477; }
+    .ride-compare-chart { min-width: 0; margin: 12px 0; }
+    .ride-compare-chart h4 { margin: 0 0 7px; font-size: .94rem; }
+    .ride-compare-chart .trend-chart { margin: 0; }
+    .ride-compare-chart .trend-chart-scroll { overflow-x: auto; }
+    .ride-compare-chart svg { display: block; width: 760px; height: auto; }
+    .ride-compare-chart .trend-grid { stroke: #d6e0ea; stroke-width: 1; }
+    .ride-compare-chart .trend-axis { fill: #526477; font: 13px system-ui, sans-serif; }
+    .ride-compare-chart .trend-series { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .ride-compare-chart .trend-series circle { fill: #fff; stroke-width: 3; }
+    .ride-compare-chart figcaption { display: flex; flex-wrap: wrap; gap: 7px 15px; margin-top: 8px; font-size: .82rem; }
+    .ride-compare-chart .trend-legend { display: inline; }
+    .ride-compare-chart .trend-legend:before { content: ''; display: inline-block; width: 18px; margin-right: 5px; vertical-align: middle; border-top: 3px solid; }
+    .ride-compare-chart .trend-legend-today:before { border-color: #0872cf; }
+    .ride-compare-chart .trend-legend-past:before { border-color: #66758a; }
     .trend-legend { display: none; }
     .mobile-heatmap-hint { display: none; }
     .trend-legend[hidden] { display: none !important; }
@@ -492,6 +506,9 @@
     :root[data-theme="dark"] .spark-base, :root[data-theme="dark"] .card-chart-base { stroke: #3a4856; }
     :root[data-theme="dark"] .card-chart-grid { stroke: #2c3b4b; }
     :root[data-theme="dark"] .card-chart-axis { fill: #a9b6c4; }
+    :root[data-theme="dark"] .ride-compare-chart .trend-grid { stroke: #40546c; }
+    :root[data-theme="dark"] .ride-compare-chart .trend-axis { fill: #b9c9d8; }
+    :root[data-theme="dark"] .ride-compare-chart .trend-series circle { fill: #17212c; }
     :root[data-theme="dark"] .archive-hour-track { background: #1d2a37; }
     :root[data-theme="dark"] .show-date-list button { background: #17212c; color: #9cc4ff; border-color: #3a4b5d; }
     :root[data-theme="dark"] .show-date-list button[aria-pressed="true"] { background: #2f6fc0; color: #fff; border-color: #2f6fc0; }
@@ -1107,6 +1124,7 @@
     let todayRequest = 0;
     let todayData = null;
     let rideAverageData = null;
+    const rideTrendRequests = new Map();
     let rideAverageRequest = 0;
     let windWarning = '';
     let todayView = mobileHeatmap.matches ? 'cards' : 'table';
@@ -3658,6 +3676,32 @@
       } catch (_) { if (requestNumber === rideAverageRequest) rideAverageData = null; }
     }
 
+    async function loadRideTrend(rideId, day, slot, container) {
+      if (!Number.isInteger(slot)) { container.textContent = '本日の記録はまだありません。'; return; }
+      const key = `${slot}:${rideId}`;
+      if (!rideTrendRequests.has(key)) {
+        const pending = (async () => {
+          const response = await apiRequest(`/api/ride-trends?ride_id=${rideId}&slot=${slot}`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+          if (data.day !== day || data.through_slot !== slot || data.ride_id !== rideId)
+            throw new Error('記録の日時が一致しません');
+          return data;
+        })();
+        rideTrendRequests.set(key, pending);
+        pending.catch(() => rideTrendRequests.delete(key));
+      }
+      container.textContent = '比較グラフを読み込み中…';
+      try {
+        const result = await rideTrendRequests.get(key);
+        if (!container.isConnected) return;
+        container.innerHTML = result.html || '<p>比較できる実測記録はまだありません。</p>';
+      } catch (_) {
+        container.dataset.loaded = 'false';
+        if (container.isConnected) container.textContent = '比較グラフを読み込めません。もう一度開いてください。';
+      }
+    }
+
     function renderToday(data) {
       if (!currentData) return;
       todayData = data;
@@ -3804,7 +3848,7 @@
         averageLine.append(averageValues, averageDelta);
         const action = document.createElement('span');
         action.className = 'ride-card-action';
-        action.innerHTML = '<span class="ride-card-action-closed">グラフ・履歴を見る ▼</span><span class="ride-card-action-open">詳細を閉じる ▲</span>';
+        action.innerHTML = '<span class="ride-card-action-closed">比較グラフ・履歴を見る ▼</span><span class="ride-card-action-open">詳細を閉じる ▲</span>';
         summary.append(name, currentBlock, trendLabels, averageLine, action);
         const history = document.createElement('div');
         history.className = 'ride-card-history';
@@ -3817,7 +3861,17 @@
           link.textContent = 'USJ公式の施設情報を見る';
           history.append(link);
         }
-        history.append(cardChart(ride.id, isWaitCell(current) ? Number.parseFloat(current.textContent) : null, snapshots));
+        const comparison = document.createElement('div');
+        comparison.className = 'ride-compare-chart';
+        comparison.setAttribute('role', 'region');
+        comparison.setAttribute('aria-label', `${label}の本日と過去7日の待ち時間比較グラフ`);
+        const chartHeading = document.createElement('h4');
+        chartHeading.textContent = '本日と過去7日の同時刻推移';
+        comparison.append(chartHeading);
+        const chartBody = document.createElement('div');
+        chartBody.textContent = '開くと比較グラフを読み込みます。';
+        comparison.append(chartBody);
+        history.append(comparison);
         const cardSnapshots = snapshots.slice(0, 6);
         if (cardSnapshots.length) for (const snapshot of cardSnapshots) {
           const time = snapshotSlotTime(snapshot);
@@ -3848,6 +3902,14 @@
         }
         card.append(favoriteButton(ride.id, label), body);
         mobileCards.append(card);
+        const loadComparison = () => {
+          if (details.open && chartBody.dataset.loaded !== 'true') {
+            chartBody.dataset.loaded = 'true';
+            loadRideTrend(Number(ride.id), data.day, snapshots[0]?.slot, chartBody);
+          }
+        };
+        details.addEventListener('toggle', loadComparison);
+        loadComparison();
       }
       const emptyMessage = currentData.rides.length
         ? '絞り込みに一致するアトラクションはありません。'

@@ -68,6 +68,7 @@
     @media(prefers-color-scheme:dark){.wait.down{background:#57351e;color:#ffd09b}}
     .daily-average{margin:6px 0;padding:6px 8px;border-radius:7px;background:#eaf3ff;font-size:.84rem}
     .daily-average span,.daily-average strong{display:block}
+    .ride-comparison{min-width:0;margin:12px 0}.ride-comparison h4{margin:0 0 7px;font-size:.94rem}.ride-comparison .trend-chart{margin:0}.ride-comparison .trend-chart-scroll{overflow-x:auto}.ride-comparison svg{display:block;width:760px;height:auto}.ride-comparison .trend-grid{stroke:#d6e0ea;stroke-width:1}.ride-comparison .trend-axis{fill:#526477;font:13px system-ui,sans-serif}.ride-comparison .trend-series{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.ride-comparison .trend-series circle{fill:#fff;stroke-width:3}.ride-comparison figcaption{display:flex;flex-wrap:wrap;gap:7px 15px;margin-top:8px;font-size:.82rem}.ride-comparison .trend-legend:before{content:'';display:inline-block;width:18px;margin-right:5px;vertical-align:middle;border-top:3px solid}.ride-comparison .trend-legend-today:before{border-color:#0872cf}.ride-comparison .trend-legend-past:before{border-color:#66758a}
     [data-theme="dark"] .daily-average{background:#24405d;color:#e9f2fc}
   </style>
   <script src="/analytics.js" defer></script>
@@ -190,10 +191,25 @@
       return link;
     }
     let live=null,history=null,averages=null,averageRequest=0,archiveData=null,favorites=new Set(),view='cards',showRequest=0,archiveRequest=0;
+    const rideTrendRequests=new Map();
     $('today').querySelector('details.notes p')?.append(' Daily averages compare today’s recorded 20-minute slots with the same slots over the previous seven days. Closed, missing and inferred waits are excluded.');
     function averageOf(id){const slot=history?.snapshots?.[0]?.slot;if(!averages||!history||!Number.isInteger(slot))return null;return averages.day===history.day&&averages.through_slot===slot?averages.rides?.[String(id)]||null:null;}
     function averageText(id){const row=averageOf(id),today=Number.isFinite(row?.today_average)?`${row.today_average} min`:'—',past=Number.isFinite(row?.past_average)?`${row.past_average} min`:'—';const delta=Number.isFinite(row?.today_average)&&Number.isFinite(row?.past_average)?row.today_average-row.past_average:null;return {today,past,difference:delta===null?'Not comparable':`${delta>0?'+':''}${delta} min`,detail:row?`${row.today_samples} records today; ${row.past_samples} matching records across ${row.past_days} of the previous 7 days`:'Comparison data pending'};}
     async function loadAverages(data){const slot=data.snapshots?.[0]?.slot;if(!Number.isInteger(slot)){averages=null;return;}if(averages?.day===data.day&&averages?.through_slot===slot)return;const request=++averageRequest;try{const result=await get(`/api/ride-averages?slot=${slot}`);if(request!==averageRequest||result.day!==data.day||result.through_slot!==slot)return;averages=result;if(history?.day===data.day&&history?.snapshots?.[0]?.slot===slot)renderRides();}catch{if(request===averageRequest)averages=null;}}
+    async function loadRideTrend(rideId,day,slot,container){
+      if(!Number.isInteger(slot)){container.textContent='No records are available yet today.';return;}
+      const key=`${slot}:${rideId}`;
+      if(!rideTrendRequests.has(key)){
+        const pending=get(`/api/ride-trends?ride_id=${rideId}&slot=${slot}&lang=en`).then(data=>{
+          if(data.day!==day||data.through_slot!==slot||data.ride_id!==rideId)throw new Error('Record time mismatch');
+          return data;
+        });
+        rideTrendRequests.set(key,pending);pending.catch(()=>rideTrendRequests.delete(key));
+      }
+      container.textContent='Loading comparison chart…';
+      try{const data=await rideTrendRequests.get(key);if(container.isConnected)container.innerHTML=data.html||'<p>No measured records are available for comparison yet.</p>';}
+      catch{container.dataset.loaded='false';if(container.isConnected)container.textContent='Could not load the chart. Close and open this card to retry.';}
+    }
     try{favorites=new Set(JSON.parse(localStorage.getItem('usj-wait-nav-favorites-v1')||'[]').map(Number));}catch{}
     function nearestHistory(rideId,target,tolerance){if(!history?.snapshots)return null;let best=null,gap=Infinity;for(const snapshot of history.snapshots){const item=snapshot.rides?.[String(rideId)];if(!item?.is_open||!Number.isFinite(item.wait_minutes))continue;const distance=Math.abs(snapshot.captured_at-target);if(distance<gap){best={...item,at:snapshot.captured_at};gap=distance;}}return gap<=tolerance?best:null;}
     function change(ride,minutes){
@@ -231,7 +247,7 @@
         star.type='button';star.setAttribute('aria-label',`${favorites.has(Number(ride.id))?'Remove from':'Add to'} favorites: ${nameOf(ride)}`);
         star.setAttribute('aria-pressed',String(favorites.has(Number(ride.id))));
         star.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const id=Number(ride.id);favorites.has(id)?favorites.delete(id):favorites.add(id);try{localStorage.setItem('usj-wait-nav-favorites-v1',JSON.stringify([...favorites]));}catch{}renderRides();});
-        const name=el('span','name',nameOf(ride));name.append(el('small',null,'Tap for chart and recent records ▾'));
+        const name=el('span','name',nameOf(ride));name.append(el('small',null,'Tap for today vs 7-day chart and recent records ▾'));
         summary.append(name,waitBadge(ride));disclosure.append(summary);card.append(disclosure,star);
         const comparisons=el('div','delta-grid');
         for(const [minutes,label] of [[5,'5 min ago'],[20,'20 min ago'],[60,'1 hour ago']]){
@@ -241,14 +257,15 @@
          const daily=averageText(ride.id),averageLine=el('div','daily-average');
          averageLine.append(el('span',null,`Today avg ${daily.today}`),el('span',null,`7d same-time avg ${daily.past}`),el('strong',null,`Difference ${daily.difference}`));averageLine.title=daily.detail;card.append(averageLine);
         const detail=el('div','ride-details');
-        const bars=el('div','trend');bars.setAttribute('role','img');bars.setAttribute('aria-label','Wait time trend today');
-        const points=recent.map(s=>{const sample=s.rides?.[String(ride.id)];return sample?.is_open?sample.wait_minutes:null;}).filter(Number.isFinite);
-        const max=Math.max(30,ride.wait_time||0,...points);
-        for(const snap of recent){const sample=snap.rides?.[String(ride.id)];const value=sample?.is_open?sample.wait_minutes:null;const bar=el('i');bar.style.height=Number.isFinite(value)?`${Math.max(3,value/max*100)}%`:'2px';bar.style.opacity=Number.isFinite(value)?'1':'.18';bar.title=`${jst.format(new Date(snap.captured_at*1000))}: ${Number.isFinite(value)?value+' min':'no record'}`;bars.append(bar);}
-        detail.append(bars,el('p','small muted',`Latest record: ${recent.length?jst.format(new Date(recent.at(-1).captured_at*1000))+' JST':'none yet'}`));
+        const comparison=el('div','ride-comparison');comparison.setAttribute('role','region');comparison.setAttribute('aria-label',`${nameOf(ride)} wait time comparison chart`);
+        comparison.append(el('h4',null,'Today and previous 7 days, same times'));
+        const chartBody=el('div',null,'Open to load the comparison chart.');comparison.append(chartBody);
+        detail.append(comparison,el('p','small muted',`Latest record: ${recent.length?jst.format(new Date(recent.at(-1).captured_at*1000))+' JST':'none yet'}`));
         const official=officialAttractionLink(ride.id,'View attraction on the official USJ site ↗');
         if(official)detail.append(official);
         disclosure.append(detail);$('ride-cards').append(card);
+        const loadComparison=()=>{if(disclosure.open&&chartBody.dataset.loaded!=='true'){chartBody.dataset.loaded='true';loadRideTrend(Number(ride.id),history?.day,history?.snapshots?.[0]?.slot,chartBody);}};
+        disclosure.addEventListener('toggle',loadComparison);loadComparison();
         const row=el('tr'),nameCell=el('td');
         nameCell.append(officialAttractionLink(ride.id,nameOf(ride))||document.createTextNode(nameOf(ride)));
          row.append(nameCell,el('td',available(ride)?waitClass(ride.wait_time):'unknown',waitLabel(ride)));
