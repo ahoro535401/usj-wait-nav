@@ -2419,11 +2419,15 @@ function attractionTrendChart(past, today, english, downtimes = []) {
     .map(at => ((at + 32400) % 86400) / SNAPSHOT_SECONDS));
   const minBin = Math.max(0, Math.min(...points.map(row => Number(row.bin)), ...downBins) - 3);
   const maxBin = Math.min(71, Math.max(...points.map(row => Number(row.bin)), ...downBins) + 3);
-  const ceiling = Math.max(50, Math.ceil(Math.max(...points.map(row => Number(row.average_wait))) / 50) * 50);
+  const peakWait = Math.max(15, ...points.map(row => Number(row.average_wait)));
+  const magnitude = 10 ** Math.floor(Math.log10(peakWait / 6));
+  const tickStep = Math.max(5, [1, 2, 2.5, 5, 10].find(factor => factor * magnitude >= peakWait / 6) * magnitude);
+  const ceiling = Math.ceil(peakWait / tickStep) * tickStep;
   const left = 52, right = 730, top = 22, bottom = 220;
   const x = bin => left + (Number(bin) - minBin) / Math.max(1, maxBin - minBin) * (right - left);
   const y = wait => bottom - Number(wait) / ceiling * (bottom - top);
-  const grid = [0, ceiling / 2, ceiling].map(value =>
+  const grid = Array.from({ length: Math.round(ceiling / tickStep) + 1 },
+    (_, index) => Math.round(index * tickStep)).map(value =>
     `<line class="trend-grid" x1="${left}" x2="${right}" y1="${y(value)}" y2="${y(value)}"/>` +
     `<text class="trend-axis" x="${left - 8}" y="${y(value) + 4}" text-anchor="end">${Math.round(value)}</text>`).join('');
   const downBands = downtimes.map(row => {
@@ -2434,8 +2438,8 @@ function attractionTrendChart(past, today, english, downtimes = []) {
   }).join('');
   const hours = Array.from({ length: Math.floor(maxBin / 3) - Math.ceil(minBin / 3) + 1 },
     (_, index) => Math.ceil(minBin / 3) + index)
-    .filter(hour => hour % 3 === 0 || hour === Math.ceil(minBin / 3) || hour === Math.floor(maxBin / 3))
-    .map(hour => `<text class="trend-axis" x="${x(hour * 3)}" y="247" text-anchor="middle">${String(hour).padStart(2, '0')}</text>`).join('');
+    .map(hour => `<line class="trend-hour-grid" x1="${x(hour * 3)}" x2="${x(hour * 3)}" y1="${top}" y2="${bottom}"/>` +
+      `<text class="trend-axis" x="${x(hour * 3)}" y="247" text-anchor="middle">${String(hour).padStart(2, '0')}</text>`).join('');
   const lines = series.map(item => {
     let segments = [], segment = [], previousBin = null;
     for (const row of item.rows) {
@@ -2589,7 +2593,7 @@ async function renderAttractionPage(request, env, item, english) {
     `.comparison span{display:block;font-size:.9rem}.comparison strong{font-size:1.15rem}` +
     `table{width:100%;border-collapse:collapse}th,td{padding:8px;text-align:left;border-bottom:1px solid #d8e1eb}` +
     `.trend-chart{margin:16px 0}.trend-chart-scroll{overflow-x:auto}.trend-chart svg{display:block;width:760px;height:auto}` +
-    `.trend-grid{stroke:#d6e0ea;stroke-width:1}.trend-axis{fill:#506079;font:13px system-ui,sans-serif}` +
+    `.trend-grid{stroke:#d6e0ea;stroke-width:1}.trend-hour-grid{stroke:#e9eef4;stroke-width:1}.trend-axis{fill:#506079;font:13px system-ui,sans-serif}` +
     `.trend-down-band{fill:#d87922;opacity:.26}.trend-down-note{color:#9b4c0d;font-weight:700}` +
     `.trend-series{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}` +
     `.trend-series circle{fill:white;stroke-width:3}.trend-chart figcaption{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}` +
@@ -2600,7 +2604,7 @@ async function renderAttractionPage(request, env, item, english) {
     `.past-downtime nav a[aria-current]{background:#075aab;color:#fff;border-color:#075aab;font-weight:700}` +
     `@media(prefers-color-scheme:dark){body{background:#121d2a;color:#eef4fc}section{background:#1c2b3b;border-color:#40546c}` +
     `a{color:#9dcbff}.muted{color:#b9c9d8}.comparison li{background:#283c51}th,td{border-color:#40546c}` +
-    `.trend-grid{stroke:#40546c}.trend-axis{fill:#b9c9d8}.trend-series circle{fill:#1c2b3b}.trend-down-note{color:#ffbd85}` +
+    `.trend-grid{stroke:#40546c}.trend-hour-grid{stroke:#2a3949}.trend-axis{fill:#b9c9d8}.trend-series circle{fill:#1c2b3b}.trend-down-note{color:#ffbd85}` +
     `.past-downtime{border-color:#40546c}.past-downtime nav a{border-color:#62758b}}</style></head><body>` +
     `<header><a href="${english ? '/en/' : '/'}">${english ? 'USJ Wait Times Guide' : 'USJ待ち時間ナビ'}</a>` +
     `<a href="${english ? jaPath : enPath}" hreflang="${english ? 'ja' : 'en'}">${english ? '日本語' : 'English'}</a></header>` +

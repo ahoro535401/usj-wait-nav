@@ -222,6 +222,7 @@
     .ride-compare-chart .trend-chart-scroll { overflow-x: auto; }
     .ride-compare-chart svg { display: block; width: 760px; height: auto; }
     .ride-compare-chart .trend-grid { stroke: #d6e0ea; stroke-width: 1; }
+    .ride-compare-chart .trend-hour-grid { stroke: #e9eef4; stroke-width: 1; }
     .ride-compare-chart .trend-axis { fill: #526477; font: 13px system-ui, sans-serif; }
     .ride-compare-chart .trend-series { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .ride-compare-chart .trend-series circle { fill: #fff; stroke-width: 3; }
@@ -510,6 +511,7 @@
     :root[data-theme="dark"] .card-chart-axis { fill: #a9b6c4; }
     :root[data-theme="dark"] button.ride-card-guide-link { color: #8fb6ff; }
     :root[data-theme="dark"] .ride-compare-chart .trend-grid { stroke: #40546c; }
+    :root[data-theme="dark"] .ride-compare-chart .trend-hour-grid { stroke: #2a3949; }
     :root[data-theme="dark"] .ride-compare-chart .trend-axis { fill: #b9c9d8; }
     :root[data-theme="dark"] .ride-compare-chart .trend-series circle { fill: #17212c; }
     :root[data-theme="dark"] .archive-hour-track { background: #1d2a37; }
@@ -3684,7 +3686,7 @@
       const key = `${slot}:${rideId}`;
       if (!rideTrendRequests.has(key)) {
         const pending = (async () => {
-          const response = await apiRequest(`/api/ride-trends?ride_id=${rideId}&slot=${slot}`);
+          const response = await apiRequest(`/api/ride-trends?ride_id=${rideId}&slot=${slot}&axis=v2`);
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
           if (data.day !== day || data.through_slot !== slot || data.ride_id !== rideId)

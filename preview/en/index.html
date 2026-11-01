@@ -70,8 +70,10 @@
     .daily-average span,.daily-average strong{display:block}
     .ride-comparison-link{display:block;margin:3px 12px 12px;padding:0;border:0;background:none;color:#1765ac;font:inherit;font-size:.86rem;font-weight:700;text-align:left;text-decoration:underline;cursor:pointer}.ride-comparison-link:focus-visible{outline:2px solid #1765ac;outline-offset:3px}
     .ride-comparison{min-width:0;margin:12px 0}.ride-comparison h4{margin:0 0 7px;font-size:.94rem}.ride-comparison .trend-chart{margin:0}.ride-comparison .trend-chart-scroll{overflow-x:auto}.ride-comparison svg{display:block;width:760px;height:auto}.ride-comparison .trend-grid{stroke:#d6e0ea;stroke-width:1}.ride-comparison .trend-axis{fill:#526477;font:13px system-ui,sans-serif}.ride-comparison .trend-series{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.ride-comparison .trend-series circle{fill:#fff;stroke-width:3}.ride-comparison figcaption{display:flex;flex-wrap:wrap;gap:7px 15px;margin-top:8px;font-size:.82rem}.ride-comparison .trend-legend:before{content:'';display:inline-block;width:18px;margin-right:5px;vertical-align:middle;border-top:3px solid}.ride-comparison .trend-legend-today:before{border-color:#0872cf}.ride-comparison .trend-legend-past:before{border-color:#66758a}
+    .ride-comparison .trend-hour-grid{stroke:#e9eef4;stroke-width:1}
     [data-theme="dark"] .daily-average{background:#24405d;color:#e9f2fc}
     [data-theme="dark"] .ride-comparison-link{color:#9cc4ff}
+    [data-theme="dark"] .ride-comparison .trend-hour-grid{stroke:#2a3949}
   </style>
   <script src="/analytics.js" defer></script>
   <script src="/en/show-translations.js?v=SHOW_TRANSLATIONS_VERSION"></script>
@@ -202,7 +204,7 @@
       if(!Number.isInteger(slot)){container.textContent='No records are available yet today.';return;}
       const key=`${slot}:${rideId}`;
       if(!rideTrendRequests.has(key)){
-        const pending=get(`/api/ride-trends?ride_id=${rideId}&slot=${slot}&lang=en`).then(data=>{
+        const pending=get(`/api/ride-trends?ride_id=${rideId}&slot=${slot}&lang=en&axis=v2`).then(data=>{
           if(data.day!==day||data.through_slot!==slot||data.ride_id!==rideId)throw new Error('Record time mismatch');
           return data;
         });

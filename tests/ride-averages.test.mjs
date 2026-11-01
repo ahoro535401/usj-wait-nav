@@ -23,6 +23,10 @@ test('all-ride averages compare only matching recorded slots and ignore closed o
   add(5, 1, 20);
   add(6, 1, 100);
   add(7, 1, 50);
+  for (const day of [1, 2, 3]) {
+    add(day, 1, 30, 1, 'Queue-Times', firstSlot + 6);
+    add(day, 1, 40, 1, 'Queue-Times', firstSlot + 9);
+  }
   add(1, 1, 999, 1, 'Queue-Times', firstSlot + 1); // no today observation at this time
   const env = { DB: { prepare(sql) { return { bind(...args) { return {
     all: async () => ({ results: sqlite.prepare(sql).all(...args) }),
@@ -47,6 +51,12 @@ test('all-ride averages compare only matching recorded slots and ignore closed o
     assert.match(chart.html, /本日の20分ごとの待ち時間と過去7日の同時刻平均の比較/);
     assert.match(chart.html, /trend-series trend-today/);
     assert.match(chart.html, /trend-series trend-past/);
+    assert.ok((chart.html.match(/class="trend-grid"/g) || []).length >= 6); // finer minute guides
+    assert.ok((chart.html.match(/class="trend-hour-grid"/g) || []).length >= 5); // every hour
+    const shortWaitChart = await worker.fetch(new Request(`https://uniba-waittimes.com/api/ride-trends?ride_id=2&slot=${firstSlot}`), env, {});
+    const shortHtml = (await shortWaitChart.json()).html;
+    assert.match(shortHtml, /class="trend-axis"[^>]*>15<\/text>/); // ride-specific upper bound
+    assert.doesNotMatch(shortHtml, /class="trend-axis"[^>]*>50<\/text>/);
     const englishChart = await worker.fetch(new Request(`https://uniba-waittimes.com/api/ride-trends?ride_id=1&slot=${firstSlot}&lang=en`), env, {});
     assert.match((await englishChart.json()).html, /previous 7-day same-time average/);
     const future = await worker.fetch(new Request(`https://uniba-waittimes.com/api/ride-averages?slot=${Math.floor(now / 1200) + 1}`), env, {});
