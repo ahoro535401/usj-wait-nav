@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import vm from 'node:vm';
 
 const source = (await readFile(new URL('../src/index.js', import.meta.url), 'utf8'))
@@ -25,7 +26,7 @@ const sample = {
   ],
 };
 
-function mockEnvironment({ status = 'OPERATING', count = 40, onWrite = null } = {}) {
+function mockEnvironment({ status = 'OPERATING', count = 40, onWrite = null, recentDays = [] } = {}) {
   const requestedDays = [];
   const db = {
     prepare(sql) {
@@ -38,6 +39,10 @@ function mockEnvironment({ status = 'OPERATING', count = 40, onWrite = null } = 
                 return { status, opens: '08:00', closes: '22:00' };
               }
               if (sql.includes('FROM snapshots')) return { count };
+              throw new Error(`Unexpected query: ${sql}`);
+            },
+            async all() {
+              if (sql.includes('GROUP BY p.day ORDER BY p.day')) return { results: recentDays };
               throw new Error(`Unexpected query: ${sql}`);
             },
             async run() {
@@ -139,4 +144,69 @@ test('the morning window and data quality gates prevent a stale recap', async ()
   const sparse = mockEnvironment({ count: 10 });
   await context.maybePostPreviousDayEnglishX(sparse.env, at('2026-10-14T05:30:00+09:00'));
   assert.equal(sent.length, 0);
+});
+
+test('both recap cards compare against seven complete prior operating days without adding post text', async () => {
+  const recentDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(at('2026-10-06T12:00:00+09:00') * 1000 + index * 86400 * 1000)
+      .toISOString().slice(0, 10);
+    return {
+      day, opens: '08:00', closes: '22:00', status: 'OPERATING', coverage: 40,
+      first_at: at(`${day}T08:20:00+09:00`), last_at: at(`${day}T21:40:00+09:00`),
+      wait_total: index === 6 ? 500 : 360, wait_count: 10,
+    };
+  });
+  const { env } = mockEnvironment({ recentDays });
+  context.archiveDay = async () => sample;
+  const data = await context.dailyRecapData(env, '2026-10-13', at('2026-10-14T05:30:00+09:00'));
+  assert.equal(data.seven_day_average, 38);
+  assert.match(context.xDailyCardPayload('2026-10-13', data, true).subtitle,
+    /直近7日平均 38分 \| この日 \+14分/);
+  assert.match(context.englishDailyCardPayload('2026-10-13', data, false).subtitle,
+    /Prior 7-day avg 38 min \| this day \+14 min/);
+  assert.doesNotMatch(context.xPreviousDayPost('2026-10-13', data), /直近7日平均/);
+  assert.equal(context.xPreviousDayPost('2026-10-13', data),
+    context.xPreviousDayPost('2026-10-13', sample));
+  assert.equal(context.xDailyPost('2026-10-13', data), context.xDailyPost('2026-10-13', sample));
+  assert.equal(context.englishXPreviousDayPost('2026-10-13', data),
+    context.englishXPreviousDayPost('2026-10-13', sample));
+  assert.equal(context.englishXDailyPost('2026-10-13', data),
+    context.englishXDailyPost('2026-10-13', sample));
+  assert.ok(context.xWeightedLength(context.xPreviousDayPost('2026-10-13', data)) <= 250);
+  assert.ok(context.xWeightedLength(context.xDailyPost('2026-10-13', data)) <= 250);
+  assert.ok(context.xWeightedLength(context.englishXPreviousDayPost('2026-10-13', data)) <= 280);
+  assert.ok(context.xWeightedLength(context.englishXDailyPost('2026-10-13', data)) <= 280);
+
+  recentDays[3].coverage = 5;
+  assert.equal(await context.sevenDayRecapAverage(env.DB, '2026-10-13'), null);
+  recentDays.splice(3, 1);
+  assert.equal(await context.sevenDayRecapAverage(env.DB, '2026-10-13'), null);
+});
+
+test('seven-day SQL computes the mean of daily recorded waits and excludes inferred waits', async () => {
+  const sqlite = new DatabaseSync(':memory:');
+  sqlite.exec('CREATE TABLE park_days(day TEXT PRIMARY KEY, opens TEXT, closes TEXT, status TEXT);' +
+    'CREATE TABLE snapshots(slot INTEGER PRIMARY KEY, captured_at INTEGER);' +
+    'CREATE TABLE ride_samples(slot INTEGER, ride_id INTEGER, wait_minutes INTEGER, is_open INTEGER, source TEXT);');
+  const insertDay = sqlite.prepare('INSERT INTO park_days VALUES (?,?,?,?)');
+  const insertSnapshot = sqlite.prepare('INSERT INTO snapshots VALUES (?,?)');
+  const insertSample = sqlite.prepare('INSERT INTO ride_samples VALUES (?,?,?,?,?)');
+  for (let index = 0; index < 7; index++) {
+    const day = new Date(at('2026-10-06T12:00:00+09:00') * 1000 + index * 86400 * 1000)
+      .toISOString().slice(0, 10);
+    insertDay.run(day, '08:00', '22:00', 'OPERATING');
+    for (let slotIndex = 0; slotIndex < 42; slotIndex++) {
+      const captured = at(`${day}T08:00:00+09:00`) + slotIndex * 1200;
+      const slot = captured / 1200;
+      insertSnapshot.run(slot, captured);
+      insertSample.run(slot, 1000, index === 6 ? 50 : 30, 1, 'Queue-Times');
+      insertSample.run(slot, 1001, 999, 1, 'Queue-Times:inferred-dark-2026-10-04');
+      insertSample.run(slot, 12067, 999, 1, 'Queue-Times');
+    }
+  }
+  const db = { prepare(sql) { return { bind(...args) { return { async all() {
+    return { results: sqlite.prepare(sql).all(...args) };
+  } }; } }; } };
+  assert.equal(await context.sevenDayRecapAverage(db, '2026-10-13'), 33);
+  sqlite.close();
 });

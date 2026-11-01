@@ -565,7 +565,9 @@ async function renderXCard(env, card) {
   };
   add(xCardClip(card.label, 24), 655, 46, 26, '#d9e7f2');
   add(xCardClip(card.title, 28), 79, 154, 47);
-  if (card.language === 'en') add(card.subtitle || 'Standard standby estimates', 82, 221, 23, '#c9e2f6');
+  if (card.subtitle || card.language === 'en')
+    add(card.subtitle || 'Standard standby estimates', 82, 221,
+      card.language === 'en' ? 23 : 26, '#c9e2f6');
   card.rows.forEach((row, index) => {
     add(xCardClip(row.name, card.language === 'en' ? 28 : 15), 146, 291 + 102 * index,
       card.language === 'en' ? 36 : 40);
@@ -757,6 +759,13 @@ function recapHours(data) {
     hour.snapshots >= 2 && hour.ride_count >= 5 && Number.isFinite(hour.average_wait));
 }
 
+function recapSevenDayDifference(data) {
+  if (!Number.isFinite(data.seven_day_average)) return null;
+  const average = Math.round(data.seven_day_average);
+  const difference = Math.round(data.average_wait) - average;
+  return { average, signed: `${difference >= 0 ? '+' : ''}${difference}` };
+}
+
 function xDailyPost(day, data) {
   if (!Number.isFinite(data.average_wait)) return null;
   const peak = recapHours(data).sort((a, b) => b.average_wait - a.average_wait)[0];
@@ -799,16 +808,47 @@ function xDailyCardPayload(day, data, previousDay = false) {
   const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
   const quiet = ranked[0];
   const peak = ranked[ranked.length - 1];
+  const comparison = recapSevenDayDifference(data);
   return {
     captured_at: new Date(data.last_at * 1000).toISOString(),
     label: `${xDateLabel(day)}の実績`,
     title: previousDay ? '昨日の混雑実績' : '今日の混雑実績',
+    ...(comparison ? { subtitle: `直近7日平均 ${comparison.average}分 | この日 ${comparison.signed}分` } : {}),
     rows: [
       { name: 'この日の平均待ち時間', wait: Math.round(data.average_wait) },
       { name: `混雑ピーク ${hhmm(peak.at).slice(0, 2)}時台`, wait: Math.round(peak.average_wait) },
       { name: `比較的空いた ${hhmm(quiet.at).slice(0, 2)}時台`, wait: Math.round(quiet.average_wait) },
     ],
   };
+}
+
+async function sevenDayRecapAverage(db, day) {
+  const end = Date.parse(`${day}T00:00:00+09:00`) / 1000;
+  const start = end - 7 * 86400;
+  const valid = "s.is_open=1 AND typeof(s.wait_minutes)='integer' AND s.source<>? " +
+    "AND (s.ride_id NOT IN (12067,15322,12068,17894) OR s.source='ThemeParks.wiki')";
+  const { results } = await db.prepare(
+    'SELECT p.day,p.opens,p.closes,p.status,COUNT(DISTINCT CASE WHEN ' +
+    "h.captured_at>=strftime('%s',p.day||' '||p.opens,'-9 hours') AND " +
+    "h.captured_at<strftime('%s',p.day||' '||p.closes,'-9 hours') THEN h.slot END) AS coverage, " +
+    'MIN(h.captured_at) AS first_at,MAX(h.captured_at) AS last_at,' +
+    `SUM(CASE WHEN ${valid} THEN s.wait_minutes END) AS wait_total,` +
+    `SUM(CASE WHEN ${valid} THEN 1 ELSE 0 END) AS wait_count ` +
+    'FROM snapshots h JOIN park_days p ON p.day=date(h.captured_at + 32400,\'unixepoch\') ' +
+    'LEFT JOIN ride_samples s USING(slot) WHERE h.slot>=? AND h.slot<? GROUP BY p.day ORDER BY p.day'
+  ).bind(DARK_ESTIMATE_SOURCE, DARK_ESTIMATE_SOURCE, start / SNAPSHOT_SECONDS, end / SNAPSHOT_SECONDS).all();
+  if (results.length !== 7) return null;
+  let dailyAverages = 0;
+  for (const row of results) {
+    const opening = Date.parse(`${row.day}T${row.opens}:00+09:00`) / 1000;
+    const closing = Date.parse(`${row.day}T${row.closes}:00+09:00`) / 1000;
+    if (row.status !== 'OPERATING' || !Number.isFinite(opening) || !Number.isFinite(closing) ||
+        closing <= opening || row.coverage < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7) ||
+        row.first_at > opening + 40 * 60 || row.last_at < closing - 40 * 60 ||
+        !row.wait_count || !Number.isFinite(row.wait_total)) return null;
+    dailyAverages += row.wait_total / row.wait_count;
+  }
+  return Math.round(dailyAverages / 7);
 }
 
 async function dailyRecapData(env, day, seconds) {
@@ -822,9 +862,12 @@ async function dailyRecapData(env, day, seconds) {
     .bind(opening, closing).first();
   if ((coverage?.count || 0) < Math.ceil((closing - opening) / SNAPSHOT_SECONDS * 0.7)) return null;
   const data = await archiveDay(env.DB, day);
-  return data && Number.isFinite(data.average_wait) && data.last_at &&
-    data.first_at <= opening + 40 * 60 && data.last_at >= closing - 40 * 60 ?
-    { ...data, opening_at: opening, closing_at: closing } : null;
+  if (!data || !Number.isFinite(data.average_wait) || !data.last_at ||
+      data.first_at > opening + 40 * 60 || data.last_at < closing - 40 * 60) return null;
+  let seven_day_average = null;
+  try { seven_day_average = await sevenDayRecapAverage(env.DB, day); }
+  catch (error) { console.error('Seven-day X recap comparison unavailable', error); }
+  return { ...data, opening_at: opening, closing_at: closing, seven_day_average };
 }
 
 async function japaneseDailyXImage(env, seconds, slot, day, data, previousDay = false) {
@@ -839,7 +882,8 @@ async function japaneseDailyXImage(env, seconds, slot, day, data, previousDay = 
       if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid recap image: ${preview.status}, ${bytes} bytes`);
       await writeMeta(env.DB, xCardKey(jstDay(seconds), slot), JSON.stringify(card));
       imageUrl = xCardUrl(jstDay(seconds), slot);
-      imageAlt = `${card.label}。${card.rows.map(row => `${row.name} ${row.wait}分`).join('、')}。`;
+      imageAlt = `${card.label}。${card.title}。${card.subtitle ? `${card.subtitle}。` : ''}` +
+        `${card.rows.map(row => `${row.name} ${row.wait}分`).join('、')}。`;
     } catch (error) {
       console.error('X recap card unavailable; using photo', error);
     }
@@ -989,7 +1033,8 @@ async function englishXImage(env, seconds, slot, card) {
     if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid English card: ${preview.status}, ${bytes} bytes`);
     await writeMeta(env.DB, englishXCardKey(jstDay(seconds), slot), JSON.stringify(card));
     return { url: englishXCardUrl(jstDay(seconds), slot),
-      alt: `${card.label}. ${card.title}. ${card.rows.map(row => `${row.name}: ${row.wait} min`).join('; ')}.` };
+      alt: `${card.label}. ${card.title}. ${card.subtitle ? `${card.subtitle}. ` : ''}` +
+        `${card.rows.map(row => `${row.name}: ${row.wait} min`).join('; ')}.` };
   } catch (error) {
     console.error('English X card unavailable; using photo', error);
     return { url: 'https://uniba-waittimes.com/og-photo.jpg', alt: null };
@@ -1066,10 +1111,12 @@ function dueEnglishDailyXPost(seconds) {
 function englishDailyCardPayload(day, data, previousDay = false) {
   const hours = recapHours(data).sort((a, b) => a.average_wait - b.average_wait);
   if (hours.length < 2) return null;
+  const comparison = recapSevenDayDifference(data);
   return {
     language: 'en', captured_at: new Date(data.last_at * 1000).toISOString(),
     label: `${englishXDate(day)} recap`, title: previousDay ? 'Yesterday at USJ' : 'Daily crowd recap',
-    subtitle: 'Historical hourly averages',
+    subtitle: comparison ? `Prior 7-day avg ${comparison.average} min | this day ${comparison.signed} min` :
+      'Historical hourly averages',
     rows: [
       { name: 'Daily average', wait: Math.round(data.average_wait) },
       { name: `Busiest: ${hhmm(hours.at(-1).at).slice(0, 2)}:00`, wait: Math.round(hours.at(-1).average_wait) },

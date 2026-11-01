@@ -54,6 +54,7 @@ const context = vm.createContext({ console, URL, Request, Response, AbortSignal,
 vm.runInContext(source, context, { filename: 'src/index.js' });
 const data = {
   average_wait: 55,
+  seven_day_average: 38,
   opening_at: Date.parse('2026-10-15T08:00:00+09:00') / 1000,
   closing_at: Date.parse('2026-10-15T22:00:00+09:00') / 1000,
   last_at: Date.parse('2026-10-15T22:00:00+09:00') / 1000,
