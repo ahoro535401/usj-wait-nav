@@ -455,10 +455,23 @@ function isRecent(ride, captured) {
     Number.isFinite(age) && age >= -120 && age <= SOURCE_MAX_AGE;
 }
 
-async function daytimeXComparison(db, rides, captured) {
-  const current = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+function currentParkRides(rides, captured) {
+  return rides.filter(ride => ride.is_open && !ride.data_unavailable &&
     Number.isInteger(ride.wait_time) && ride.wait_time >= 0 &&
     Number.isInteger(Number(ride.id)) && isRecent(ride, captured));
+}
+
+function currentParkAverage(rides, captured) {
+  if (!Array.isArray(rides) || !Number.isFinite(captured)) return null;
+  const current = currentParkRides(rides, captured);
+  return current.length ? {
+    average: Math.round(current.reduce((total, ride) => total + ride.wait_time, 0) / current.length),
+    rides: current.length,
+  } : null;
+}
+
+async function daytimeXComparison(db, rides, captured) {
+  const current = currentParkRides(rides, captured);
   if (current.length < 5) return null;
   const start = dayStart(captured);
   const bin = (Math.floor(captured / SNAPSHOT_SECONDS) + 27) % 72;
@@ -560,7 +573,7 @@ const xCardKey = (day, slot) => `xcard_${day}_${slot.replace(':', '')}`;
 const xCardUrl = (day, slot) =>
   `https://uniba-waittimes.com/x-card/${day}/${slot.replace(':', '')}.png`;
 
-function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null) {
+function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null, parkAverage = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   if (!Number.isFinite(captured)) return null;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
@@ -578,14 +591,15 @@ function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null
   const headline = post?.split('\n')[0] || '';
   const focus = changed && headline.includes(`約20分前より${Math.abs(changed.difference)}分${changed.difference < 0 ? '短縮' : '増加'}`)
     ? changed : null;
-  const title = focus ?
+  const title = parkAverage ? `現在の平均待ち時間 ${parkAverage.average}分` : focus ?
     `${xCardClip(xCardName(focus.ride, names), 11)}が20分前より${Math.abs(focus.difference)}分${focus.difference < 0 ? '短縮' : '増加'}` :
     '現在の待ち時間 上位3施設';
   return {
     captured_at: fetchedAt,
     label: `${xDateLabel(jstDay(captured))} ${hhmm(captured)}時点`,
     title,
-    ...(comparison ? { subtitle: `比較${comparison.rides}施設平均 ${comparison.now}分 | 過去7日同時刻 ${comparison.past}分（${comparison.difference >= 0 ? '+' : ''}${comparison.difference}分）` } : {}),
+    ...(comparison ? { subtitle: `比較${comparison.rides}施設：今${comparison.now}分 / 過去7日同時刻${comparison.past}分（${comparison.difference >= 0 ? '+' : ''}${comparison.difference}分）` } :
+      parkAverage ? { subtitle: `数値を確認できた${parkAverage.rides}施設の平均` } : {}),
     rows: ranked.slice(0, 3).map(ride => ({ name: xCardName(ride, names), wait: ride.wait_time })),
   };
 }
@@ -716,12 +730,13 @@ async function maybePostX(env, seconds) {
   const names = rideJapaneseNames(await response.text());
   const post = xWaitPost(rides, names, fetchedAt, previous);
   if (!post) return;
+  const parkAverage = currentParkAverage(rides, captured);
   let comparison = null;
   try { comparison = await daytimeXComparison(env.DB, rides, captured); }
   catch (error) { console.error('Daytime X comparison unavailable', error); }
   let imageUrl = X_POST_IMAGE;
   let imageAlt = null;
-  const card = xCardPayload(rides, names, fetchedAt, previous, post, comparison);
+  const card = xCardPayload(rides, names, fetchedAt, previous, post, comparison, parkAverage);
   if (card && env.IMAGES) {
     try {
       const preview = await renderXCard(env, card);
@@ -982,7 +997,7 @@ function englishXFocusText(focus) {
     `${focus.difference < 0 ? 'shorter' : 'longer'} vs ~20 min ago`;
 }
 
-function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null) {
+function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null, parkAverage = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   if (!Number.isFinite(captured)) return null;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
@@ -997,9 +1012,10 @@ function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null
   return {
     language: 'en', captured_at: fetchedAt,
     label: `${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`,
-    title: highlight || 'Longest standby waits',
-    subtitle: comparison ? `${comparison.rides} rides avg: now ${comparison.now} min | prior 7 days same time ${comparison.past} min (${comparison.difference >= 0 ? '+' : ''}${comparison.difference})` :
-      highlight ? 'Compared with ~20 min earlier' : 'Standard standby estimates',
+    title: parkAverage ? `Average wait now: ${parkAverage.average} min` : highlight || 'Longest standby waits',
+    subtitle: comparison ? `${comparison.rides} matched: now ${comparison.now} / prior 7 days ${comparison.past} min (${comparison.difference >= 0 ? '+' : ''}${comparison.difference})` :
+      parkAverage ? `Average of ${parkAverage.rides} verified rides` :
+        highlight ? 'Compared with ~20 min earlier' : 'Standard standby estimates',
     rows: ranked.slice(0, 3).map(ride => ({ name: englishCardName(ride), wait: ride.wait_time })),
   };
 }
@@ -1103,10 +1119,11 @@ async function maybePostEnglishX(env, seconds) {
     .map(row => [String(row.ride_id), row])) } : null;
   const post = englishXPost(rides, fetchedAt, previous);
   if (!post) return;
+  const parkAverage = currentParkAverage(rides, captured);
   let comparison = null;
   try { comparison = await daytimeXComparison(env.DB, rides, captured); }
   catch (error) { console.error('Daytime English X comparison unavailable', error); }
-  const card = englishXCardPayload(rides, fetchedAt, previous, post, comparison);
+  const card = englishXCardPayload(rides, fetchedAt, previous, post, comparison, parkAverage);
   const image = await englishXImage(env, seconds, slot, card);
   await sendBufferPost(env, seconds, slot, post, fetchedAt,
     englishXReply(rides, fetchedAt, previous, slot, post), image.url, image.alt, englishXOptions(env));
@@ -3192,8 +3209,17 @@ async function route(request, env) {
     ]);
     let previous = null;
     try { previous = JSON.parse(previousPayload); } catch (_) { /* 前回値がなければ比較しない */ }
+    const captured = Date.parse(fetchedAt) / 1000;
+    const fresh = Number.isFinite(captured) && epoch() - captured >= -120 && epoch() - captured <= 10 * 60;
+    const parkAverage = fresh ? currentParkAverage(rides, captured) : null;
+    let sevenDayComparison = null;
+    if (parkAverage) {
+      try { sevenDayComparison = await daytimeXComparison(env.DB, rides, captured); }
+      catch (error) { console.error('Park-wide seven-day comparison unavailable', error); }
+    }
     return json({ rides, fetched_at: fetchedAt, previous, refresh_error: refreshError || null,
-      archive_error: null, history: null, comparisons: {} });
+      archive_error: null, history: null, comparisons: {},
+      park_average: parkAverage, seven_day_comparison: sevenDayComparison });
   }
   if (url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
   return assetFetch(request, env);
@@ -3228,9 +3254,12 @@ async function fallbackRoute(request, env) {
       const [queue, wiki] = await Promise.allSettled([fetchJson(QUEUE_URL), fetchJson(WIKI_LIVE_URL)]);
       if (queue.status === 'fulfilled') {
         const fetchedAt = new Date().toISOString();
-        return json({ rides: parseRides(queue.value, wiki.status === 'fulfilled' ? wiki.value : null, fetchedAt),
+        const rides = parseRides(queue.value, wiki.status === 'fulfilled' ? wiki.value : null, fetchedAt);
+        return json({ rides,
           fetched_at: fetchedAt, refresh_error: null, archive_error: '保存データの読み取りが一時的に停止中',
-          history: fallback.history, comparisons: {}, stale: false });
+          history: fallback.history, comparisons: {}, stale: false,
+          park_average: currentParkAverage(rides, Date.parse(fetchedAt) / 1000),
+          seven_day_comparison: null });
       }
     } catch (error) {
       console.warn('Wait fallback fetch failed', error);
