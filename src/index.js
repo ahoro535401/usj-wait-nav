@@ -1934,6 +1934,30 @@ async function todayMatrix(db, seconds) {
   return readTodayMatrix(db, seconds);
 }
 
+async function rideDailyAverages(db, seconds, throughSlot) {
+  const firstSlot = dayStart(seconds) / SNAPSHOT_SECONDS;
+  const { results } = await db.prepare(
+    'WITH today AS (' +
+      'SELECT s.ride_id,s.slot,s.wait_minutes FROM ride_samples s ' +
+      'WHERE s.slot>=? AND s.slot<=? AND s.is_open=1 AND s.wait_minutes IS NOT NULL AND s.source<>? ' +
+      'AND (s.slot<? OR EXISTS(SELECT 1 FROM snapshots h WHERE h.slot=s.slot AND h.captured_at<=?))' +
+    '), offsets(day_offset) AS (VALUES(1),(2),(3),(4),(5),(6),(7)) ' +
+    'SELECT t.ride_id,ROUND(AVG(t.wait_minutes)) AS today_average,COUNT(DISTINCT t.slot) AS today_samples, ' +
+      'ROUND(AVG(p.wait_minutes)) AS past_average,COUNT(p.wait_minutes) AS past_samples, ' +
+      'COUNT(DISTINCT CASE WHEN p.wait_minutes IS NOT NULL THEN offsets.day_offset END) AS past_days ' +
+    'FROM today t CROSS JOIN offsets LEFT JOIN ride_samples p ' +
+      'ON p.slot=t.slot-72*offsets.day_offset AND p.ride_id=t.ride_id ' +
+      'AND p.is_open=1 AND p.wait_minutes IS NOT NULL AND p.source<>? ' +
+    'GROUP BY t.ride_id'
+  ).bind(firstSlot, throughSlot, DARK_ESTIMATE_SOURCE, throughSlot, seconds,
+    DARK_ESTIMATE_SOURCE).all();
+  return { day: jstDay(seconds), through_slot: throughSlot,
+    rides: Object.fromEntries(results.map(row => [String(row.ride_id), {
+      today_average: row.today_average, today_samples: row.today_samples,
+      past_average: row.past_average, past_samples: row.past_samples, past_days: row.past_days,
+    }])) };
+}
+
 async function archiveDates(db, seconds) {
   const { results } = await db.prepare(
     "SELECT date(h.captured_at + 32400, 'unixepoch') AS day, COUNT(*) AS snapshots, " +
@@ -2523,6 +2547,15 @@ async function renderAttractionPage(request, env, item, english) {
   const todayHourly = trends.todayHourly.filter(row => Number(row.samples) >= 1);
   const pastTwentyMinute = trends.past.filter(row => Number(row.samples) >= 3);
   const todayTwentyMinute = trends.today.filter(row => Number(row.samples) >= 1);
+  const observedBins = new Set(trends.today.map(row => Number(row.bin)));
+  const matchedPast = trends.past.filter(row => observedBins.has(Number(row.bin)));
+  const recordedAverage = rows => {
+    const samples = rows.reduce((sum, row) => sum + Number(row.samples), 0);
+    return samples ? Math.round(rows.reduce((sum, row) => sum + Number(row.total_wait), 0) / samples) : null;
+  };
+  const todayAverage = recordedAverage(trends.today);
+  const pastAverage = recordedAverage(matchedPast);
+  const averageDifference = todayAverage === null || pastAverage === null ? null : todayAverage - pastAverage;
   const peak = sufficient.reduce((best, row) => !best || row.average_wait > best.average_wait ? row : best, null);
   const peakText = peak ? (english
     ? `${String(peak.hour).padStart(2, '0')}:00 hour · ${peak.average_wait} min average`
@@ -2582,6 +2615,9 @@ async function renderAttractionPage(request, env, item, english) {
     `<section><h2>${english ? 'About this attraction' : 'アトラクションについて'}</h2><p>${escapeHtml(english ? item.descriptionEn : item.descriptionJa)}</p>` +
     `<p><a href="${official}" target="_blank" rel="noopener noreferrer">${english ? 'Official USJ attraction page ↗' : 'USJ公式の施設案内・利用条件を見る ↗'}</a></p></section>` +
     `<section><h2>${english ? 'Today’s 20-minute waits vs. previous 7 days' : '本日の20分ごとの待ち時間と過去7日の比較'}</h2>` +
+    `<ul class="comparison"><li><span>${english ? 'Today average so far' : '本日ここまでの平均'}</span><strong>${todayAverage === null ? '—' : `${todayAverage}${english ? ' min' : '分'}`}</strong></li>` +
+    `<li><span>${english ? 'Previous 7 days, same times' : '過去7日の同時刻平均'}</span><strong>${pastAverage === null ? '—' : `${pastAverage}${english ? ' min' : '分'}`}</strong></li>` +
+    `<li><span>${english ? 'Difference' : '差'}</span><strong>${averageDifference === null ? '—' : `${averageDifference > 0 ? '+' : ''}${averageDifference}${english ? ' min' : '分'}`}</strong></li></ul>` +
     `<p>${english ? 'Blue shows each recorded wait in today’s 20-minute slots. Gray is the average for the same 20-minute slots over the previous seven days. The latest wait shown above may differ from the last blue point because it is updated separately.' : '青線は本日の20分枠ごとに記録した待ち時間、灰色は過去7日間の同じ20分枠の平均です。上の現在値は別のタイミングで更新されるため、青線の最終点と異なる場合があります。'}</p>` +
     `<p class="muted">${english ? 'Closures, missing data and inferred values are excluded. These values are not 5, 20 or 60-minute changes or forecasts.' :
       '休止・欠測・推定値は除外しています。5分・20分・1時間前比の増減値や将来の予測ではありません。'}</p>` +
@@ -3009,6 +3045,14 @@ async function route(request, env) {
     return json({ day, shows: [], unavailable: true, reason: 'pending', official_url: officialShowUrl(day) });
   }
   if (url.pathname === '/api/today') return json(await todayMatrix(env.DB, epoch()));
+  if (url.pathname === '/api/ride-averages') {
+    const seconds = epoch();
+    const firstSlot = dayStart(seconds) / SNAPSHOT_SECONDS;
+    const throughSlot = url.searchParams.has('slot') ? Number(url.searchParams.get('slot')) : Math.floor(seconds / SNAPSHOT_SECONDS);
+    if (!Number.isInteger(throughSlot) || throughSlot < firstSlot || throughSlot > Math.floor(seconds / SNAPSHOT_SECONDS))
+      return json({ error: '本日の20分枠を指定してください' }, 400);
+    return json(await rideDailyAverages(env.DB, seconds, throughSlot));
+  }
   if (url.pathname === '/api/archive/days') return json(await archiveDates(env.DB, epoch()));
   if (url.pathname === '/api/archive/day') {
     const day = url.searchParams.get('date') || '';
@@ -3099,7 +3143,7 @@ async function fallbackRoute(request, env) {
 
 const API_CACHE_SECONDS = new Map([
   ['/', 60], ['/en', 60], ['/en/', 60], ['/plan', 60], ['/map', 300], ['/vote', 300],
-  ['/api/waits', 300], ['/api/today', 300], ['/api/weather', 600],
+  ['/api/waits', 300], ['/api/today', 300], ['/api/ride-averages', 1200], ['/api/weather', 600],
   ['/api/schedule', 1800], ['/api/holidays', 21600], ['/api/shows', 300], ['/api/archive/days', 1800],
   ['/api/archive/day', 86400], ['/api/history', 300],
   ['/api/poll-results', 300],

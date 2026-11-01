@@ -66,6 +66,9 @@
     }
     .wait.down{background:#fff0df;color:#85410e}.geo-pin.down{background:#b45d16;color:#fff}
     @media(prefers-color-scheme:dark){.wait.down{background:#57351e;color:#ffd09b}}
+    .daily-average{margin:6px 0;padding:6px 8px;border-radius:7px;background:#eaf3ff;font-size:.84rem}
+    .daily-average span,.daily-average strong{display:block}
+    [data-theme="dark"] .daily-average{background:#24405d;color:#e9f2fc}
   </style>
   <script src="/analytics.js" defer></script>
   <script src="/en/show-translations.js?v=SHOW_TRANSLATIONS_VERSION"></script>
@@ -186,7 +189,11 @@
       link.setAttribute('aria-label',`${label} (official USJ site, opens in a new tab)`);
       return link;
     }
-    let live=null,history=null,archiveData=null,favorites=new Set(),view='cards',showRequest=0,archiveRequest=0;
+    let live=null,history=null,averages=null,averageRequest=0,archiveData=null,favorites=new Set(),view='cards',showRequest=0,archiveRequest=0;
+    $('today').querySelector('details.notes p')?.append(' Daily averages compare today’s recorded 20-minute slots with the same slots over the previous seven days. Closed, missing and inferred waits are excluded.');
+    function averageOf(id){const slot=history?.snapshots?.[0]?.slot;if(!averages||!history||!Number.isInteger(slot))return null;return averages.day===history.day&&averages.through_slot===slot?averages.rides?.[String(id)]||null:null;}
+    function averageText(id){const row=averageOf(id),today=Number.isFinite(row?.today_average)?`${row.today_average} min`:'—',past=Number.isFinite(row?.past_average)?`${row.past_average} min`:'—';const delta=Number.isFinite(row?.today_average)&&Number.isFinite(row?.past_average)?row.today_average-row.past_average:null;return {today,past,difference:delta===null?'Not comparable':`${delta>0?'+':''}${delta} min`,detail:row?`${row.today_samples} records today; ${row.past_samples} matching records across ${row.past_days} of the previous 7 days`:'Comparison data pending'};}
+    async function loadAverages(data){const slot=data.snapshots?.[0]?.slot;if(!Number.isInteger(slot)){averages=null;return;}if(averages?.day===data.day&&averages?.through_slot===slot)return;const request=++averageRequest;try{const result=await get(`/api/ride-averages?slot=${slot}`);if(request!==averageRequest||result.day!==data.day||result.through_slot!==slot)return;averages=result;if(history?.day===data.day&&history?.snapshots?.[0]?.slot===slot)renderRides();}catch{if(request===averageRequest)averages=null;}}
     try{favorites=new Set(JSON.parse(localStorage.getItem('usj-wait-nav-favorites-v1')||'[]').map(Number));}catch{}
     function nearestHistory(rideId,target,tolerance){if(!history?.snapshots)return null;let best=null,gap=Infinity;for(const snapshot of history.snapshots){const item=snapshot.rides?.[String(rideId)];if(!item?.is_open||!Number.isFinite(item.wait_minutes))continue;const distance=Math.abs(snapshot.captured_at-target);if(distance<gap){best={...item,at:snapshot.captured_at};gap=distance;}}return gap<=tolerance?best:null;}
     function change(ride,minutes){
@@ -213,7 +220,7 @@
       const allSnapshots=(history?.snapshots||[]).slice().reverse();
       const recent=allSnapshots.slice(-18);
       const head=el('tr');
-      head.append(el('th',null,'Attraction'),el('th',null,'Now'),el('th',null,'5 min ago'),el('th',null,'20 min ago'),el('th',null,'1 hour ago'));
+       head.append(el('th',null,'Attraction'),el('th',null,'Now'),el('th',null,'Today / 7d avg'),el('th',null,'5 min ago'),el('th',null,'20 min ago'),el('th',null,'1 hour ago'));
       for(const snap of allSnapshots)head.append(el('th',null,jst.format(new Date(snap.captured_at*1000)).split(', ').at(-1)));
       $('ride-head').append(head);
       for(const ride of rides){
@@ -231,6 +238,8 @@
           const cell=el('span');cell.append(el('b',null,label),document.createTextNode(change(ride,minutes)));comparisons.append(cell);
         }
         card.append(comparisons);
+         const daily=averageText(ride.id),averageLine=el('div','daily-average');
+         averageLine.append(el('span',null,`Today avg ${daily.today}`),el('span',null,`7d same-time avg ${daily.past}`),el('strong',null,`Difference ${daily.difference}`));averageLine.title=daily.detail;card.append(averageLine);
         const detail=el('div','ride-details');
         const bars=el('div','trend');bars.setAttribute('role','img');bars.setAttribute('aria-label','Wait time trend today');
         const points=recent.map(s=>{const sample=s.rides?.[String(ride.id)];return sample?.is_open?sample.wait_minutes:null;}).filter(Number.isFinite);
@@ -242,14 +251,15 @@
         disclosure.append(detail);$('ride-cards').append(card);
         const row=el('tr'),nameCell=el('td');
         nameCell.append(officialAttractionLink(ride.id,nameOf(ride))||document.createTextNode(nameOf(ride)));
-        row.append(nameCell,el('td',available(ride)?waitClass(ride.wait_time):'unknown',waitLabel(ride)));
+         row.append(nameCell,el('td',available(ride)?waitClass(ride.wait_time):'unknown',waitLabel(ride)));
+         const dailyCell=el('td',null,`${daily.today} / ${daily.past}`);dailyCell.title=daily.detail;dailyCell.append(el('small',null,daily.difference));row.append(dailyCell);
         for(const minutes of [5,20,60])row.append(el('td',null,change(ride,minutes)));
         for(const snap of allSnapshots){const sample=snap.rides?.[String(ride.id)];const v=sample?.is_open&&Number.isFinite(sample.wait_minutes)?sample.wait_minutes:null;row.append(el('td',v===null?'unknown':waitClass(v),v===null?(sample?'Closed':'—'):String(v)));}
         $('ride-body').append(row);
       }
     }
     async function loadLive(){try{live=await get('/api/waits');const good=(live.rides||[]).filter(available);const checked=live.fetched_at&&Number.isFinite(Date.parse(live.fetched_at))?jst.format(new Date(live.fetched_at))+' JST':'unavailable';$('today-status').textContent=live.stale||!live.rides?.length?'Current wait times unavailable. Please try again later.':`Provider data checked ${checked} · updates approximately every 5 minutes${live.refresh_error?' · latest refresh failed':''}`;$('open-count').textContent=`${good.length} / ${(live.rides||[]).length}`;$('max-wait').textContent=good.length?`${Math.max(...good.map(r=>r.wait_time))} min`:'—';renderRides();renderMapPins();if(archiveData)renderArchive(archiveData);}catch(error){$('today-status').textContent=`Wait times unavailable: ${error.message}`;$('today-status').classList.add('error');}}
-    async function loadToday(){try{history=await get('/api/today');if(live){renderRides();renderMapPins();}}catch{history=null;}window.dispatchEvent(new Event('en:history-updated'));}
+    async function loadToday(){try{history=await get('/api/today');if(live){renderRides();renderMapPins();}loadAverages(history);}catch{history=null;averages=null;}window.dispatchEvent(new Event('en:history-updated'));}
     function renderArchive(data){$('archive-average').textContent=Number.isFinite(data.average_wait)?`${Math.round(data.average_wait)} min`:'—';$('archive-count').textContent=String(data.snapshots||0);$('archive-status').textContent=`${dateLabel(data.day)} · ${data.snapshots||0} saved records · ${data.weather?'weather available':'weather unavailable'}`;archiveDayStats.set(data.day,{average:data.average_wait,snapshots:data.snapshots});if(data.day.startsWith(shownMonth))renderCalendar();const hours=data.hours||[],max=Math.max(1,...hours.map(h=>h.average_wait||0));$('hour-bars').replaceChildren();for(const h of hours){const row=el('div','hour-row');row.append(el('span',null,hourFmt.format(new Date(h.at*1000))));const track=el('div','hour-track');const fill=el('span');fill.style.width=`${(h.average_wait||0)/max*100}%`;track.append(fill);row.append(track,el('strong',null,Number.isFinite(h.average_wait)?`${Math.round(h.average_wait)} min`:'—'));$('hour-bars').append(row);}const ids=[...new Set(hours.flatMap(h=>Object.keys(h.rides||{})))];const avg=id=>{const n=hours.map(h=>h.rides?.[id]?.average_wait).filter(Number.isFinite);return n.length?n.reduce((x,y)=>x+y,0)/n.length:-1;};const orderedIds=orderArchiveIds(ids,avg);const head=el('tr');head.append(el('th',null,'Attraction'));for(const h of hours)head.append(el('th',null,hourFmt.format(new Date(h.at*1000))));$('archive-head').replaceChildren(head);$('archive-body').replaceChildren();for(const id of orderedIds){const row=el('tr');row.append(el('td',null,archiveNameOf(id)));for(const h of hours){const v=h.rides?.[id]?.average_wait;row.append(el('td',Number.isFinite(v)?waitClass(v):'unknown',Number.isFinite(v)?String(Math.round(v)):h.rides?.[id]?.closed_samples?'Closed':'—'));}$('archive-body').append(row);}}
     async function loadArchiveDates(){try{const data=await get('/api/archive/days');const days=data.days||[];recordedDays=new Set(days.map(item=>item.day));recordedDayMeta=new Map(days.map(item=>[item.day,item]));$('archive-date').replaceChildren();if(!days.length){$('archive-date').append(new Option('No saved dates',''));$('archive-status').textContent='No past records are available yet.';renderCalendar();return;}for(const item of days)$('archive-date').append(new Option(dateLabel(item.day),item.day));renderCalendar();if(recordedDays.has(selectedDay))await loadArchiveDay(selectedDay);}catch(error){$('archive-status').textContent=`Archive unavailable: ${error.message}`;}}
     async function loadArchiveDay(day){if(!day)return;const request=++archiveRequest;$('archive-status').textContent='Loading day…';try{const data=await get('/api/archive/day?date='+encodeURIComponent(day));if(request!==archiveRequest)return;data.weather ||= recordedDayMeta.get(day)?.weather||null;archiveData=data;renderArchive(data);}catch(error){if(request===archiveRequest)$('archive-status').textContent=`Day unavailable: ${error.message}`;}}

@@ -136,6 +136,11 @@
     .ride-card-trend { display: inline-flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 0 3px; font-size: .82rem; font-weight: 700; line-height: 1.25; text-align: right; }
     .ride-card-trend span { white-space: nowrap; }
     .ride-card-trend:last-child { flex-basis: 100%; }
+    .ride-card-averages { grid-column: 1 / -1; display: block; min-width: 0; font-size: .83rem; overflow-wrap: anywhere; }
+    .ride-card-averages span, .ride-card-averages strong { display: block; }
+    .ride-card-averages strong { color: #173b60; }
+    .daily-average-cell { white-space: nowrap; font-size: .82rem; }
+    .daily-average-cell small { display: block; }
     .ride-card-action { grid-column: 1 / -1; justify-self: end; padding: 4px 9px; border: 1px solid #7cabdf; border-radius: 20px; background: #e6f1ff; color: #1058a7; font-size: .86rem; font-weight: 700; white-space: nowrap; }
     .ride-card-action-open, .ride-card details[open] .ride-card-action-closed { display: none; }
     .ride-card details[open] .ride-card-action-open { display: inline; }
@@ -460,6 +465,7 @@
     :root[data-theme="dark"] .site-since { color: #a9b6c4; }
     :root[data-theme="dark"] .ride-card summary:hover, :root[data-theme="dark"] .ride-card summary:focus-visible { background: #213752; }
     :root[data-theme="dark"] .ride-card-action { background: #24486d; border-color: #79a9e3; color: #fff; }
+    :root[data-theme="dark"] .ride-card-averages strong { color: #d7eaff; }
     :root[data-theme="dark"] .wind-badge { background: #493517; border-color: #b68336; color: #ffe0a5; }
     :root[data-theme="dark"] .heatmap-table thead th, :root[data-theme="dark"] .show-axis,
     :root[data-theme="dark"] .show-axis .show-label { background: #1d2a37; }
@@ -855,6 +861,7 @@
       <ul class="trend-legend-list">
         <li><strong>5分前比</strong>：約5分前の取得値との差。<strong>20分・1時間前比</strong>：それぞれの時刻に最も近い保存記録との差（最大約11分のずれ）。↑増加・↓減少・→差が5分未満、—は比較不可。将来の予測ではありません</li>
         <li><strong>今日</strong>：直近約6時間の20分ごとの記録。右端の濃い棒が現在値</li>
+        <li><strong>本日平均／過去7日同時刻平均</strong>：本日記録できた20分枠と、過去7日間の同じ時刻の実測を比較します。休止・欠測・推定値は除外します</li>
         <li>薄い線は記録なし・休止中。棒の高さは行ごとに目盛りが異なります</li>
       </ul>
     </div>
@@ -1099,6 +1106,8 @@
     let historyRequest = 0;
     let todayRequest = 0;
     let todayData = null;
+    let rideAverageData = null;
+    let rideAverageRequest = 0;
     let windWarning = '';
     let todayView = mobileHeatmap.matches ? 'cards' : 'table';
     let archiveData = null;
@@ -3618,6 +3627,37 @@
       }
     }
 
+    function dailyAverageOf(rideId) {
+      const slot = todayData?.snapshots?.[0]?.slot;
+      if (!rideAverageData || !Number.isInteger(slot)) return null;
+      if (rideAverageData?.day !== todayData?.day || rideAverageData?.through_slot !== slot) return null;
+      return rideAverageData.rides?.[String(rideId)] || null;
+    }
+    function dailyAverageText(rideId) {
+      const row = dailyAverageOf(rideId);
+      const today = Number.isFinite(row?.today_average) ? `${row.today_average}分` : '—';
+      const past = Number.isFinite(row?.past_average) ? `${row.past_average}分` : '—';
+      const delta = Number.isFinite(row?.today_average) && Number.isFinite(row?.past_average)
+        ? row.today_average - row.past_average : null;
+      const difference = delta === null ? '比較不可' : `${delta > 0 ? '+' : ''}${delta}分`;
+      const detail = row ? `本日${row.today_samples}記録、過去7日の同時刻${row.past_samples}記録（${row.past_days}日分）` : '比較データを確認中';
+      return {today, past, difference, detail};
+    }
+    async function loadRideAverages(data) {
+      const slot = data.snapshots?.[0]?.slot;
+      if (!Number.isInteger(slot)) { rideAverageData = null; return; }
+      if (rideAverageData?.day === data.day && rideAverageData?.through_slot === slot) return;
+      const requestNumber = ++rideAverageRequest;
+      try {
+        const response = await apiRequest(`/api/ride-averages?slot=${slot}`);
+        const averages = await response.json();
+        if (!response.ok) throw new Error(averages.error || `HTTP ${response.status}`);
+        if (requestNumber !== rideAverageRequest || averages.day !== data.day || averages.through_slot !== slot) return;
+        rideAverageData = averages;
+        if (todayData?.day === data.day && todayData?.snapshots?.[0]?.slot === slot) renderToday(todayData);
+      } catch (_) { if (requestNumber === rideAverageRequest) rideAverageData = null; }
+    }
+
     function renderToday(data) {
       if (!currentData) return;
       todayData = data;
@@ -3656,8 +3696,8 @@
       const trendMode = mobileHeatmap.matches;
       heatmapBody.closest('table').classList.toggle('trend-mode', trendMode);
       const headLabels = trendMode
-        ? ['アトラクション', '現在', '5分前比', '20分前比', '今日']
-        : ['アトラクション', '現在', '5分前比', '20分前比', ...snapshots.map(item => snapshotSlotTime(item))];
+        ? ['アトラクション', '現在', '平均 本日/7日', '5分前比', '20分前比', '今日']
+        : ['アトラクション', '現在', '平均 本日/7日', '5分前比', '20分前比', ...snapshots.map(item => snapshotSlotTime(item))];
       for (const label of headLabels) {
         const heading = document.createElement('th');
         heading.scope = 'col';
@@ -3679,6 +3719,15 @@
         if (rowWindBadge) name.append(rowWindBadge);
         const currentCell = currentCells.get(ride.id);
         row.append(name, currentCell);
+        const dailyAverage = dailyAverageText(ride.id);
+        const averageCell = document.createElement('td');
+        averageCell.className = 'daily-average-cell';
+        averageCell.textContent = `${dailyAverage.today} / ${dailyAverage.past}`;
+        const averageDifference = document.createElement('small');
+        averageDifference.textContent = dailyAverage.difference;
+        averageCell.append(averageDifference);
+        averageCell.title = dailyAverage.detail;
+        row.append(averageCell);
         const currentWait = isWaitCell(currentCell) ? Number.parseFloat(currentCell.textContent) : null;
         const fiveMinute = recentTrend(ride.id, currentWait);
         const twentyMinutes = twentyMinuteTrend(ride.id, currentWait, snapshots);
@@ -3744,10 +3793,19 @@
           changeLabel.setAttribute('aria-label', `${period}：${change.title}`);
           trendLabels.append(changeLabel);
         }
+        const daily = dailyAverageText(ride.id);
+        const averageLine = document.createElement('span');
+        averageLine.className = 'ride-card-averages';
+        averageLine.title = daily.detail;
+        const averageValues = document.createElement('span');
+        averageValues.textContent = `本日平均 ${daily.today} ／ 過去7日同時刻 ${daily.past}`;
+        const averageDelta = document.createElement('strong');
+        averageDelta.textContent = `差 ${daily.difference}`;
+        averageLine.append(averageValues, averageDelta);
         const action = document.createElement('span');
         action.className = 'ride-card-action';
         action.innerHTML = '<span class="ride-card-action-closed">グラフ・履歴を見る ▼</span><span class="ride-card-action-open">詳細を閉じる ▲</span>';
-        summary.append(name, currentBlock, trendLabels, action);
+        summary.append(name, currentBlock, trendLabels, averageLine, action);
         const history = document.createElement('div');
         history.className = 'ride-card-history';
         const url = officialAttractionUrls.get(Number(ride.id));
@@ -3833,7 +3891,7 @@
         const response = await apiRequest('/api/today', {cache: 'no-store'});
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-        if (requestNumber === todayRequest) renderToday(data);
+        if (requestNumber === todayRequest) { renderToday(data); loadRideAverages(data); }
       } catch (cause) {
         if (requestNumber === todayRequest) {
           heatmapBody.replaceChildren();
