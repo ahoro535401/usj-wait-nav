@@ -135,6 +135,7 @@
     .ride-card summary::-webkit-details-marker { display: none; }
     .ride-card summary:hover, .ride-card summary:focus-visible { background: #eef5ff; }
     .ride-card summary:focus-visible { outline: 2px solid #1058a7; outline-offset: 2px; }
+    .ride-card-photo { grid-column: 1 / -1; display: block; width: 100%; max-height: 150px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: #dce4ed; }
     .ride-card-name { min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
     .ride-card-current { display: flex; flex-direction: column; align-items: center; justify-self: end; gap: 3px; }
     .ride-card-wait { flex: 0 0 auto; min-width: 72px; padding: 5px; border-radius: 5px; text-align: center; font-weight: 700; }
@@ -1168,6 +1169,30 @@
     const CHILD_SWITCH = new Set([14402, 12061, 12071, 12065, 12073, 14918, 12066,
       12072, 14919, 12075, 7065, 7077, 12070, 12082, 12084, 12083, 13005,
       7092, 12067, 12068, 17894]);
+    const RIDE_PHOTOS = new Map([
+      [7092, ['flying-dinosaur.png', 'ザ・フライング・ダイナソーの入口看板']],
+      [12067, ['jurassic-park.png', 'ジュラシック・パーク・ザ・ライドの入口看板']],
+      [15322, ['jurassic-park.png', 'ジュラシック・パーク・ザ・ライドの入口看板']],
+      [12068, ['jaws.png', 'ジョーズの入口にあるサメの模型']],
+      [17894, ['jaws.png', 'ジョーズの入口にあるサメの模型']],
+      [14402, ['donkey-kong.png', 'ドンキーコング・カントリーの入口']],
+      [12061, ['mario-kart.png', 'マリオカートの入口にあるクッパ城']],
+      [7077, ['hollywood-dream.png', 'ハリウッド・ドリーム・ザ・ライドの入口看板']],
+      [12070, ['hollywood-dream.png', 'ハリウッド・ドリーム・ザ・ライドの入口看板']],
+    ]);
+    function ridePhoto(id) {
+      const photo = RIDE_PHOTOS.get(Number(id));
+      if (!photo) return null;
+      const image = document.createElement('img');
+      image.className = 'ride-card-photo';
+      image.src = `/ride-photos/${photo[0]}`;
+      image.alt = photo[1];
+      image.width = 576;
+      image.height = 324;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      return image;
+    }
     const WIND_SENSITIVE_RIDES = new Set([7077, 12070, 7092, 12073]);
     function windBadge(id) {
       if (!windWarning || !WIND_SENSITIVE_RIDES.has(Number(id))) return null;
@@ -3821,6 +3846,8 @@
         summary.addEventListener('click', () => {
           if (!details.open) window.trackSiteEvent?.('ride_detail_open', {ride_id: ride.id});
         });
+        const photo = ridePhoto(ride.id);
+        if (photo) summary.append(photo);
         const name = document.createElement('span');
         name.className = 'ride-card-name';
         name.textContent = label;
