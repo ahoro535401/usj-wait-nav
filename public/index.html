@@ -123,6 +123,8 @@
     .ride-card { display: flex; align-items: start; gap: 5px; padding: 9px 6px; border-bottom: 1px solid #dce4ed; }
     .ride-card-body { flex: 1; min-width: 0; }
     .ride-card-guide-link { display: inline-block; margin: 2px 8px 8px; font-size: .86rem; font-weight: 700; }
+    button.ride-card-guide-link { display: block; padding: 0; border: 0; background: none; color: #1058a7; font: inherit; font-size: .86rem; font-weight: 700; text-align: left; text-decoration: underline; cursor: pointer; }
+    button.ride-card-guide-link:focus-visible { outline: 2px solid #1058a7; outline-offset: 3px; }
     .ride-card details { min-width: 0; }
     .ride-card summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 4px; min-height: 58px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
     .ride-card summary::marker { content: ''; }
@@ -506,6 +508,7 @@
     :root[data-theme="dark"] .spark-base, :root[data-theme="dark"] .card-chart-base { stroke: #3a4856; }
     :root[data-theme="dark"] .card-chart-grid { stroke: #2c3b4b; }
     :root[data-theme="dark"] .card-chart-axis { fill: #a9b6c4; }
+    :root[data-theme="dark"] button.ride-card-guide-link { color: #8fb6ff; }
     :root[data-theme="dark"] .ride-compare-chart .trend-grid { stroke: #40546c; }
     :root[data-theme="dark"] .ride-compare-chart .trend-axis { fill: #b9c9d8; }
     :root[data-theme="dark"] .ride-compare-chart .trend-series circle { fill: #17212c; }
@@ -3892,12 +3895,23 @@
         const body = document.createElement('div');
         body.className = 'ride-card-body';
         body.append(details);
+        const compareButton = document.createElement('button');
+        compareButton.type = 'button';
+        compareButton.className = 'ride-card-guide-link';
+        compareButton.textContent = '本日と過去7日の比較を見る ›';
+        compareButton.addEventListener('click', () => {
+          if (!details.open) window.trackSiteEvent?.('ride_detail_open', {ride_id: ride.id});
+          details.open = true;
+          loadComparison();
+          comparison.scrollIntoView({block: 'nearest'});
+        });
+        body.append(compareButton);
         const guide = popularGuideUrls.get(Number(ride.id));
         if (guide) {
           const link = document.createElement('a');
           link.className = 'ride-card-guide-link';
           link.href = guide;
-          link.textContent = '本日と過去7日の比較を見る ›';
+          link.textContent = '施設の詳しい比較ページを見る ›';
           body.append(link);
         }
         card.append(favoriteButton(ride.id, label), body);

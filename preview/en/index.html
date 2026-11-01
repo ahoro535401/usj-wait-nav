@@ -68,8 +68,10 @@
     @media(prefers-color-scheme:dark){.wait.down{background:#57351e;color:#ffd09b}}
     .daily-average{margin:6px 0;padding:6px 8px;border-radius:7px;background:#eaf3ff;font-size:.84rem}
     .daily-average span,.daily-average strong{display:block}
+    .ride-comparison-link{display:block;margin:3px 12px 12px;padding:0;border:0;background:none;color:#1765ac;font:inherit;font-size:.86rem;font-weight:700;text-align:left;text-decoration:underline;cursor:pointer}.ride-comparison-link:focus-visible{outline:2px solid #1765ac;outline-offset:3px}
     .ride-comparison{min-width:0;margin:12px 0}.ride-comparison h4{margin:0 0 7px;font-size:.94rem}.ride-comparison .trend-chart{margin:0}.ride-comparison .trend-chart-scroll{overflow-x:auto}.ride-comparison svg{display:block;width:760px;height:auto}.ride-comparison .trend-grid{stroke:#d6e0ea;stroke-width:1}.ride-comparison .trend-axis{fill:#526477;font:13px system-ui,sans-serif}.ride-comparison .trend-series{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.ride-comparison .trend-series circle{fill:#fff;stroke-width:3}.ride-comparison figcaption{display:flex;flex-wrap:wrap;gap:7px 15px;margin-top:8px;font-size:.82rem}.ride-comparison .trend-legend:before{content:'';display:inline-block;width:18px;margin-right:5px;vertical-align:middle;border-top:3px solid}.ride-comparison .trend-legend-today:before{border-color:#0872cf}.ride-comparison .trend-legend-past:before{border-color:#66758a}
     [data-theme="dark"] .daily-average{background:#24405d;color:#e9f2fc}
+    [data-theme="dark"] .ride-comparison-link{color:#9cc4ff}
   </style>
   <script src="/analytics.js" defer></script>
   <script src="/en/show-translations.js?v=SHOW_TRANSLATIONS_VERSION"></script>
@@ -256,6 +258,7 @@
         card.append(comparisons);
          const daily=averageText(ride.id),averageLine=el('div','daily-average');
          averageLine.append(el('span',null,`Today avg ${daily.today}`),el('span',null,`7d same-time avg ${daily.past}`),el('strong',null,`Difference ${daily.difference}`));averageLine.title=daily.detail;card.append(averageLine);
+        const compareButton=el('button','ride-comparison-link','View today vs previous 7 days ›');compareButton.type='button';card.append(compareButton);
         const detail=el('div','ride-details');
         const comparison=el('div','ride-comparison');comparison.setAttribute('role','region');comparison.setAttribute('aria-label',`${nameOf(ride)} wait time comparison chart`);
         comparison.append(el('h4',null,'Today and previous 7 days, same times'));
@@ -266,6 +269,7 @@
         disclosure.append(detail);$('ride-cards').append(card);
         const loadComparison=()=>{if(disclosure.open&&chartBody.dataset.loaded!=='true'){chartBody.dataset.loaded='true';loadRideTrend(Number(ride.id),history?.day,history?.snapshots?.[0]?.slot,chartBody);}};
         disclosure.addEventListener('toggle',loadComparison);loadComparison();
+        compareButton.addEventListener('click',()=>{disclosure.open=true;loadComparison();comparison.scrollIntoView({block:'nearest'});});
         const row=el('tr'),nameCell=el('td');
         nameCell.append(officialAttractionLink(ride.id,nameOf(ride))||document.createTextNode(nameOf(ride)));
          row.append(nameCell,el('td',available(ride)?waitClass(ride.wait_time):'unknown',waitLabel(ride)));
