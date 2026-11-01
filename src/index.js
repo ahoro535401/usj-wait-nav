@@ -446,6 +446,43 @@ function xDateLabel(day) {
   return `${month}/${date}（${weekday}）`;
 }
 
+function isRecent(ride, captured) {
+  const stamp = ride.source === 'ThemeParks.wiki' ? ride.verified_at : ride.last_updated;
+  const updated = Date.parse(stamp) / 1000;
+  const age = captured - updated;
+  return ride.source !== DARK_ESTIMATE_SOURCE &&
+    visibleSample({ ride_id: Number(ride.id), source: ride.source }) &&
+    Number.isFinite(age) && age >= -120 && age <= SOURCE_MAX_AGE;
+}
+
+async function daytimeXComparison(db, rides, captured) {
+  const current = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
+    Number.isInteger(ride.wait_time) && ride.wait_time >= 0 &&
+    Number.isInteger(Number(ride.id)) && isRecent(ride, captured));
+  if (current.length < 5) return null;
+  const start = dayStart(captured);
+  const bin = (Math.floor(captured / SNAPSHOT_SECONDS) + 27) % 72;
+  const ids = [...new Set(current.map(ride => Number(ride.id)))];
+  const { results } = await db.prepare(
+    'SELECT s.ride_id,s.source,COUNT(*) AS samples,' +
+    "COUNT(DISTINCT date(h.captured_at + 32400,'unixepoch')) AS days," +
+    'SUM(s.wait_minutes) AS total_wait FROM ride_samples s JOIN snapshots h USING(slot) ' +
+    `WHERE s.ride_id IN (${ids.map(() => '?').join(',')}) AND s.slot>=? AND s.slot<? ` +
+    'AND (s.slot + 27) % 72=? AND s.is_open=1 AND typeof(s.wait_minutes)=\'integer\' ' +
+    'AND s.wait_minutes>=0 AND s.source<>? GROUP BY s.ride_id,s.source'
+  ).bind(...ids, (start - 7 * 86400) / SNAPSHOT_SECONDS, start / SNAPSHOT_SECONDS,
+    bin, DARK_ESTIMATE_SOURCE).all();
+  const history = new Map(results.map(row => [`${row.ride_id}\0${row.source}`, row]));
+  const matched = current.map(ride => ({ ride, history: history.get(`${ride.id}\0${ride.source}`) }))
+    .filter(item => item.history?.days >= 4 && item.history.samples >= 4 &&
+      Number.isFinite(item.history.total_wait));
+  if (matched.length < 5) return null;
+  const now = Math.round(matched.reduce((total, item) => total + item.ride.wait_time, 0) / matched.length);
+  const past = Math.round(matched.reduce((total, item) =>
+    total + item.history.total_wait / item.history.samples, 0) / matched.length);
+  return { now, past, difference: now - past, rides: matched.length };
+}
+
 function xWaitPost(rides, names, fetchedAt, previous = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
@@ -523,7 +560,7 @@ const xCardKey = (day, slot) => `xcard_${day}_${slot.replace(':', '')}`;
 const xCardUrl = (day, slot) =>
   `https://uniba-waittimes.com/x-card/${day}/${slot.replace(':', '')}.png`;
 
-function xCardPayload(rides, names, fetchedAt, previous, post) {
+function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   if (!Number.isFinite(captured)) return null;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
@@ -548,6 +585,7 @@ function xCardPayload(rides, names, fetchedAt, previous, post) {
     captured_at: fetchedAt,
     label: `${xDateLabel(jstDay(captured))} ${hhmm(captured)}時点`,
     title,
+    ...(comparison ? { subtitle: `比較${comparison.rides}施設平均 ${comparison.now}分 | 過去7日同時刻 ${comparison.past}分（${comparison.difference >= 0 ? '+' : ''}${comparison.difference}分）` } : {}),
     rows: ranked.slice(0, 3).map(ride => ({ name: xCardName(ride, names), wait: ride.wait_time })),
   };
 }
@@ -678,9 +716,12 @@ async function maybePostX(env, seconds) {
   const names = rideJapaneseNames(await response.text());
   const post = xWaitPost(rides, names, fetchedAt, previous);
   if (!post) return;
+  let comparison = null;
+  try { comparison = await daytimeXComparison(env.DB, rides, captured); }
+  catch (error) { console.error('Daytime X comparison unavailable', error); }
   let imageUrl = X_POST_IMAGE;
   let imageAlt = null;
-  const card = xCardPayload(rides, names, fetchedAt, previous, post);
+  const card = xCardPayload(rides, names, fetchedAt, previous, post, comparison);
   if (card && env.IMAGES) {
     try {
       const preview = await renderXCard(env, card);
@@ -689,7 +730,7 @@ async function maybePostX(env, seconds) {
       if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid card image: ${preview.status}, ${bytes} bytes`);
       await writeMeta(env.DB, xCardKey(jstDay(seconds), slot), JSON.stringify(card));
       imageUrl = xCardUrl(jstDay(seconds), slot);
-      imageAlt = `${card.label}のUSJ通常待ち列。${card.title}。` +
+      imageAlt = `${card.label}のUSJ通常待ち列。${card.title}。${card.subtitle ? `${card.subtitle}。` : ''}` +
         card.rows.map((row, index) => `${index + 1}位 ${row.name} ${row.wait}分`).join('、');
     } catch (error) {
       console.error('X card unavailable; using photo', error);
@@ -941,7 +982,7 @@ function englishXFocusText(focus) {
     `${focus.difference < 0 ? 'shorter' : 'longer'} vs ~20 min ago`;
 }
 
-function englishXCardPayload(rides, fetchedAt, previous, post) {
+function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   if (!Number.isFinite(captured)) return null;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
@@ -957,7 +998,8 @@ function englishXCardPayload(rides, fetchedAt, previous, post) {
     language: 'en', captured_at: fetchedAt,
     label: `${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`,
     title: highlight || 'Longest standby waits',
-    subtitle: highlight ? 'Compared with ~20 min earlier' : 'Standard standby estimates',
+    subtitle: comparison ? `${comparison.rides} rides avg: now ${comparison.now} min | prior 7 days same time ${comparison.past} min (${comparison.difference >= 0 ? '+' : ''}${comparison.difference})` :
+      highlight ? 'Compared with ~20 min earlier' : 'Standard standby estimates',
     rows: ranked.slice(0, 3).map(ride => ({ name: englishCardName(ride), wait: ride.wait_time })),
   };
 }
@@ -1061,7 +1103,10 @@ async function maybePostEnglishX(env, seconds) {
     .map(row => [String(row.ride_id), row])) } : null;
   const post = englishXPost(rides, fetchedAt, previous);
   if (!post) return;
-  const card = englishXCardPayload(rides, fetchedAt, previous, post);
+  let comparison = null;
+  try { comparison = await daytimeXComparison(env.DB, rides, captured); }
+  catch (error) { console.error('Daytime English X comparison unavailable', error); }
+  const card = englishXCardPayload(rides, fetchedAt, previous, post, comparison);
   const image = await englishXImage(env, seconds, slot, card);
   await sendBufferPost(env, seconds, slot, post, fetchedAt,
     englishXReply(rides, fetchedAt, previous, slot, post), image.url, image.alt, englishXOptions(env));

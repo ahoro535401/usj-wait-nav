@@ -73,6 +73,8 @@ const shortNames = [...vm.runInContext('X_CARD_SHORT_NAMES.values()', context)];
 const renderedText = [
   ...cards.flatMap(card => [card.label, card.title, card.subtitle || '',
     ...card.rows.flatMap(row => [row.name, `${row.wait}分`, `${row.wait} min`])]),
+  '比較22施設平均 72分 | 過去7日同時刻 65分（+7分）',
+  '22 rides avg: now 72 min | prior 7 days same time 65 min (+7)',
   ...shortNames, '現在の待ち時間 上位3施設', '20分前より短縮・増加',
 ];
 const missing = [...new Set(renderedText.join(''))]
