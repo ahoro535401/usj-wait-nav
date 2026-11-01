@@ -120,7 +120,7 @@
     @media (min-width: 621px) {
       .mobile-card-list:not([hidden]) { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; column-gap: 20px; padding: 4px 12px; border: 1px solid #dce4ed; border-radius: 9px; }
     }
-    .ride-card { display: flex; align-items: start; gap: 5px; padding: 9px 6px; border-bottom: 1px solid #dce4ed; }
+    .ride-card { display: flex; align-items: start; gap: 5px; min-width: 0; max-width: 100%; padding: 9px 6px; border-bottom: 1px solid #dce4ed; }
     .ride-card-body { flex: 1; min-width: 0; }
     .ride-card-guide-link { display: inline-block; margin: 2px 8px 8px; font-size: .86rem; font-weight: 700; }
     button.ride-card-guide-link { display: block; padding: 0; border: 0; background: none; color: #1058a7; font: inherit; font-size: .86rem; font-weight: 700; text-align: left; text-decoration: underline; cursor: pointer; }
@@ -147,7 +147,7 @@
     .ride-card-action-open, .ride-card details[open] .ride-card-action-closed { display: none; }
     .ride-card details[open] .ride-card-action-open { display: inline; }
     .wind-badge { display: inline-block; margin: 3px 0 0 6px; padding: 2px 6px; border: 1px solid #d89b48; border-radius: 5px; background: #fff3d9; color: #704300; font-size: .72rem; font-weight: 700; white-space: nowrap; }
-    .ride-card-history { margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid #e4e9ef; }
+    .ride-card-history { min-width: 0; max-width: 100%; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid #e4e9ef; }
     .ride-card-history a { display: block; margin-bottom: 8px; }
     .ride-card-record { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
     .ride-card-record strong { min-width: 72px; text-align: center; }
@@ -216,10 +216,10 @@
     .card-chart-now, .card-chart-value { fill: #1058a7; font-weight: 700; }
     .card-chart-value { font-size: 13px; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
     .card-chart-empty { font-size: 13px; color: #526477; }
-    .ride-compare-chart { min-width: 0; margin: 12px 0; }
+    .ride-compare-chart { min-width: 0; max-width: 100%; margin: 12px 0; }
     .ride-compare-chart h4 { margin: 0 0 7px; font-size: .94rem; }
-    .ride-compare-chart .trend-chart { margin: 0; }
-    .ride-compare-chart .trend-chart-scroll { overflow-x: auto; }
+    .ride-compare-chart .trend-chart { min-width: 0; max-width: 100%; margin: 0; }
+    .ride-compare-chart .trend-chart-scroll { box-sizing: border-box; width: 100%; max-width: 100%; overflow-x: auto; }
     .ride-compare-chart svg { display: block; width: 760px; height: auto; }
     .ride-compare-chart .trend-grid { stroke: #d6e0ea; stroke-width: 1; }
     .ride-compare-chart .trend-hour-grid { stroke: #e9eef4; stroke-width: 1; }
@@ -400,7 +400,7 @@
       .heatmap-table.trend-mode thead th:nth-child(4) { width: 15%; }
       .heatmap-table.trend-mode thead th:nth-child(5) { width: 15%; }
       .trend-legend:not([hidden]) { display: block; font-size: .8rem; }
-      .mobile-card-list:not([hidden]) { display: grid; border: 1px solid #dce4ed; border-radius: 9px; }
+      .mobile-card-list:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: 100%; box-sizing: border-box; border: 1px solid #dce4ed; border-radius: 9px; }
       .show-label { flex-basis: 175px; width: 175px; }
     }
     .archive-controls label[hidden] { display: none !important; }
