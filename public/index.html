@@ -404,6 +404,19 @@
       .heatmap-table.trend-mode thead th:nth-child(3) { width: 14%; }
       .heatmap-table.trend-mode thead th:nth-child(4) { width: 15%; }
       .heatmap-table.trend-mode thead th:nth-child(5) { width: 15%; }
+      #today-table.heatmap-scroll { max-width: 100%; overflow-x: auto; overflow-y: hidden; border: 1px solid #dce4ed; -webkit-overflow-scrolling: touch; }
+      #today-table .heatmap-table.trend-mode { width: 640px; min-width: 640px; table-layout: fixed; }
+      #today-table .heatmap-table.trend-mode thead th { white-space: normal; }
+      #today-table .heatmap-table.trend-mode thead th:first-child,
+      #today-table .heatmap-table.trend-mode tbody th { position: sticky; left: 0; width: 168px; min-width: 168px !important; max-width: 168px !important; z-index: 2; }
+      #today-table .heatmap-table.trend-mode thead th:first-child { z-index: 3; }
+      #today-table .heatmap-table.trend-mode thead th:nth-child(2) { width: 72px; }
+      #today-table .heatmap-table.trend-mode thead th:nth-child(3) { width: 106px; }
+      #today-table .heatmap-table.trend-mode thead th:nth-child(4),
+      #today-table .heatmap-table.trend-mode thead th:nth-child(5) { width: 72px; }
+      #today-table .heatmap-table.trend-mode thead th:nth-child(6) { width: 150px; }
+      #today-table .heatmap-table.trend-mode .daily-average-cell { white-space: normal; }
+      #today-table .heatmap-table.trend-mode tbody th a { overflow-wrap: anywhere; }
       .trend-legend:not([hidden]) { display: block; font-size: .8rem; }
       .mobile-card-list:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: 100%; box-sizing: border-box; border: 1px solid #dce4ed; border-radius: 9px; }
       .show-label { flex-basis: 175px; width: 175px; }
@@ -828,7 +841,7 @@
     <label class="ride-search" for="ride-search">施設名で探す<input id="ride-search" type="search" placeholder="例：マリオ、ハリドリ" autocomplete="off"></label>
     <div class="park-average-panel" data-only="now" aria-live="polite"><strong>いまの平均待ち時間 <span id="park-average-value">—</span></strong><p id="park-average-note">直近7日との比較を確認中…</p></div>
     <p class="muted desktop-heatmap-hint">アトラクションごとの現在値と今日の記録を、カードまたはヒートマップで確認できます。カードでは5分・20分・1時間前との変化を見られます。ヒートマップは左右にスクロールできます。数値の単位は分です。</p>
-    <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップでは現在値・5分前比・20分前比・今日の推移を一覧できます。</p>
+    <p class="muted mobile-heatmap-hint">カードを開くと今日の推移と直近の記録を確認できます。ヒートマップは左右にスクロールすると、現在値・平均・5分前比・20分前比・今日の推移を見られます。</p>
     <div class="top-waits" aria-label="現在の待ち時間が長いアトラクション"><strong>いまの待ち時間 上位5件</strong><ol id="top-waits-list" aria-busy="true">
       <li class="skeleton-row"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:3em"></span><span class="visually-hidden">現在値を確認中…</span></li>
       <li class="skeleton-row" aria-hidden="true"><span class="skeleton" style="width:60%"></span><span class="skeleton" style="width:3em"></span></li>
