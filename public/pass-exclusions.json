@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-07",
+  "checked_at": "2026-11-08",
   "pass": "standard",
   "label": "ユニバーサル・プライム年間パス スタンダード",
   "source_url": "https://www.usj.co.jp/web/ja/jp/park-guide/schedule/exclusion-dates/universal-prime-annual-pass-standard-exclusison-date",
@@ -19,6 +19,7 @@
     "2027-09": "11-12,18-20,23-27",
     "2027-10": "2-3,9-11,16-18,22-25,29-31",
     "2027-11": "1-7,20-23",
-    "2027-12": "11-12,18-19,24-31"
+    "2027-12": "11-12,18-19,24-31",
+    "2028-01": "2-3,9"
   }
 }

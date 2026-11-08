@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-04",
+  "checked_at": "2026-11-08",
   "source_url": "https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure",
   "closures": [
     {
@@ -23,19 +23,45 @@
     {
       "title": "スペース・ファンタジー・ザ・ライド",
       "start": "2025-06-02",
-      "end": null,
-      "end_note": "当面の間",
-      "end_note_en": "Until further notice",
+      "end": "2027-01-24",
       "queue_times_id": 12082,
       "title_en": "Space Fantasy - The Ride"
     },
     {
       "title": "ウォーターワールド",
       "start": "2026-11-28",
-      "end": "2026-12-27",
+      "end": "2026-12-25",
       "end_note": null,
       "queue_times_id": null,
       "title_en": "WaterWorld"
+    },
+    {
+      "title": "ジュラシック・パーク・ザ・ライド",
+      "start": "2027-01-09",
+      "end": "2027-01-22",
+      "queue_times_id": 12067,
+      "title_en": "Jurassic Park - The Ride"
+    },
+    {
+      "title": "ハリウッド・ドリーム・ザ・ライド ～バックドロップ～",
+      "start": "2027-01-22",
+      "end": "2027-03-19",
+      "queue_times_id": 12070,
+      "title_en": "Hollywood Dream - The Ride: Backdrop"
+    },
+    {
+      "title": "ハリウッド・ドリーム・ザ・ライド",
+      "start": "2027-01-25",
+      "end": "2027-02-06",
+      "queue_times_id": 7077,
+      "title_en": "Hollywood Dream - The Ride"
+    },
+    {
+      "title": "フライング・スヌーピー",
+      "start": "2027-01-26",
+      "end": "2027-01-28",
+      "queue_times_id": 12075,
+      "title_en": "The Flying Snoopy"
     }
   ]
 }
