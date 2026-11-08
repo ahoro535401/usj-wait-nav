@@ -65,8 +65,11 @@
     .page-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; margin: 0 0 10px; padding: 4px; border-radius: 10px; background: #e8eef5; }
     .page-tabs a { display: flex; min-height: 44px; align-items: center; justify-content: center; border-radius: 8px; font-weight: 700; text-decoration: none; color: #1058a7; }
     .page-tabs a[aria-current="page"] { background: #1058a7; color: #fff; }
-    .sticky-nav { position: sticky; top: 0; z-index: 20; margin: 0 0 14px; padding: 6px 0 8px; background: #f4f7fa; box-shadow: 0 1px 0 rgba(15, 23, 42, .06); }
-    .sticky-nav .page-tabs { margin: 0 0 6px; }
+    .sticky-nav { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px 8px; margin: 0 0 14px; padding: 6px 0 8px; background: #f4f7fa; box-shadow: 0 1px 0 rgba(15, 23, 42, .06); }
+    .sticky-nav .page-tabs { grid-column: 1 / -1; }
+    .sticky-nav .jump-nav { grid-column: 1; min-width: 0; }
+    .sticky-nav #refresh { grid-column: 2; min-height: 40px; padding: 5px 12px; white-space: nowrap; }
+    .sticky-nav .page-tabs { margin: 0; }
     .sticky-nav .page-tabs a { min-height: 40px; }
     .sticky-nav .jump-nav { position: static; margin: 0; padding: 3px; }
     .sticky-nav .jump-nav a { min-height: 40px; }
@@ -821,6 +824,7 @@
   <div class="sticky-nav">
     <nav class="page-tabs" aria-label="ページ切り替え"><a href="/" data-tab="now">今日のパーク</a><a href="/map">地図で探す</a><a href="/plan" data-tab="plan">行く前に</a></nav>
     <nav class="jump-nav" aria-label="ページ内の項目"><a href="#heatmap-title" data-only="now">待ち時間</a><a href="#shows-title" data-only="now">ショー</a><a href="#closures-title" data-only="now">休止</a><a href="#weather-title" data-only="now">天気</a><a href="#archive-title" data-only="plan">カレンダー</a><a href="#events-title" data-only="plan">イベント</a></nav>
+    <button id="refresh" type="button" data-only="now">待ち時間を更新</button>
   </div>
   <div class="today-hours" data-only="now" role="status" aria-label="本日の公表営業時間">
     <strong>本日の公表営業時間</strong><span id="today-hours-time" class="today-hours-time">読み込み中…</span>
@@ -833,7 +837,6 @@
   <a id="park-alert" class="park-alert" href="#weather-title" data-only="now" hidden></a>
   <main>
   <div class="bar" data-only="now">
-    <button id="refresh" type="button">待ち時間を更新</button>
     <span id="status" role="status"></span>
     <span id="error" role="alert"></span>
   </div>
