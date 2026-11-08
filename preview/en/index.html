@@ -146,6 +146,7 @@
       [7077,['hollywood-dream.jpg','Entrance and sign for Hollywood Dream: The Ride']],
       [12070,['hollywood-dream.jpg','Entrance and sign for Hollywood Dream: The Ride']],
       [12075,['flying-snoopy.jpg','Flying Snoopy ride and entrance']],
+      [14919,['snoopy-flying-ace.jpg','Entrance sign for Snoopy’s Flying Ace Adventure']],
     ]);
     function ridePhoto(id){const photo=ridePhotos.get(Number(id));if(!photo)return null;const image=el('img','ride-photo');image.src=`/ride-photos/${photo[0]}`;image.alt=photo[1];image.width=photo[0].endsWith('.jpg')?1280:576;image.height=photo[0].endsWith('.jpg')?960:324;image.loading='lazy';image.decoding='async';return image;}
     const archiveVariantPairs = [['12068','17894'],['12067','15322']];
