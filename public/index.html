@@ -3203,8 +3203,10 @@
         more.id = 'archive-rides-more';
         more.className = 'rides-more';
         more.addEventListener('click', () => {
+          const previousScrollY = window.scrollY;
           archiveRidesExpanded = !archiveRidesExpanded;
           if (archiveData) renderArchive(archiveData);
+          if (archiveRidesExpanded) requestAnimationFrame(() => window.scrollTo(0, previousScrollY));
           if (!archiveRidesExpanded) document.querySelector('.archive-ride-title')?.scrollIntoView({block: 'start'});
         });
         box.after(more);
@@ -3694,8 +3696,10 @@
         button.id = 'rides-more';
         button.className = 'rides-more';
         button.addEventListener('click', () => {
+          const previousScrollY = window.scrollY;
           ridesExpanded = !ridesExpanded;
           updateRidesPreview();
+          if (ridesExpanded) requestAnimationFrame(() => window.scrollTo(0, previousScrollY));
           if (!ridesExpanded) heatmapBody.closest('section')?.scrollIntoView({block: 'start'});
         });
         mobileCards.after(button);
