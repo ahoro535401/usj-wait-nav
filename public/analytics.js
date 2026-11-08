@@ -13,7 +13,8 @@
     'filter_apply', 'archive_past_select', 'archive_future_select',
     'map_place_open', 'map_location_request', 'map_location_success',
     'map_location_failure', 'walking_route_open', 'share_click', 'follow_click',
-    'attraction_link_click'
+    'attraction_link_click', 'install_prompt_shown', 'install_prompt_click',
+    'home_screen_open'
   ]);
   const values = {
     view_mode: new Set(['today_cards', 'today_heatmap', 'archive_chart', 'archive_table',
@@ -75,6 +76,15 @@
     script.async = true;
     script.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(measurementId);
     document.head.appendChild(script);
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
+      try {
+        const key = 'usj-wait-nav:home-open-session';
+        if (sessionStorage.getItem(key) !== '1') {
+          window.gtag('event', 'home_screen_open');
+          sessionStorage.setItem(key, '1');
+        }
+      } catch (_) { window.gtag('event', 'home_screen_open'); }
+    }
   }
 
   window.trackSiteEvent = (name, parameters = {}) => {

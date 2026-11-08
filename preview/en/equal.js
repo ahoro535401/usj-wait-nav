@@ -735,6 +735,9 @@
     'harry_potter_forbidden_journey','flight_of_the_hippogriff','ollivanders','mario_kart_koopas_challenge',
     'yoshis_adventure','donkey_kong_country_ride',
   ];
+  const seasonalMapEnd=new Map([[13925,'2026-11-08'],[17893,'2026-11-08'],[15322,'2026-11-08']]);
+  const mapDay=()=>window.__EN_PREVIEW_DATE__||new Date(Date.now()+32400000).toISOString().slice(0,10);
+  const mapRideActive=id=>!seasonalMapEnd.has(id)||mapDay()<=seasonalMapEnd.get(id);
   function setupMap() {
     const section=$('map');
     const switcher=el('div','map-mode segmented');
@@ -751,7 +754,7 @@
     section.insertBefore(tools,$('map-status'));
     const mapStatus=$('map-status');
     const geoGuide=mapStatus.nextElementSibling;
-    const illustrationGuide=el('p','small muted','On the whole illustrated map, colored dots mark all 23 attractions. Tap one to zoom in and see its wait time.');
+    const illustrationGuide=el('p','small muted','On the whole illustrated map, colored dots mark current attraction locations. Tap one to zoom in and see its wait time.');
     illustrationGuide.hidden=true;section.insertBefore(illustrationGuide,mapStatus);
     const frame=el('div','map-frame');frame.id='en-illustration';frame.hidden=true;
     frame.style.cssText='height:auto;min-height:0;aspect-ratio:1280/1169;';
@@ -786,21 +789,24 @@
       pins.replaceChildren();
       const rides=new Map((app.live?.rides||[]).map(ride=>[Number(ride.id),ride]));
       illustrationSpots.forEach(([x,y,ids],index)=>{
-        const ride=ids.map(id=>rides.get(id)).find(app.available) || (ids.length===1?rides.get(ids[0]):null);
+        const activeIds=ids.filter(mapRideActive);
+        if(!activeIds.length)return;
+        const ride=activeIds.map(id=>rides.get(id)).find(app.available) || (activeIds.length===1?rides.get(activeIds[0]):null);
         const place=byKey.get(illustrationKeys[index]);
+        const fallbackName=index===2?'Cinema 4-D Theater':place?.name||'Attraction';
         const value=ride?app.available(ride)?`${ride.wait_time} min`:'Unknown':'Unknown';
         const delta=ride?app.change(ride,20):'—';
         const text=value+(delta==='—'?'':' '+delta[0]);
         const pin=el('button','illustration-pin '+(app.available(ride)?app.waitClass(ride.wait_time):'unknown'),text);
         pin.type='button';pin.style.left=`${x}%`;pin.style.top=`${y}%`;
-        pin.title=`${ride?app.nameOf(ride):place?.name||'Attraction'}: ${value}`;
+        pin.title=`${ride?app.nameOf(ride):fallbackName}: ${value}`;
         pin.dataset.baseLabel=pin.title;
         pin.setAttribute('aria-label',pin.title+(state.scale<1.45?'; zoom in to see the wait time':'; show details'));
         pin.addEventListener('click',event=>{
           event.stopPropagation();
           if(state.scale<1.45){focusIllustration(x,y);return;}
           const detail=$('map-detail');detail.replaceChildren();detail.hidden=false;
-          detail.append(el('h3',null,ride?app.nameOf(ride):place?.name||'Attraction'));
+          detail.append(el('h3',null,ride?app.nameOf(ride):fallbackName));
           detail.append(el('p',null,`Current standby wait: ${value}`));
           if (ride) detail.append(el('p',null,`20 min ago: ${delta}`));
           const official=ride&&app.officialAttractionUrl(ride.id);

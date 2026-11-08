@@ -176,6 +176,18 @@ const DISTINCT_RIDES = [
   { externalId: 'usj.usj.rides.jaws', id: 12068, name: 'JAWS' },
   { externalId: 'usj.usj.rides.jaws_discoveru_version_2026', id: 17894, name: 'JAWS: Red Alert' },
 ];
+// 個別の公式開催期間で判定し、終了後の提供元レコードを現在値に残さない。
+const LAST_OPERATING_DAY = new Map([
+  [15322, '2026-11-08'], // ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～
+  [13925, '2026-11-08'], // チェンソーマン・ザ・カオス 4-D
+  [17893, '2026-11-08'], // ファクトリー・オブ・フィアー
+]);
+function visibleRidesForDay(rides, day) {
+  return rides.filter(ride => {
+    const lastDay = LAST_OPERATING_DAY.get(Number(ride.id));
+    return !lastDay || day <= lastDay;
+  });
+}
 // Queue-Times IDs and ThemeParks.wiki external IDs are different namespaces.
 // Only an explicit match may turn a missing/old wait into a confirmed DOWN state.
 const WIKI_RIDE_IDS = new Map([
@@ -1611,7 +1623,7 @@ function parseRides(queueRaw, wikiRaw, fetchedAt) {
       ride.last_updated = item.lastUpdated || null;
     }
   }
-  return rides;
+  return visibleRidesForDay(rides, jstDay(Date.parse(fetchedAt) / 1000));
 }
 
 function inspectSnapshotRide(ride, capturedAt) {
@@ -2951,7 +2963,7 @@ async function route(request, env) {
         const [payload, updated] = await Promise.all([
           readMeta(env.DB, 'rides_payload'), readMeta(env.DB, 'rides_fetched_at'),
         ]);
-        rides = JSON.parse(payload);
+        rides = visibleRidesForDay(JSON.parse(payload), jstDay(epoch()));
         fetchedAt = updated;
       } catch (error) { console.warn('English initial waits unavailable', error); }
       html = html.replace('</style>',
@@ -2994,7 +3006,7 @@ async function route(request, env) {
     }
     let summary = '<p class="muted">最新の待ち時間と保存済み履歴は、このページの表で確認できます。</p>';
     if (payload && fetchedAt && Date.now() - Date.parse(fetchedAt) <= 15 * 60 * 1000) {
-      rides = JSON.parse(payload);
+      rides = visibleRidesForDay(JSON.parse(payload), jstDay(epoch()));
       const now = Date.now();
       const confirmed = rides.filter(ride => {
         const updated = Date.parse(ride.verified_at || ride.last_updated);
@@ -3202,7 +3214,7 @@ async function route(request, env) {
   if (url.pathname === '/api/waits') {
     const payload = await readMeta(env.DB, 'rides_payload');
     if (!payload) return json({ error: '最初の定時取得を待っています' }, 503);
-    const rides = JSON.parse(payload);
+    const rides = visibleRidesForDay(JSON.parse(payload), jstDay(epoch()));
     const [fetchedAt, refreshError, previousPayload] = await Promise.all([
       readMeta(env.DB, 'rides_fetched_at'), readMeta(env.DB, 'rides_error'),
       readMeta(env.DB, 'rides_previous_payload').catch(() => null),

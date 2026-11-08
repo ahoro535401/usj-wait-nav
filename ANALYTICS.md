@@ -1,3 +1,7 @@
+---
+permalink: private/副業/tools/usj-wait-public/analytics
+---
+
 # アクセス解析の運用設計（2026-10-11更新）
 
 ## 何を数えるか
@@ -21,8 +25,12 @@
 | `map_location_request` / `map_location_success` / `map_location_failure` | GPSボタンの押下と結果 | なし |
 | `walking_route_open` | 徒歩ルートへのリンクを押す | `place_type` |
 | `share_click` | LINE・X・その他の共有操作を押す（投票ページを含む） | `share_channel`, `content_type`, 該当時 `ride_id` |
+| `install_prompt_shown` / `install_prompt_click` | 再訪者向けホーム画面案内の表示・手順への移動 | なし |
+| `home_screen_open` | ホーム画面表示モードからの起動（ブラウザーセッションごとに1回） | なし |
 
 `share_click` は投稿・送信の完了数ではない。`walking_route_open` は実際の来店・乗車を意味しない。GA4 の自動 `click`（外部リンク）とサイト固有の `share_click` を加算しない。
+
+ホーム画面案内はスマホ幅の再訪時だけ表示し、閉じるか手順へ移動すると30日間は再表示しない。訪問回数と閉じた時刻はブラウザー内だけに保存する。上記3イベントはGA4の解析を許可した場合だけ送る。`home_screen_open` は利用の目安であり、追加人数やインストール完了数ではない。
 
 GA4 のイベントスコープのカスタム ディメンションには `ride_id`、`view_mode`、`filter_type`、`place_type`、`share_channel`、`content_type`、`entry_page` を登録済み。施設IDは公開データのIDに限る。GPS座標・精度、氏名、メールアドレス、お気に入り一覧は送らない。`public/analytics.js` はイベント名・パラメータ値を許可リストで制限する。
 
