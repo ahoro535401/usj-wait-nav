@@ -626,7 +626,7 @@ function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null
     mode: 'ranking', now: ranked[0].wait_time, ride: xCardName(ranked[0], names),
   };
   return {
-    layout: 'photo-daytime-v1', visual,
+    layout: 'photo-daytime-v2', visual,
     time: hhmm(captured),
     captured_at: fetchedAt,
     label: `${xDateLabel(jstDay(captured))} ${hhmm(captured)}時点`,
@@ -637,7 +637,7 @@ function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null
   };
 }
 
-async function renderDaytimeXCard(env, card) {
+async function renderDaytimeXCardV1(env, card) {
   const visual = card.visual;
   if (!visual || !['comparison', 'movement', 'ranking'].includes(visual.mode) ||
       !Number.isInteger(visual.now) || visual.now < 0 || visual.now > 999 ||
@@ -711,10 +711,78 @@ async function renderDaytimeXCard(env, card) {
   });
 }
 
+async function renderDaytimeXCard(env, card) {
+  const visual = card.visual;
+  if (!visual || !['comparison', 'movement', 'ranking'].includes(visual.mode) ||
+      !Number.isInteger(visual.now) || visual.now < 0 || visual.now > 999 ||
+      (visual.mode !== 'ranking' && (!Number.isInteger(visual.past) ||
+        visual.past < 0 || visual.past > 999)))
+    return new Response('Invalid card data', { status: 422 });
+  const base = await assetFetch(new Request(`https://uniba-waittimes.com/${card.language === 'en' ?
+    'en-' : ''}x-card-daytime-${visual.mode}-base.jpg`), env);
+  if (!base.ok || !base.body)
+    return new Response('Card assets unavailable', { status: 503 });
+  let image = env.IMAGES.input(base.body);
+  const english = card.language === 'en';
+  const ink = '#07183b';
+  const add = (value, left, top, size, color = ink) => {
+    image = image.draw(env.IMAGES.text(String(value), {
+      font: { url: X_CARD_FONT }, color, size,
+    }), { left, top });
+  };
+  const delta = visual.now - (visual.past || 0);
+  if (visual.mode === 'ranking') {
+    add(`${card.time}${english ? ' JST' : '時点'}`, 975, 724, 27, '#455568');
+    add(english ? 'Longest listed wait' : 'いま待ち時間が長い施設',
+      100, 895, 65, '#008d8f');
+    add(xCardClip(visual.ride || '', english ? 28 : 20), 60, 1044,
+      english ? 44 : 46);
+    add(`${visual.now}${english ? ' min' : '分'}`, 705, 1132,
+      english ? 92 : 102);
+    add(english ? 'Check other rides via the link in the post' :
+      'ほかの施設の待ち時間は投稿文のリンクへ', 90, 1285,
+      english ? 40 : 37);
+  } else {
+    const movement = visual.mode === 'movement';
+    const less = delta < 0;
+    if (movement) {
+      add(`${card.time}${english ? ' JST' : '時点'}`, 975, 724, 27, '#455568');
+      add(xCardClip(visual.ride || '', english ? 25 : 18),
+        60, 802, english ? 58 : 54);
+    }
+    else add(`${card.time}${english ? ' JST' : '時点'}`, 975, 724, 27, '#455568');
+    add(movement ? (english ? (less ? 'Shorter than 20 min ago' :
+      delta > 0 ? 'Longer than 20 min ago' : 'Unchanged in 20 min') :
+      (less ? '約20分前より短め' : delta > 0 ? '約20分前より長め' : '約20分前と同じ')) :
+      (english ? (less ? 'Lower than recent days' : delta > 0 ?
+        'Higher than recent days' : 'About the same as recent days') :
+        (less ? 'いつもより少なめ' : delta > 0 ? 'いつもより長め' : '直近7日間と同じくらい')),
+      english ? 120 : 205, 892, english ? 59 : 67, '#008d8f');
+    add(english ? `${visual.now} min` : `${movement ? '' : '平均'}${visual.now}分`,
+      movement || english ? 740 : 630, 1010,
+      english ? 76 : movement ? 82 : 72);
+    add(english ? `${visual.past} min` : `${movement ? '' : '平均'}${visual.past}分`,
+      movement || english ? 740 : 630, 1120,
+      english ? 67 : movement ? 72 : 66);
+    const difference = Math.abs(delta);
+    const highlight = movement ? (english ?
+      `${difference} min ${less ? 'shorter' : delta > 0 ? 'longer' : 'change'} vs ~20 min ago` :
+      `約20分前より${difference}分${less ? '短い' : delta > 0 ? '長い' : '変化なし'}`) :
+      (english ? `${difference} min ${less ? 'less' : delta > 0 ? 'more' : 'difference'} across ${visual.rides} matched rides` :
+        `比較できた${visual.rides}施設では${difference}分${less ? '少ない' : delta > 0 ? '多い' : '差なし'}`);
+    add(highlight, 108, 1283, 43);
+  }
+  return (await image.output({ format: 'image/png' })).response({
+    headers: { 'Cache-Control': 'public, max-age=2592000, immutable',
+      'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' },
+  });
+}
+
 async function renderXCard(env, card) {
   if (!env.IMAGES || !card || !Array.isArray(card.rows) || card.rows.length !== 3)
     return new Response('Image rendering unavailable', { status: 503 });
-  if (card.layout === 'photo-daytime-v1') return renderDaytimeXCard(env, card);
+  if (card.layout === 'photo-daytime-v1') return renderDaytimeXCardV1(env, card);
+  if (card.layout === 'photo-daytime-v2') return renderDaytimeXCard(env, card);
   const base = await assetFetch(new Request(`https://uniba-waittimes.com/${card.language === 'en' ? 'en-x-card-base.png' : 'x-card-base.png'}`), env);
   if (!base.ok || !base.body) return new Response('Base image unavailable', { status: 503 });
   let image = env.IMAGES.input(base.body);
@@ -1144,7 +1212,7 @@ function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null
     ride: EN_X_CARD_FOCUS_NAMES.get(focus.ride.id) || englishCardName(focus.ride),
   } : { mode: 'ranking', now: ranked[0].wait_time, ride: englishCardName(ranked[0]) };
   return {
-    layout: 'photo-daytime-v1', visual, time: hhmm(captured),
+    layout: 'photo-daytime-v2', visual, time: hhmm(captured),
     language: 'en', captured_at: fetchedAt,
     label: `${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`,
     title: comparisonFocus ?

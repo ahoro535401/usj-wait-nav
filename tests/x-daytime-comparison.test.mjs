@@ -59,8 +59,8 @@ test('daytime cards compare current verified rides with their own prior seven-da
     comparison, context.currentParkAverage(rides, at(fetchedAt)));
   assert.equal(japaneseCard.title, '直近7日間の同時刻平均より+5分');
   assert.equal(englishCard.title, '+5 min vs 7-day same time');
-  assert.equal(japaneseCard.layout, 'photo-daytime-v1');
-  assert.equal(englishCard.layout, 'photo-daytime-v1');
+  assert.equal(japaneseCard.layout, 'photo-daytime-v2');
+  assert.equal(englishCard.layout, 'photo-daytime-v2');
   assert.deepEqual(JSON.parse(JSON.stringify(japaneseCard.visual)),
     { mode: 'comparison', now: 45, past: 40, rides: 6, difference: 5 });
   assert.deepEqual(JSON.parse(JSON.stringify(englishCard.visual)),
