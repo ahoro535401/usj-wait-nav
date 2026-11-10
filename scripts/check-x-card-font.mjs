@@ -77,6 +77,9 @@ const renderedText = [
   '比較22施設：今72分 / 過去7日同時刻65分（+7分）',
   'Average wait now: 72 min',
   '22 matched: now 72 / prior 7 days 65 min (+7)',
+  '直近7日間の同時刻平均より-7分',
+  '比較23施設：今56分 / 平均63分（-7分）',
+  '-7 min vs 7-day same time',
   ...shortNames, '現在の待ち時間 上位3施設', '20分前より短縮・増加',
 ];
 const missing = [...new Set(renderedText.join(''))]

@@ -508,14 +508,14 @@ async function daytimeXComparison(db, rides, captured) {
   return { now, past, difference: now - past, rides: matched.length };
 }
 
-function xWaitPost(rides, names, fetchedAt, previous = null) {
+function xWaitPost(rides, names, fetchedAt, previous = null, comparison = null, allowHomeTip = true, postingSlot = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
     Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5) return null;
   const date = xDateLabel(jstDay(captured));
-  const footer = `\n\n#USJ #USJ待ち時間`;
+  const time = hhmm(captured);
   const aliases = new Map([
     [12066, 'ミニオン・ライド'], [13005, 'コナン4-D'],
     [12073, 'ヒッポグリフ'], [12072, 'ミニオン・アイス'],
@@ -533,9 +533,7 @@ function xWaitPost(rides, names, fetchedAt, previous = null) {
     [13925, 'チェンソーマン4-D'], [17893, 'ファクトリー・オブ・フィアー'],
     [15322, 'ジュラシック夜'],
   ]);
-  const top = ranked[0];
-  const topFullName = (aliases.get(top.id) || names.get(top.id) || top.name || '').replace(/™/g, '').trim();
-  const topName = [...topFullName].length > 12 ? [...topFullName].slice(0, 12).join('') + '…' : topFullName;
+  const name = ride => (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
   const changes = ranked.slice(0, 5).map(ride => {
     const before = previous?.rides?.[String(ride.id)];
     if (!before || before.is_open !== 1 || before.source !== ride.source ||
@@ -544,27 +542,37 @@ function xWaitPost(rides, names, fetchedAt, previous = null) {
   }).filter(Boolean);
   const changed = changes.filter(item => item.difference <= -10 || item.difference >= 15)
     .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
-  const changedName = changed && (aliases.get(changed.ride.id) || names.get(changed.ride.id) || changed.ride.name || '').replace(/™/g, '').trim();
-  const changeText = changed && (changed.difference < 0 ?
-    `約20分前より${Math.abs(changed.difference)}分短縮` :
-    `約20分前より${changed.difference}分増加`);
-  const headers = [
-    ...(changed ? [`【USJ ${date} ${hhmm(captured)}】${changedName} ${changed.ride.wait_time}分。${changeText}👇`] : []),
-    `【USJ ${date} ${hhmm(captured)}｜非公式】${topName} ${top.wait_time}分。待ち時間は約5分更新、地図・増減も👇`,
-    `【USJ ${date} ${hhmm(captured)}｜非公式】待ち時間は約5分更新。地図・増減も👇`,
-  ];
-  for (const headline of headers) {
-    if ([...`${headline}\n${X_WAIT_URL}`].length > 140) continue;
-    for (const maxName of [Infinity, 13, 10, 8, 7]) {
-      const lines = ranked.slice(0, 5).map((ride, index) => {
-        let name = (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
-        if ([...name].length > maxName) name = [...name].slice(0, maxName).join('') + '…';
-        return `${index + 1}. ${name} ${ride.wait_time}分`;
-      });
-      const post = `${headline}\n${X_WAIT_URL}\n\n通常待ち列｜長い順に5施設\n${lines.join('\n')}${footer}`;
-      if (xWeightedLength(post) <= 280) return post;
-    }
+  const mode = changed && (['12:00', '15:00'].includes(postingSlot || time)) ? 'movement' :
+    comparison ? 'comparison' : changed ? 'movement' : 'ranking';
+  const sign = value => value > 0 ? `+${value}` : value < 0 ? `-${Math.abs(value)}` : '±0';
+  const headline = mode === 'comparison' ?
+    `【USJ ${date} ${time}｜直近7日間の同時刻平均より${sign(comparison.difference)}分】` :
+    mode === 'movement' ?
+      `【USJ ${date} ${time}｜${xCardClip(name(changed.ride), 12)}が約20分前比${sign(changed.difference)}分】` :
+      `【USJ ${date} ${time}｜${xCardClip(name(ranked[0]), 12)} ${ranked[0].wait_time}分】`;
+  const lead = mode === 'comparison' ?
+    `非公式の比較${comparison.rides}施設：今${comparison.now}分／平均${comparison.past}分。施設別の推移・地図👇` :
+    mode === 'movement' ?
+      `非公式の取得値は現在${changed.ride.wait_time}分。ほかの施設の5分・20分前比と地図👇` :
+      '非公式の取得値を約5分更新。施設別の5分・20分前比と地図👇';
+  const url = X_WAIT_URL;
+  const homeTip = allowHomeTip && (postingSlot || time) === '17:00' && [2, 5].includes(new Date((captured + JST_OFFSET) * 1000).getUTCDay()) ?
+    '次回はホーム画面から1タップ。追加方法はサイト内に。' : '';
+  for (const count of [3, 2, 1]) {
+    const lines = ranked.slice(0, count).map((ride, index) =>
+      `${index + 1}. ${xCardClip(name(ride), 13)} ${ride.wait_time}分`);
+    const body = `${headline}
+${lead}
+${url}
+
+いまの上位${count}件
+${lines.join('\n')}`;
+    const post = `${body}${homeTip ? `
+${homeTip}` : ''}
+#USJ #USJ待ち時間`;
+    if (xWeightedLength(post) <= 280) return post;
   }
+  if (homeTip) return xWaitPost(rides, names, fetchedAt, previous, comparison, false, postingSlot);
   return null;
 }
 
@@ -601,16 +609,17 @@ function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null
   const changed = changes.filter(item => item.difference <= -10 || item.difference >= 15)
     .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
   const headline = post?.split('\n')[0] || '';
-  const focus = changed && headline.includes(`約20分前より${Math.abs(changed.difference)}分${changed.difference < 0 ? '短縮' : '増加'}`)
-    ? changed : null;
-  const title = parkAverage ? `現在の平均待ち時間 ${parkAverage.average}分` : focus ?
-    `${xCardClip(xCardName(focus.ride, names), 11)}が20分前より${Math.abs(focus.difference)}分${focus.difference < 0 ? '短縮' : '増加'}` :
-    '現在の待ち時間 上位3施設';
+  const focus = changed && headline.includes('約20分前比') ? changed : null;
+  const comparisonFocus = comparison && headline.includes('直近7日間の同時刻平均より');
+  const sign = value => value > 0 ? `+${value}` : value < 0 ? `-${Math.abs(value)}` : '±0';
+  const title = comparisonFocus ? `直近7日間の同時刻平均より${sign(comparison.difference)}分` : focus ?
+    `${xCardClip(xCardName(focus.ride, names), 11)}が約20分前比${sign(focus.difference)}分` :
+    parkAverage ? `現在の平均待ち時間 ${parkAverage.average}分` : '現在の待ち時間 上位3施設';
   return {
     captured_at: fetchedAt,
     label: `${xDateLabel(jstDay(captured))} ${hhmm(captured)}時点`,
     title,
-    ...(comparison ? { subtitle: `比較${comparison.rides}施設：今${comparison.now}分 / 過去7日同時刻${comparison.past}分（${comparison.difference >= 0 ? '+' : ''}${comparison.difference}分）` } :
+    ...(comparison ? { subtitle: `比較${comparison.rides}施設：今${comparison.now}分 / 平均${comparison.past}分（${comparison.difference >= 0 ? '+' : ''}${comparison.difference}分）` } :
       parkAverage ? { subtitle: `数値を確認できた${parkAverage.rides}施設の平均` } : {}),
     rows: ranked.slice(0, 3).map(ride => ({ name: xCardName(ride, names), wait: ride.wait_time })),
   };
@@ -686,10 +695,10 @@ function xWaitReply(rides, names, fetchedAt, previous, slot) {
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
     Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
-  const moreRides = ranked.slice(5, 8).map((ride, index) => {
+  const moreRides = ranked.slice(3, 6).map((ride, index) => {
     let name = (names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
     if ([...name].length > 18) name = [...name].slice(0, 18).join('') + '…';
-    return `${index + 6}. ${name} ${ride.wait_time}分`;
+    return `${index + 4}. ${name} ${ride.wait_time}分`;
   });
   const counts = { up: 0, flat: 0, down: 0 };
   if (previous?.rides) {
@@ -710,7 +719,7 @@ function xWaitReply(rides, names, fetchedAt, previous, slot) {
     const lines = moreRides.slice(0, count);
     if (!lines.length && !trend) continue;
     const reply = [
-      ...(lines.length ? ['【上位5以外の待ち時間】', ...lines] : []),
+      ...(lines.length ? ['【続きの待ち時間】', ...lines] : []),
       ...(trend ? ['', trend] : []),
       '通常待ち列の取得値です。',
       ...(question ? ['', question] : []),
@@ -740,12 +749,12 @@ async function maybePostX(env, seconds) {
     'SELECT ride_id,wait_minutes,is_open,source FROM ride_samples WHERE slot=?').bind(snapshot.slot).all()).results
     .map(row => [String(row.ride_id), row])) } : null;
   const names = rideJapaneseNames(await response.text());
-  const post = xWaitPost(rides, names, fetchedAt, previous);
-  if (!post) return;
   const parkAverage = currentParkAverage(rides, captured);
   let comparison = null;
   try { comparison = await daytimeXComparison(env.DB, rides, captured); }
   catch (error) { console.error('Daytime X comparison unavailable', error); }
+  const post = xWaitPost(rides, names, fetchedAt, previous, comparison, true, slot);
+  if (!post) return;
   let imageUrl = X_POST_IMAGE;
   let imageAlt = null;
   const card = xCardPayload(rides, names, fetchedAt, previous, post, comparison, parkAverage);
@@ -1024,7 +1033,9 @@ function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null
   return {
     language: 'en', captured_at: fetchedAt,
     label: `${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`,
-    title: parkAverage ? `Average wait now: ${parkAverage.average} min` : highlight || 'Longest standby waits',
+    title: comparison && post.includes('prior 7-day same-time avg') ?
+      `${comparison.difference >= 0 ? '+' : ''}${comparison.difference} min vs 7-day same time` :
+      highlight || (parkAverage ? `Average wait now: ${parkAverage.average} min` : 'Longest standby waits'),
     subtitle: comparison ? `${comparison.rides} matched: now ${comparison.now} / prior 7 days ${comparison.past} min (${comparison.difference >= 0 ? '+' : ''}${comparison.difference})` :
       parkAverage ? `Average of ${parkAverage.rides} verified rides` :
         highlight ? 'Compared with ~20 min earlier' : 'Standard standby estimates',
@@ -1032,28 +1043,36 @@ function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null
   };
 }
 
-function englishXPost(rides, fetchedAt, previous = null) {
+function englishXPost(rides, fetchedAt, previous = null, comparison = null, postingSlot = null) {
   const captured = Date.parse(fetchedAt) / 1000;
   const ranked = rides.filter(ride => ride.is_open && !ride.data_unavailable &&
     Number.isInteger(ride.wait_time) && ride.wait_time >= 0 && isRecent(ride, captured))
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5 || ranked.slice(0, 5).some(ride => !englishRideName(ride))) return null;
-  const date = `USJ waits | ${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`;
-  const focusText = englishXFocusText(englishXFocus(ranked, previous));
-  const headers = [
-    ...(focusText ? [`${date}\n${focusText} ↓`] : []),
-    `${date}\nLive standby estimates and the park map ↓`,
-  ];
-  const lines = ranked.slice(0, 5).map((ride, index) => {
-    const name = xCardClip(englishRideName(ride), 23);
-    return `${index + 1}. ${name} ${ride.wait_time} min`;
-  });
-  for (const header of headers) {
-    if (header.length + 1 + EN_X_WAIT_URL.length > 140) continue;
-    for (const count of [5, 4, 3]) {
-      const post = `${header}\n${EN_X_WAIT_URL}\n\nLongest waits now\n${lines.slice(0, count).join('\n')}\n\n${EN_X_HASHTAGS}`;
-      if (xWeightedLength(post) <= 280) return post;
-    }
+  const time = hhmm(captured);
+  const focus = englishXFocus(ranked, previous);
+  const mode = focus && (['13:00', '17:00'].includes(postingSlot || time)) ? 'movement' :
+    comparison ? 'comparison' : focus ? 'movement' : 'ranking';
+  const sign = value => value > 0 ? `+${value}` : value < 0 ? `-${Math.abs(value)}` : '±0';
+  const headline = mode === 'comparison' ?
+    `USJ ${time} JST | ${sign(comparison.difference)} min vs prior 7-day same-time avg` :
+    mode === 'movement' ? `USJ ${time} JST | ${englishXFocusText(focus)}` :
+      `USJ ${time} JST | ${xCardClip(englishRideName(ranked[0]), 17)} ${ranked[0].wait_time} min`;
+  const lead = mode === 'comparison' ?
+    `${comparison.rides} matched rides: now ${comparison.now}, prior avg ${comparison.past} min. Ride trends & map ↓` :
+    'Compare each ride with ~5 and ~20 min ago; view the map ↓';
+  for (const count of [3, 2, 1]) {
+    const lines = ranked.slice(0, count).map((ride, index) =>
+      `${index + 1}. ${xCardClip(englishRideName(ride), 23)} ${ride.wait_time} min`);
+    const post = `${headline}
+${lead}
+${EN_X_WAIT_URL}
+
+Longest waits now
+${lines.join('\n')}
+
+${EN_X_HASHTAGS}`;
+    if (xWeightedLength(post) <= 280) return post;
   }
   return null;
 }
@@ -1129,12 +1148,12 @@ async function maybePostEnglishX(env, seconds) {
   const previous = previousRow ? { rides: Object.fromEntries((await env.DB.prepare(
     'SELECT ride_id,wait_minutes,is_open,source FROM ride_samples WHERE slot=?').bind(previousRow.slot).all()).results
     .map(row => [String(row.ride_id), row])) } : null;
-  const post = englishXPost(rides, fetchedAt, previous);
-  if (!post) return;
   const parkAverage = currentParkAverage(rides, captured);
   let comparison = null;
   try { comparison = await daytimeXComparison(env.DB, rides, captured); }
   catch (error) { console.error('Daytime English X comparison unavailable', error); }
+  const post = englishXPost(rides, fetchedAt, previous, comparison, slot);
+  if (!post) return;
   const card = englishXCardPayload(rides, fetchedAt, previous, post, comparison, parkAverage);
   const image = await englishXImage(env, seconds, slot, card);
   await sendBufferPost(env, seconds, slot, post, fetchedAt,

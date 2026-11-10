@@ -47,20 +47,22 @@ test('daytime cards compare current verified rides with their own prior seven-da
   assert.deepEqual(JSON.parse(JSON.stringify(context.currentParkAverage(rides, at(fetchedAt)))),
     { average: 45, rides: 6 });
   const names = new Map(ids.map((id, index) => [id, `施設${index + 1}`]));
-  const japanesePost = context.xWaitPost(rides, names, fetchedAt);
-  const englishPost = context.englishXPost(rides, fetchedAt);
+  const japanesePost = context.xWaitPost(rides, names, fetchedAt, null, comparison);
+  const englishPost = context.englishXPost(rides, fetchedAt, null, comparison);
   assert.ok(japanesePost && context.xWeightedLength(japanesePost) <= 280);
   assert.ok(englishPost && context.xWeightedLength(englishPost) <= 280);
+  assert.match(japanesePost.split('\n')[0], /直近7日間の同時刻平均より\+5分/);
+  assert.match(englishPost.split('\n')[0], /\+5 min vs prior 7-day same-time avg/);
   const japaneseCard = context.xCardPayload(rides, names, fetchedAt, null, japanesePost,
     comparison, context.currentParkAverage(rides, at(fetchedAt)));
   const englishCard = context.englishXCardPayload(rides, fetchedAt, null, englishPost,
     comparison, context.currentParkAverage(rides, at(fetchedAt)));
-  assert.equal(japaneseCard.title, '現在の平均待ち時間 45分');
-  assert.equal(englishCard.title, 'Average wait now: 45 min');
-  assert.match(japaneseCard.subtitle, /比較6施設：今45分 \/ 過去7日同時刻40分（\+5分）/);
+  assert.equal(japaneseCard.title, '直近7日間の同時刻平均より+5分');
+  assert.equal(englishCard.title, '+5 min vs 7-day same time');
+  assert.match(japaneseCard.subtitle, /比較6施設：今45分 \/ 平均40分（\+5分）/);
   assert.match(englishCard.subtitle, /6 matched: now 45 \/ prior 7 days 40 min \(\+5\)/);
-  assert.equal(context.xWaitPost(rides, names, fetchedAt), japanesePost);
-  assert.equal(context.englishXPost(rides, fetchedAt), englishPost);
+  assert.match(context.xWaitPost(rides, names, fetchedAt), /いまの上位3件/);
+  assert.match(context.englishXPost(rides, fetchedAt), /Longest waits now/);
   sqlite.close();
 });
 
@@ -76,6 +78,29 @@ test('stale current rides and sparse historical records are excluded from the co
     `SELECT slot FROM snapshots ORDER BY slot LIMIT 4)`);
   assert.equal(await context.daytimeXComparison(db, stale, at(fetchedAt)), null);
   sqlite.close();
+});
+
+test('midday highlights a verified movement and a Tuesday evening post explains one-tap return', () => {
+  const names = new Map(ids.map((id, index) => [id, `施設${index + 1}`]));
+  const comparison = { now: 45, past: 40, difference: 5, rides: 6 };
+  const previous = { rides: { [ids[5]]: { wait_minutes: 90, is_open: 1, source: 'Queue-Times' } } };
+  const midday = '2026-11-10T15:00:00+09:00';
+  const middayRides = rides.map(ride => ({ ...ride, last_updated: midday }));
+  const movement = context.xWaitPost(middayRides, names, midday, previous, comparison);
+  assert.match(movement.split('\n')[0], /約20分前比-20分/);
+  assert.ok(context.xWeightedLength(movement) <= 280);
+  const evening = '2026-11-10T17:00:00+09:00';
+  const eveningRides = rides.map(ride => ({ ...ride, last_updated: evening }));
+  const post = context.xWaitPost(eveningRides, names, evening, null, comparison);
+  assert.match(post.split('\n')[0], /直近7日間の同時刻平均より\+5分/);
+  assert.match(post, /次回はホーム画面から1タップ/);
+  assert.ok(context.xWeightedLength(post) <= 280);
+  const early = '2026-11-10T16:58:00+09:00';
+  const earlyRides = rides.map(ride => ({ ...ride, last_updated: early }));
+  const scheduledPost = context.xWaitPost(earlyRides, names, early, null, comparison, true, '17:00');
+  assert.match(scheduledPost, /次回はホーム画面から1タップ/);
+  const englishEarly = context.englishXPost(earlyRides, early, previous, comparison, '17:00');
+  assert.match(englishEarly.split('\n')[0], /shorter vs ~20 min ago/);
 });
 
 test('the current park average omits closed, unavailable, inferred and hidden-source waits', () => {
@@ -145,11 +170,13 @@ test('17:00 Japanese and English posts include the comparison in images while ke
   await context.maybePostEnglishX(env, seconds);
   assert.equal(sent.length, 2);
   assert.equal(rendered.length, 2);
-  assert.equal(rendered[0].title, '現在の平均待ち時間 45分');
-  assert.equal(rendered[1].title, 'Average wait now: 45 min');
-  assert.match(rendered[0].subtitle, /過去7日同時刻40分/);
+  assert.equal(rendered[0].title, '直近7日間の同時刻平均より+5分');
+  assert.equal(rendered[1].title, '+5 min vs 7-day same time');
+  assert.match(rendered[0].subtitle, /平均40分/);
   assert.match(rendered[1].subtitle, /prior 7 days 40 min/);
-  assert.match(sent[0][7], /過去7日同時刻40分/);
+  assert.match(sent[0][7], /平均40分/);
   assert.match(sent[1][7], /prior 7 days 40 min/);
   assert.ok(sent.every(args => context.xWeightedLength(args[3]) <= 280));
+  assert.match(sent[0][3].split('\n')[0], /直近7日間の同時刻平均より\+5分/);
+  assert.match(sent[1][3].split('\n')[0], /prior 7-day same-time avg/);
 });
