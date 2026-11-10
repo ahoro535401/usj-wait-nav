@@ -68,6 +68,11 @@ const binaryFiles = {
   '/og-photo.jpg': 'og-photo.jpg',
   '/og-photo-labeled.jpg': 'og-photo-labeled.jpg',
   '/x-card-base.png': 'x-card-base.png',
+  '/x-card-daytime-comparison-base.jpg': 'x-card-daytime-comparison-base.jpg',
+  '/x-card-daytime-movement-base.jpg': 'x-card-daytime-movement-base.jpg',
+  '/x-card-daytime-ranking-base.jpg': 'x-card-daytime-ranking-base.jpg',
+  '/x-card-bar-teal.png': 'x-card-bar-teal.png',
+  '/x-card-bar-slate.png': 'x-card-bar-slate.png',
   '/x-card-font.ttf': 'x-card-font.ttf',
   '/x-card-font-v2.ttf': 'x-card-font-v2.ttf',
   '/poll-campaign-1.jpg': 'poll-campaign-1.jpg',
@@ -85,6 +90,9 @@ const binaryFiles = {
 };
 if (process.env.INCLUDE_EN === '1') {
   binaryFiles['/en-x-card-base.png'] = 'x-card-base.png';
+  binaryFiles['/en-x-card-daytime-comparison-base.jpg'] = 'x-card-daytime-comparison-base.jpg';
+  binaryFiles['/en-x-card-daytime-movement-base.jpg'] = 'x-card-daytime-movement-base.jpg';
+  binaryFiles['/en-x-card-daytime-ranking-base.jpg'] = 'x-card-daytime-ranking-base.jpg';
   binaryFiles['/en/apple-touch-icon-en.png'] = 'apple-touch-icon-en.png';
   binaryFiles['/en/icon-en-192.png'] = 'icon-en-192.png';
   binaryFiles['/en/icon-en-512.png'] = 'icon-en-512.png';

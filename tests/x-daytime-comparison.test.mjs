@@ -59,6 +59,12 @@ test('daytime cards compare current verified rides with their own prior seven-da
     comparison, context.currentParkAverage(rides, at(fetchedAt)));
   assert.equal(japaneseCard.title, '直近7日間の同時刻平均より+5分');
   assert.equal(englishCard.title, '+5 min vs 7-day same time');
+  assert.equal(japaneseCard.layout, 'photo-daytime-v1');
+  assert.equal(englishCard.layout, 'photo-daytime-v1');
+  assert.deepEqual(JSON.parse(JSON.stringify(japaneseCard.visual)),
+    { mode: 'comparison', now: 45, past: 40, rides: 6, difference: 5 });
+  assert.deepEqual(JSON.parse(JSON.stringify(englishCard.visual)),
+    { mode: 'comparison', now: 45, past: 40, rides: 6, difference: 5 });
   assert.match(japaneseCard.subtitle, /比較6施設：今45分 \/ 平均40分（\+5分）/);
   assert.match(englishCard.subtitle, /6 matched: now 45 \/ prior 7 days 40 min \(\+5\)/);
   assert.match(context.xWaitPost(rides, names, fetchedAt), /いまの上位3件/);
@@ -174,8 +180,8 @@ test('17:00 Japanese and English posts include the comparison in images while ke
   assert.equal(rendered[1].title, '+5 min vs 7-day same time');
   assert.match(rendered[0].subtitle, /平均40分/);
   assert.match(rendered[1].subtitle, /prior 7 days 40 min/);
-  assert.match(sent[0][7], /平均40分/);
-  assert.match(sent[1][7], /prior 7 days 40 min/);
+  assert.match(sent[0][7], /同時刻平均は40分/);
+  assert.match(sent[1][7], /prior 7-day same-time average is 40 minutes/);
   assert.ok(sent.every(args => context.xWeightedLength(args[3]) <= 280));
   assert.match(sent[0][3].split('\n')[0], /直近7日間の同時刻平均より\+5分/);
   assert.match(sent[1][3].split('\n')[0], /prior 7-day same-time avg/);
