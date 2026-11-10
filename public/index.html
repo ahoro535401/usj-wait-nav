@@ -2854,7 +2854,7 @@
         renderArchiveCalendar();
       }
     }
-    const crowdLevel = average => CROWD_LEVELS.find(level => average < level.max);
+    const crowdLevel = average => CROWD_LEVELS.find(level => roundWait5(average) < level.max);
     function shiftArchiveMonth(key, delta) {
       const [year, month] = key.split('-').map(Number);
       const date = new Date(Date.UTC(year, month - 1 + delta, 1));

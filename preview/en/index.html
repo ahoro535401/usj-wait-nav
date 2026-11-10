@@ -363,7 +363,7 @@
     weeklyLink.target='_blank';weeklyLink.rel='noopener noreferrer';weeklyNote.append(weeklyLink,document.createTextNode(' before your visit.'));
     $('month-grid').after(weeklyHeading,weeklyStatus,weeklyList,weeklyNote);
     const archiveDayStats=new Map(),PARTIAL_DAY_SNAPSHOTS=18;
-    const crowdClass=average=>average<20?'crowd-1':average<30?'crowd-2':average<40?'crowd-3':average<50?'crowd-4':'crowd-5';
+    const crowdClass=raw=>{const average=roundWait5(raw);return average<20?'crowd-1':average<30?'crowd-2':average<40?'crowd-3':average<50?'crowd-4':'crowd-5';};
     function calendarWeather(weather){
       if(!weather)return null;
       const complete=Number(weather.coverage)>=0.9;
