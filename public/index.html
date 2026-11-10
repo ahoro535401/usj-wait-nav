@@ -978,7 +978,7 @@
     <div class="heatmap-scroll" tabindex="0" aria-label="過去のアトラクション別・時間帯別待ち時間表">
       <table class="heatmap-table"><thead><tr id="archive-head"></tr></thead><tbody id="archive-body"></tbody></table>
     </div>
-    <p class="muted">色は待ち時間の長さを示します。各時間帯の値は営業中の記録の平均を1分単位に四捨五入しています。—は記録なし、休はその版の記録上の休止で、施設全体の休止を意味しません。</p>
+    <p class="muted">色は待ち時間の長さを示します。平均値は営業中の記録から計算し、表示時に5分単位へ四捨五入しています。—は記録なし、休はその版の記録上の休止で、施設全体の休止を意味しません。</p>
   </section>
   <!-- 広告枠1：承認済み広告コードとプライバシー表示を設定してから有効化 -->
   <aside id="ad-slot-1" class="ad-slot" aria-label="広告" hidden><span class="ad-label">広告</span><div id="ad-content-1"></div></aside>
@@ -1162,6 +1162,7 @@
     const tagFilterInputs = [...document.querySelectorAll('[data-tag-filter]')];
     const weatherStatus = document.querySelector('#weather-status');
     const weatherAdvice = document.querySelector('#weather-advice');
+    const roundWait5 = value => Math.round(value / 5) * 5;
     const timeFormat = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
     const dataFailureText = () => `データを取得できませんでした（${timeFormat.format(new Date())}）。公式アプリでご確認ください。`;
     const apiRequest = (url, options = {}) => fetch(url, {...options, signal: AbortSignal.timeout(8000)});
@@ -2754,7 +2755,7 @@
         cell.textContent = '—';
         cell.title = `${label}：記録なし`;
       } else if (sample.open_samples && Number.isFinite(sample.average_wait)) {
-        const rounded = Math.round(sample.average_wait);
+        const rounded = roundWait5(sample.average_wait);
         cell.className = heatClass(rounded);
         cell.textContent = `${rounded}${sample.estimated_samples ? '※' : ''}`;
         cell.title = `${label}：平均${rounded}分（営業中${sample.open_samples}件／記録${sample.samples}件）` +
@@ -2981,9 +2982,9 @@
             averageLabel.textContent = '平均';
             const averageNumber = document.createElement('span');
             averageNumber.className = 'average-number';
-            averageNumber.textContent = `${Math.round(stats.average)}分`;
+            averageNumber.textContent = `${roundWait5(stats.average)}分`;
             value.append(averageLabel, averageNumber);
-            cell.title = `${month}/${date}：平均${Math.round(stats.average)}分（${level.label}）`;
+            cell.title = `${month}/${date}：平均${roundWait5(stats.average)}分（${level.label}）`;
           } else {
             value.textContent = stats?.error ? '—' : '…';
             cell.title = `${month}/${date}：記録あり`;
@@ -3167,7 +3168,7 @@
       for (const [index, id] of rideIds.entries()) {
         const values = hours.map(hour => {
           const sample = hour.rides?.[id];
-          return sample?.open_samples && Number.isFinite(sample.average_wait) ? Math.round(sample.average_wait) : null;
+          return sample?.open_samples && Number.isFinite(sample.average_wait) ? roundWait5(sample.average_wait) : null;
         });
         const valid = values.filter(value => value != null);
         const item = document.createElement('div');
@@ -3303,11 +3304,11 @@
         : '天気：この日の記録はありません。';
       archiveDayStats.set(data.day, {average: data.average_wait, snapshots: data.snapshots});
       if (archiveCalendarDays.length) renderArchiveCalendar();
-      archiveAverage.textContent = Number.isFinite(data.average_wait) ? `${Math.round(data.average_wait)}分` : '記録なし';
+      archiveAverage.textContent = Number.isFinite(data.average_wait) ? `${roundWait5(data.average_wait)}分` : '記録なし';
       const {peak, top} = archiveHighlights(hours);
       const hourText = at => `${hourMinuteFormat.format(new Date(at * 1000)).slice(0, 2)}時台`;
-      archivePeak.textContent = peak ? `${hourText(peak.at)}（平均${Math.round(peak.average_wait)}分）` : '記録なし';
-      archiveTopRide.textContent = top ? `${archiveRideName(top.id)} 平均${Math.round(top.wait)}分（${hourText(top.at)}）` : '記録なし';
+      archivePeak.textContent = peak ? `${hourText(peak.at)}（平均${roundWait5(peak.average_wait)}分）` : '記録なし';
+      archiveTopRide.textContent = top ? `${archiveRideName(top.id)} 平均${roundWait5(top.wait)}分（${hourText(top.at)}）` : '記録なし';
       archiveShareBar.updateLinks();
       archiveShareBar.hidden = false;
 
@@ -3321,11 +3322,11 @@
         const track = document.createElement('span');
         track.className = 'archive-hour-track';
         const fill = document.createElement('span');
-        fill.className = `archive-hour-fill ${Number.isFinite(hour.average_wait) ? heatClass(Math.round(hour.average_wait)) : 'heat-empty'}`;
+        fill.className = `archive-hour-fill ${Number.isFinite(hour.average_wait) ? heatClass(roundWait5(hour.average_wait)) : 'heat-empty'}`;
         fill.style.width = `${Number.isFinite(hour.average_wait) ? Math.max(3, hour.average_wait / scale * 100) : 0}%`;
         track.append(fill);
         const value = document.createElement('strong');
-        value.textContent = Number.isFinite(hour.average_wait) ? `${Math.round(hour.average_wait)}分` : '—';
+        value.textContent = Number.isFinite(hour.average_wait) ? `${roundWait5(hour.average_wait)}分` : '—';
         row.title = `${label.textContent}台の平均待ち時間`;
         row.append(label, track, value);
         archiveHourBars.append(row);
@@ -4116,7 +4117,7 @@
       }
 
       if (open && Number.isFinite(comparison.same_time_avg)) {
-        const roundedAverage = Math.round(comparison.same_time_avg);
+        const roundedAverage = roundWait5(comparison.same_time_avg);
         const difference = ride.wait_time - roundedAverage;
         averageValue.textContent = `${difference > 0 ? '+' : difference < 0 ? '' : '±'}${difference}分`;
         averageDetail.textContent = `過去7日の時間平均 ${roundedAverage}分（${comparison.same_time_count}日・${comparison.same_time_samples}記録）`;
@@ -4183,7 +4184,7 @@
           if (!Number.isFinite(hour.average_wait)) continue;
           const point = svgElement('circle', {cx: x(hour.at), cy: y(hour.average_wait), r: 4, fill: hour.estimated_samples ? '#b36b00' : '#1058a7'});
           const title = svgElement('title', {}, point);
-          title.textContent = `${timeFormat.format(new Date(hour.at * 1000))}時台・平均${Math.round(hour.average_wait)}分・${hour.open_samples}/3件${hour.estimated_samples ? `・推定振替${hour.estimated_samples}件` : ''}`;
+          title.textContent = `${timeFormat.format(new Date(hour.at * 1000))}時台・平均${roundWait5(hour.average_wait)}分・${hour.open_samples}/3件${hour.estimated_samples ? `・推定振替${hour.estimated_samples}件` : ''}`;
         }
       }
       svgText(timeFormat.format(new Date(from)), left, 244);

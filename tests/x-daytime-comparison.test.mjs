@@ -59,8 +59,8 @@ test('daytime cards compare current verified rides with their own prior seven-da
     comparison, context.currentParkAverage(rides, at(fetchedAt)));
   assert.equal(japaneseCard.title, '直近7日間の同時刻平均より+5分');
   assert.equal(englishCard.title, '+5 min vs 7-day same time');
-  assert.equal(japaneseCard.layout, 'photo-daytime-v2');
-  assert.equal(englishCard.layout, 'photo-daytime-v2');
+  assert.equal(japaneseCard.layout, 'photo-daytime-v3');
+  assert.equal(englishCard.layout, 'photo-daytime-v3');
   assert.deepEqual(JSON.parse(JSON.stringify(japaneseCard.visual)),
     { mode: 'comparison', now: 45, past: 40, rides: 6, difference: 5 });
   assert.deepEqual(JSON.parse(JSON.stringify(englishCard.visual)),
@@ -83,6 +83,17 @@ test('stale current rides and sparse historical records are excluded from the co
   sqlite.exec(`DELETE FROM ride_samples WHERE ride_id=${ids[1]} AND slot IN (` +
     `SELECT slot FROM snapshots ORDER BY slot LIMIT 4)`);
   assert.equal(await context.daytimeXComparison(db, stale, at(fetchedAt)), null);
+  sqlite.close();
+});
+
+test('computed park and same-time averages use five-minute display steps', async () => {
+  const { db, sqlite } = historicalDatabase();
+  const uneven = rides.map(ride => ({ ...ride }));
+  uneven.at(-1).wait_time = 80; // 46.7-minute average from 5-minute source values.
+  assert.deepEqual(JSON.parse(JSON.stringify(context.currentParkAverage(uneven, at(fetchedAt)))),
+    { average: 45, rides: 6 });
+  assert.deepEqual(JSON.parse(JSON.stringify(await context.daytimeXComparison(db, uneven, at(fetchedAt)))),
+    { now: 45, past: 40, difference: 5, rides: 6 });
   sqlite.close();
 });
 

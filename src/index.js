@@ -70,6 +70,7 @@ const PARK_ID = '47f61fac-7586-41ac-ae80-61c9257cf33e';
 const DARK_ESTIMATE_SOURCE = 'Queue-Times:inferred-dark-2026-10-04';
 const JST_OFFSET = 9 * 3600;
 const SOURCE_MAX_AGE = 15 * 60;
+const roundWait5 = value => Math.round(value / 5) * 5;
 const X_POST_TIMES = ['09:30', '12:00', '15:00', '17:00', '19:00'];
 const X_EVENING_FIRST_DAY = '2026-10-09';
 const X_EVENING_LAST_DAY = '2026-11-03';
@@ -477,7 +478,7 @@ function currentParkAverage(rides, captured) {
   if (!Array.isArray(rides) || !Number.isFinite(captured)) return null;
   const current = currentParkRides(rides, captured);
   return current.length ? {
-    average: Math.round(current.reduce((total, ride) => total + ride.wait_time, 0) / current.length),
+    average: roundWait5(current.reduce((total, ride) => total + ride.wait_time, 0) / current.length),
     rides: current.length,
   } : null;
 }
@@ -502,8 +503,8 @@ async function daytimeXComparison(db, rides, captured) {
     .filter(item => item.history?.days >= 4 && item.history.samples >= 4 &&
       Number.isFinite(item.history.total_wait));
   if (matched.length < 5) return null;
-  const now = Math.round(matched.reduce((total, item) => total + item.ride.wait_time, 0) / matched.length);
-  const past = Math.round(matched.reduce((total, item) =>
+  const now = roundWait5(matched.reduce((total, item) => total + item.ride.wait_time, 0) / matched.length);
+  const past = roundWait5(matched.reduce((total, item) =>
     total + item.history.total_wait / item.history.samples, 0) / matched.length);
   return { now, past, difference: now - past, rides: matched.length };
 }
@@ -626,7 +627,7 @@ function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null
     mode: 'ranking', now: ranked[0].wait_time, ride: xCardName(ranked[0], names),
   };
   return {
-    layout: 'photo-daytime-v2', visual,
+    layout: 'photo-daytime-v3', visual,
     time: hhmm(captured),
     captured_at: fetchedAt,
     label: `${xDateLabel(jstDay(captured))} ${hhmm(captured)}時点`,
@@ -783,6 +784,7 @@ async function renderXCard(env, card) {
     return new Response('Image rendering unavailable', { status: 503 });
   if (card.layout === 'photo-daytime-v1') return renderDaytimeXCardV1(env, card);
   if (card.layout === 'photo-daytime-v2') return renderDaytimeXCard(env, card);
+  if (card.layout === 'photo-daytime-v3') return renderDaytimeXCard(env, card);
   const base = await assetFetch(new Request(`https://uniba-waittimes.com/${card.language === 'en' ? 'en-x-card-base.png' : 'x-card-base.png'}`), env);
   if (!base.ok || !base.body) return new Response('Base image unavailable', { status: 503 });
   let image = env.IMAGES.input(base.body);
@@ -1009,8 +1011,8 @@ function recapHours(data) {
 
 function recapSevenDayDifference(data) {
   if (!Number.isFinite(data.seven_day_average)) return null;
-  const average = Math.round(data.seven_day_average);
-  const difference = Math.round(data.average_wait) - average;
+  const average = roundWait5(data.seven_day_average);
+  const difference = roundWait5(data.average_wait) - average;
   return { average, signed: `${difference >= 0 ? '+' : ''}${difference}` };
 }
 
@@ -1019,8 +1021,8 @@ function xDailyPost(day, data) {
   const peak = recapHours(data).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const date = xDateLabel(day);
-  const post = `【USJ ${date}｜非公式】ピークは${hhmm(peak.at).slice(0, 2)}時台、平均${Math.round(peak.average_wait)}分。\n${X_DAILY_URL(day)}\n\n` +
-    `この日の平均待ち時間：${Math.round(data.average_wait)}分\n` +
+  const post = `【USJ ${date}｜非公式】ピークは${hhmm(peak.at).slice(0, 2)}時台、平均${roundWait5(peak.average_wait)}分。\n${X_DAILY_URL(day)}\n\n` +
+    `この日の平均待ち時間：${roundWait5(data.average_wait)}分\n` +
     `20分ごとの実績を混雑カレンダーで比較できます。\n` +
     `※休止・欠測を除外。\n\n` +
     `#USJ #USJ待ち時間`;
@@ -1032,8 +1034,8 @@ function xPreviousDayPost(day, data) {
   const peak = recapHours(data).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const post = `【昨日 ${xDateLabel(day)}のUSJ混雑実績】\n` +
-    `平均待ち時間：${Math.round(data.average_wait)}分\n` +
-    `混雑ピーク：${hhmm(peak.at).slice(0, 2)}時台（平均${Math.round(peak.average_wait)}分）\n` +
+    `平均待ち時間：${roundWait5(data.average_wait)}分\n` +
+    `混雑ピーク：${hhmm(peak.at).slice(0, 2)}時台（平均${roundWait5(peak.average_wait)}分）\n` +
     `時間帯ごとの記録はこちら👇\n${X_DAILY_URL(day)}\n\n` +
     `※休止・欠測を除いた過去の実績です。\n#USJ #ユニバ #USJ待ち時間`;
   return xWeightedLength(post) <= 250 ? post : null;
@@ -1045,8 +1047,8 @@ function xDailyReply(data) {
   const ranked = [...hours].sort((a, b) => a.average_wait - b.average_wait);
   const quiet = ranked[0];
   const peak = ranked[ranked.length - 1];
-  const gap = Math.round(peak.average_wait - quiet.average_wait);
-  const reply = `【補足｜時間帯の差】\n比較的空いていたのは${hhmm(quiet.at).slice(0, 2)}時台（平均${Math.round(quiet.average_wait)}分）。混雑ピークとの差は${gap}分でした。\n1時間平均の過去実績です。`;
+  const gap = roundWait5(peak.average_wait) - roundWait5(quiet.average_wait);
+  const reply = `【補足｜時間帯の差】\n比較的空いていたのは${hhmm(quiet.at).slice(0, 2)}時台（平均${roundWait5(quiet.average_wait)}分）。混雑ピークとの差は${gap}分でした。\n1時間平均の過去実績です。`;
   return xWeightedLength(reply) <= 280 ? reply : null;
 }
 
@@ -1063,9 +1065,9 @@ function xDailyCardPayload(day, data, previousDay = false) {
     title: previousDay ? '昨日の混雑実績' : '今日の混雑実績',
     ...(comparison ? { subtitle: `直近7日平均 ${comparison.average}分 | この日 ${comparison.signed}分` } : {}),
     rows: [
-      { name: 'この日の平均待ち時間', wait: Math.round(data.average_wait) },
-      { name: `混雑ピーク ${hhmm(peak.at).slice(0, 2)}時台`, wait: Math.round(peak.average_wait) },
-      { name: `比較的空いた ${hhmm(quiet.at).slice(0, 2)}時台`, wait: Math.round(quiet.average_wait) },
+      { name: 'この日の平均待ち時間', wait: roundWait5(data.average_wait) },
+      { name: `混雑ピーク ${hhmm(peak.at).slice(0, 2)}時台`, wait: roundWait5(peak.average_wait) },
+      { name: `比較的空いた ${hhmm(quiet.at).slice(0, 2)}時台`, wait: roundWait5(quiet.average_wait) },
     ],
   };
 }
@@ -1096,7 +1098,7 @@ async function sevenDayRecapAverage(db, day) {
         !row.wait_count || !Number.isFinite(row.wait_total)) return null;
     dailyAverages += row.wait_total / row.wait_count;
   }
-  return Math.round(dailyAverages / 7);
+  return roundWait5(dailyAverages / 7);
 }
 
 async function dailyRecapData(env, day, seconds) {
@@ -1212,7 +1214,7 @@ function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null
     ride: EN_X_CARD_FOCUS_NAMES.get(focus.ride.id) || englishCardName(focus.ride),
   } : { mode: 'ranking', now: ranked[0].wait_time, ride: englishCardName(ranked[0]) };
   return {
-    layout: 'photo-daytime-v2', visual, time: hhmm(captured),
+    layout: 'photo-daytime-v3', visual, time: hhmm(captured),
     language: 'en', captured_at: fetchedAt,
     label: `${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`,
     title: comparisonFocus ?
@@ -1346,8 +1348,8 @@ function englishXDailyPost(day, data) {
   const hours = recapHours(data);
   const peak = [...hours].sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
-  const post = `USJ crowd recap | ${englishXDate(day)}\nBusiest hour: ${hhmm(peak.at).slice(0, 2)}:00 (${Math.round(peak.average_wait)} min average) ↓\n` +
-    `${EN_X_DAILY_URL(day)}\n\nDaily average standby wait: ${Math.round(data.average_wait)} min. ` +
+  const post = `USJ crowd recap | ${englishXDate(day)}\nBusiest hour: ${hhmm(peak.at).slice(0, 2)}:00 (${roundWait5(peak.average_wait)} min average) ↓\n` +
+    `${EN_X_DAILY_URL(day)}\n\nDaily average standby wait: ${roundWait5(data.average_wait)} min. ` +
     `Compare 20-minute records on the calendar. Closed and missing waits excluded.\n\n${EN_X_HASHTAGS}`;
   return xWeightedLength(post) <= 280 ? post : null;
 }
@@ -1357,8 +1359,8 @@ function englishXPreviousDayPost(day, data) {
   const peak = recapHours(data).sort((a, b) => b.average_wait - a.average_wait)[0];
   if (!peak) return null;
   const post = `Yesterday at USJ | ${englishXDate(day)}\n` +
-    `Average standby wait: ${Math.round(data.average_wait)} min\n` +
-    `Busiest hour: ${hhmm(peak.at).slice(0, 2)}:00 (${Math.round(peak.average_wait)} min avg)\n` +
+    `Average standby wait: ${roundWait5(data.average_wait)} min\n` +
+    `Busiest hour: ${hhmm(peak.at).slice(0, 2)}:00 (${roundWait5(peak.average_wait)} min avg)\n` +
     `See the recorded waits ↓\n${EN_X_DAILY_URL(day)}\n\n` +
     `Historical data; closed and missing waits excluded.\n${EN_X_HASHTAGS}`;
   return xWeightedLength(post) <= 280 ? post : null;
@@ -1371,7 +1373,7 @@ function englishXDailyReply(data) {
   const quiet = ranked[0];
   const peak = ranked[ranked.length - 1];
   return `More from this day: the quietest recorded hour was ${hhmm(quiet.at).slice(0, 2)}:00 ` +
-    `(${Math.round(quiet.average_wait)} min average), ${Math.round(peak.average_wait - quiet.average_wait)} min ` +
+    `(${roundWait5(quiet.average_wait)} min average), ${roundWait5(peak.average_wait) - roundWait5(quiet.average_wait)} min ` +
     `below the busiest hour. These are historical hourly averages, not a forecast.`;
 }
 
@@ -1392,9 +1394,9 @@ function englishDailyCardPayload(day, data, previousDay = false) {
     subtitle: comparison ? `Prior 7-day avg ${comparison.average} min | this day ${comparison.signed} min` :
       'Historical hourly averages',
     rows: [
-      { name: 'Daily average', wait: Math.round(data.average_wait) },
-      { name: `Busiest: ${hhmm(hours.at(-1).at).slice(0, 2)}:00`, wait: Math.round(hours.at(-1).average_wait) },
-      { name: `Quietest: ${hhmm(hours[0].at).slice(0, 2)}:00`, wait: Math.round(hours[0].average_wait) },
+      { name: 'Daily average', wait: roundWait5(data.average_wait) },
+      { name: `Busiest: ${hhmm(hours.at(-1).at).slice(0, 2)}:00`, wait: roundWait5(hours.at(-1).average_wait) },
+      { name: `Quietest: ${hhmm(hours[0].at).slice(0, 2)}:00`, wait: roundWait5(hours[0].average_wait) },
     ],
   };
 }
@@ -2263,8 +2265,8 @@ async function rideDailyAverages(db, seconds, throughSlot) {
       'WHERE s.slot>=? AND s.slot<=? AND s.is_open=1 AND s.wait_minutes IS NOT NULL AND s.source<>? ' +
       'AND (s.slot<? OR EXISTS(SELECT 1 FROM snapshots h WHERE h.slot=s.slot AND h.captured_at<=?))' +
     '), offsets(day_offset) AS (VALUES(1),(2),(3),(4),(5),(6),(7)) ' +
-    'SELECT t.ride_id,ROUND(AVG(t.wait_minutes)) AS today_average,COUNT(DISTINCT t.slot) AS today_samples, ' +
-      'ROUND(AVG(p.wait_minutes)) AS past_average,COUNT(p.wait_minutes) AS past_samples, ' +
+    'SELECT t.ride_id,5*ROUND(AVG(t.wait_minutes)/5.0) AS today_average,COUNT(DISTINCT t.slot) AS today_samples, ' +
+      '5*ROUND(AVG(p.wait_minutes)/5.0) AS past_average,COUNT(p.wait_minutes) AS past_samples, ' +
       'COUNT(DISTINCT CASE WHEN p.wait_minutes IS NOT NULL THEN offsets.day_offset END) AS past_days ' +
     'FROM today t CROSS JOIN offsets LEFT JOIN ride_samples p ' +
       'ON p.slot=t.slot-72*offsets.day_offset AND p.ride_id=t.ride_id ' +
@@ -2670,7 +2672,7 @@ async function attractionWaitTrends(db, rideId, seconds, throughSlot = Math.floo
   const { results } = await db.prepare(
     "SELECT CASE WHEN s.slot>=? THEN 'today' ELSE 'past' END AS period, " +
     'CAST((s.slot + 27) % 72 AS INTEGER) AS bin, ' +
-    'COUNT(*) AS samples, SUM(s.wait_minutes) AS total_wait, ROUND(AVG(s.wait_minutes)) AS average_wait ' +
+    'COUNT(*) AS samples, SUM(s.wait_minutes) AS total_wait, 5*ROUND(AVG(s.wait_minutes)/5.0) AS average_wait ' +
     'FROM ride_samples s WHERE s.ride_id=? AND s.slot>=? AND s.slot<=? ' +
     'AND (s.slot<? OR EXISTS(SELECT 1 FROM snapshots h WHERE h.slot=s.slot AND h.captured_at<=?)) ' +
     'AND s.is_open=1 ' +
@@ -2687,7 +2689,7 @@ async function attractionWaitTrends(db, rideId, seconds, throughSlot = Math.floo
       byHour.set(hour, current);
     }
     return [...byHour.values()].map(row => ({
-      hour: row.hour, samples: row.samples, average_wait: Math.round(row.total_wait / row.samples),
+      hour: row.hour, samples: row.samples, average_wait: roundWait5(row.total_wait / row.samples),
     }));
   };
   const past = (results || []).filter(row => row.period === 'past');
@@ -2876,7 +2878,7 @@ async function renderAttractionPage(request, env, item, english) {
   const matchedPast = trends.past.filter(row => observedBins.has(Number(row.bin)));
   const recordedAverage = rows => {
     const samples = rows.reduce((sum, row) => sum + Number(row.samples), 0);
-    return samples ? Math.round(rows.reduce((sum, row) => sum + Number(row.total_wait), 0) / samples) : null;
+    return samples ? roundWait5(rows.reduce((sum, row) => sum + Number(row.total_wait), 0) / samples) : null;
   };
   const todayAverage = recordedAverage(trends.today);
   const pastAverage = recordedAverage(matchedPast);

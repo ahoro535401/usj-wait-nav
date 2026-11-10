@@ -159,11 +159,11 @@ test('both recap cards compare against seven complete prior operating days witho
   const { env } = mockEnvironment({ recentDays });
   context.archiveDay = async () => sample;
   const data = await context.dailyRecapData(env, '2026-10-13', at('2026-10-14T05:30:00+09:00'));
-  assert.equal(data.seven_day_average, 38);
+  assert.equal(data.seven_day_average, 40);
   assert.match(context.xDailyCardPayload('2026-10-13', data, true).subtitle,
-    /直近7日平均 38分 \| この日 \+14分/);
+    /直近7日平均 40分 \| この日 \+10分/);
   assert.match(context.englishDailyCardPayload('2026-10-13', data, false).subtitle,
-    /Prior 7-day avg 38 min \| this day \+14 min/);
+    /Prior 7-day avg 40 min \| this day \+10 min/);
   assert.doesNotMatch(context.xPreviousDayPost('2026-10-13', data), /直近7日平均/);
   assert.equal(context.xPreviousDayPost('2026-10-13', data),
     context.xPreviousDayPost('2026-10-13', sample));
@@ -207,6 +207,6 @@ test('seven-day SQL computes the mean of daily recorded waits and excludes infer
   const db = { prepare(sql) { return { bind(...args) { return { async all() {
     return { results: sqlite.prepare(sql).all(...args) };
   } }; } }; } };
-  assert.equal(await context.sevenDayRecapAverage(db, '2026-10-13'), 33);
+  assert.equal(await context.sevenDayRecapAverage(db, '2026-10-13'), 35);
   sqlite.close();
 });

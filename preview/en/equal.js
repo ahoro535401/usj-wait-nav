@@ -2,6 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
+  const roundWait5 = value => Math.round(value / 5) * 5;
   const app = window.enApp;
   if (!app) return;
   const el = (tag, className, value) => {
@@ -418,7 +419,7 @@
           row.style.gridTemplateColumns=days===1?'55px 1fr 58px':'95px 1fr 58px';
           row.append(el('span',null,point.label));
           const track=el('div','hour-track');const fill=el('span');fill.style.width=`${point.average_wait/max*100}%`;track.append(fill);
-          row.append(track,el('strong',null,`${Math.round(point.average_wait)} min`));bars.append(row);
+          row.append(track,el('strong',null,`${roundWait5(point.average_wait)} min`));bars.append(row);
         }
         const weekly=(week||data).hours||[];
         const hourNow=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit'}).format(new Date());
@@ -426,7 +427,9 @@
         const today=jstDay.format(new Date());
         const comparable=weekly.filter(h=>Number.isFinite(h.average_wait) && jstDay.format(new Date(h.at*1000))!==today && new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit'}).format(new Date(h.at*1000))===hourNow);
         const baseline=comparable.length?comparable.reduce((sum,h)=>sum+h.average_wait,0)/comparable.length:null;
-        $('en-history-week').textContent=app.available(ride)&&Number.isFinite(baseline)?`${ride.wait_time-baseline>=0?'+':''}${Math.round(ride.wait_time-baseline)} min vs ${Math.round(baseline)} min hourly average`:'Not enough comparable records';
+        const baseline5=Number.isFinite(baseline)?roundWait5(baseline):null;
+        const difference=baseline5===null?null:ride.wait_time-baseline5;
+        $('en-history-week').textContent=app.available(ride)&&difference!==null?`${difference>=0?'+':''}${difference} min vs ${baseline5} min hourly average`:'Not enough comparable records';
       } catch(error) {if(request===currentRequest)$('en-history-status').textContent=`History unavailable: ${error.message}`;}
     }
     function groupByDay(hours) {
@@ -575,8 +578,8 @@
     const box = $('en-archive-detail');if (!box) return;
     const {peak,top} = archiveHighlights(data);
     const rideName = id => app.archiveNameOf(id);
-    $('en-archive-peak').textContent = peak ? `${app.hourFmt.format(new Date(peak.at*1000)).slice(0,2)}:00 hour · ${Math.round(peak.average_wait)} min average` : 'No comparable hour';
-    $('en-archive-longest').textContent = top ? `${rideName(top.id)} · ${Math.round(top.wait)} min average (${app.hourFmt.format(new Date(top.at*1000)).slice(0,2)}:00 hour)` : 'No comparable record';
+    $('en-archive-peak').textContent = peak ? `${app.hourFmt.format(new Date(peak.at*1000)).slice(0,2)}:00 hour · ${roundWait5(peak.average_wait)} min average` : 'No comparable hour';
+    $('en-archive-longest').textContent = top ? `${rideName(top.id)} · ${roundWait5(top.wait)} min average (${app.hourFmt.format(new Date(top.at*1000)).slice(0,2)}:00 hour)` : 'No comparable record';
     $('en-archive-period').textContent = data.first_at && data.last_at ? `Records from ${app.hourFmt.format(new Date(data.first_at*1000))} to ${app.hourFmt.format(new Date(data.last_at*1000))} JST. Hours without records are not included.` : 'Record times unavailable.';
     const weather = data.weather;
     $('en-archive-weather').textContent = weather ? `Osaka Observatory observations: max ${weather.temp_max ?? '—'}°C, min ${weather.temp_min ?? '—'}°C, precipitation ${weather.precip_total ?? '—'} mm. These are not measurements inside USJ.` : 'Osaka weather observations are unavailable for this day.';
@@ -591,17 +594,17 @@
       for (const hour of data.hours||[]) {
         const value=hour.rides?.[id]?.average_wait,bar=el('i',Number.isFinite(value)?'':'missing');
         bar.style.height=Number.isFinite(value)?`${Math.max(3,value/max*100)}%`:'2px';
-        bar.title=`${app.hourFmt.format(new Date(hour.at*1000))}: ${Number.isFinite(value)?Math.round(value)+' min average':hour.rides?.[id]?.closed_samples?'closed':'no record'}`;
+        bar.title=`${app.hourFmt.format(new Date(hour.at*1000))}: ${Number.isFinite(value)?roundWait5(value)+' min average':hour.rides?.[id]?.closed_samples?'closed':'no record'}`;
         bars.append(bar);
       }
       bars.setAttribute('role','img');bars.setAttribute('aria-label',`${rideName(id)} hourly average wait trend on ${dateLabel(data.day)}`);
-      card.append(bars,el('span','small muted',`Day mean of hourly values: ${avg(id)>=0?Math.round(avg(id))+' min':'unavailable'}`));
+      card.append(bars,el('span','small muted',`Day mean of hourly values: ${avg(id)>=0?roundWait5(avg(id))+' min':'unavailable'}`));
       charts.append(card);
     }
     $('en-archive-share')?.remove();
-    const average=Number.isFinite(data.average_wait)?`${Math.round(data.average_wait)} min`:'unavailable';
-    const busiest=peak?`${app.hourFmt.format(new Date(peak.at*1000)).slice(0,2)}:00 hour (${Math.round(peak.average_wait)} min average)`:'unavailable';
-    const longest=top?`${rideName(top.id)} · ${Math.round(top.wait)} min hourly average`:'unavailable';
+    const average=Number.isFinite(data.average_wait)?`${roundWait5(data.average_wait)} min`:'unavailable';
+    const busiest=peak?`${app.hourFmt.format(new Date(peak.at*1000)).slice(0,2)}:00 hour (${roundWait5(peak.average_wait)} min average)`:'unavailable';
+    const longest=top?`${rideName(top.id)} · ${roundWait5(top.wait)} min hourly average`:'unavailable';
     const weatherLine=weather?`Osaka weather: high ${weather.temp_max??'—'}°C, low ${weather.temp_min??'—'}°C, rain ${weather.precip_total??'—'} mm.`:'';
     const body=`USJ Wait Times Guide · past crowd record for ${dateLabel(data.day)}\nAverage wait: ${average}\nBusiest hour: ${busiest}\nLongest attraction hourly average: ${longest}${weatherLine?'\n'+weatherLine:''}\nUnofficial site; unavailable and closed records are excluded.`;
     const share=sharePanel('plan',$('past-record'),`/en/plan?date=${encodeURIComponent(data.day)}`,{

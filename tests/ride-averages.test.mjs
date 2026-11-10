@@ -37,7 +37,7 @@ test('all-ride averages compare only matching recorded slots and ignore closed o
     const data = await response.json();
     assert.equal(data.through_slot, firstSlot);
     assert.deepEqual(data.rides['1'], {
-      today_average: 80, today_samples: 1, past_average: 54, past_samples: 5, past_days: 5,
+      today_average: 80, today_samples: 1, past_average: 55, past_samples: 5, past_days: 5,
     });
     assert.equal(data.rides['2'].today_average, 15);
     assert.equal(data.rides['2'].past_average, null);
