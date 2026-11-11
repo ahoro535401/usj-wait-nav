@@ -483,7 +483,7 @@ function currentParkAverage(rides, captured) {
   } : null;
 }
 
-async function daytimeXComparison(db, rides, captured) {
+async function daytimeXComparison(db, rides, captured, includeRides = false) {
   const current = currentParkRides(rides, captured);
   if (current.length < 5) return null;
   const start = dayStart(captured);
@@ -506,7 +506,21 @@ async function daytimeXComparison(db, rides, captured) {
   const now = roundWait5(matched.reduce((total, item) => total + item.ride.wait_time, 0) / matched.length);
   const past = roundWait5(matched.reduce((total, item) =>
     total + item.history.total_wait / item.history.samples, 0) / matched.length);
-  return { now, past, difference: now - past, rides: matched.length };
+  return { now, past, difference: now - past, rides: matched.length,
+    ...(includeRides ? { ride_history: matched.map(({ ride, history }) => ({
+      id: Number(ride.id), source: ride.source, days: Number(history.days),
+      now: ride.wait_time, past: roundWait5(history.total_wait / history.samples),
+    })) } : {}),
+  };
+}
+
+function daytimeRideFocus(ranked, comparison) {
+  if (!comparison?.ride_history) return null;
+  return ranked.slice(0, 3).map(ride => {
+    const history = comparison.ride_history.find(item =>
+      item.id === Number(ride.id) && item.source === ride.source && item.days >= 4);
+    return history ? { ride, ...history, difference: ride.wait_time - history.past } : null;
+  }).find(Boolean) || null;
 }
 
 function xWaitPost(rides, names, fetchedAt, previous = null, comparison = null, allowHomeTip = true, postingSlot = null) {
@@ -535,26 +549,20 @@ function xWaitPost(rides, names, fetchedAt, previous = null, comparison = null, 
     [15322, 'ジュラシック夜'],
   ]);
   const name = ride => (aliases.get(ride.id) || names.get(ride.id) || ride.name || '').replace(/™/g, '').trim();
-  const changes = ranked.slice(0, 5).map(ride => {
-    const before = previous?.rides?.[String(ride.id)];
-    if (!before || before.is_open !== 1 || before.source !== ride.source ||
-        !Number.isInteger(before.wait_minutes)) return null;
-    return { ride, difference: ride.wait_time - before.wait_minutes };
-  }).filter(Boolean);
-  const changed = changes.filter(item => item.difference <= -10 || item.difference >= 15)
-    .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
-  const mode = changed && (['12:00', '15:00'].includes(postingSlot || time)) ? 'movement' :
-    comparison ? 'comparison' : changed ? 'movement' : 'ranking';
+  const focus = daytimeRideFocus(ranked, comparison);
+  const mode = focus ? 'ride-comparison' : comparison ? 'comparison' : 'ranking';
   const sign = value => value > 0 ? `+${value}` : value < 0 ? `-${Math.abs(value)}` : '±0';
-  const headline = mode === 'comparison' ?
+  const direction = value => value < 0 ? `${Math.abs(value)}分短め` :
+    value > 0 ? `${value}分長め` : '同じ';
+  const headline = mode === 'ride-comparison' ?
+    `【USJ ${date} ${time}｜${xCardClip(name(focus.ride), 12)}は直近7日間の同時刻平均より${direction(focus.difference)}】` :
+    mode === 'comparison' ?
     `【USJ ${date} ${time}｜直近7日間の同時刻平均より${sign(comparison.difference)}分】` :
-    mode === 'movement' ?
-      `【USJ ${date} ${time}｜${xCardClip(name(changed.ride), 12)}が約20分前比${sign(changed.difference)}分】` :
       `【USJ ${date} ${time}｜${xCardClip(name(ranked[0]), 12)} ${ranked[0].wait_time}分】`;
-  const lead = mode === 'comparison' ?
+  const lead = mode === 'ride-comparison' ?
+    `記録${focus.now}分／同時刻平均${focus.past}分（${focus.days}日分）。詳細・地図👇` :
+    mode === 'comparison' ?
     `非公式の比較${comparison.rides}施設：今${comparison.now}分／平均${comparison.past}分。施設別の推移・地図👇` :
-    mode === 'movement' ?
-      `非公式の取得値は現在${changed.ride.wait_time}分。ほかの施設の5分・20分前比と地図👇` :
       '非公式の取得値を約5分更新。施設別の5分・20分前比と地図👇';
   const url = X_WAIT_URL;
   const homeTip = allowHomeTip && (postingSlot || time) === '17:00' && [2, 5].includes(new Date((captured + JST_OFFSET) * 1000).getUTCDay()) ?
@@ -611,12 +619,19 @@ function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null
     .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
   const headline = post?.split('\n')[0] || '';
   const focus = changed && headline.includes('約20分前比') ? changed : null;
-  const comparisonFocus = comparison && headline.includes('直近7日間の同時刻平均より');
+  const rideFocus = daytimeRideFocus(ranked, comparison);
+  const rideComparisonFocus = rideFocus && headline.includes('は直近7日間の同時刻平均より');
+  const comparisonFocus = comparison && !rideComparisonFocus && headline.includes('直近7日間の同時刻平均より');
   const sign = value => value > 0 ? `+${value}` : value < 0 ? `-${Math.abs(value)}` : '±0';
-  const title = comparisonFocus ? `直近7日間の同時刻平均より${sign(comparison.difference)}分` : focus ?
+  const title = rideComparisonFocus ? `${xCardName(rideFocus.ride, names)}：同時刻平均との差${sign(rideFocus.difference)}分` :
+    comparisonFocus ? `直近7日間の同時刻平均より${sign(comparison.difference)}分` : focus ?
     `${xCardClip(xCardName(focus.ride, names), 11)}が約20分前比${sign(focus.difference)}分` :
     parkAverage ? `現在の平均待ち時間 ${parkAverage.average}分` : '現在の待ち時間 上位3施設';
-  const visual = comparisonFocus ? {
+  const visual = rideComparisonFocus ? {
+    mode: 'ride-comparison', now: rideFocus.now, past: rideFocus.past,
+    days: rideFocus.days, difference: rideFocus.difference,
+    ride: xCardName(rideFocus.ride, names),
+  } : comparisonFocus ? {
     mode: 'comparison', now: comparison.now, past: comparison.past,
     rides: comparison.rides, difference: comparison.difference,
   } : focus ? {
@@ -627,12 +642,13 @@ function xCardPayload(rides, names, fetchedAt, previous, post, comparison = null
     mode: 'ranking', now: ranked[0].wait_time, ride: xCardName(ranked[0], names),
   };
   return {
-    layout: 'photo-daytime-v3', visual,
+    layout: rideComparisonFocus ? 'photo-daytime-v4' : 'photo-daytime-v3', visual,
     time: hhmm(captured),
     captured_at: fetchedAt,
     label: `${xDateLabel(jstDay(captured))} ${hhmm(captured)}時点`,
     title,
-    ...(comparison ? { subtitle: `比較${comparison.rides}施設：今${comparison.now}分 / 平均${comparison.past}分（${comparison.difference >= 0 ? '+' : ''}${comparison.difference}分）` } :
+    ...(rideComparisonFocus ? { subtitle: `投稿時${rideFocus.now}分 / 直近7日間同時刻平均${rideFocus.past}分（${rideFocus.days}日分）` } :
+      comparison ? { subtitle: `比較${comparison.rides}施設：今${comparison.now}分 / 平均${comparison.past}分（${comparison.difference >= 0 ? '+' : ''}${comparison.difference}分）` } :
       parkAverage ? { subtitle: `数値を確認できた${parkAverage.rides}施設の平均` } : {}),
     rows: ranked.slice(0, 3).map(ride => ({ name: xCardName(ride, names), wait: ride.wait_time })),
   };
@@ -714,7 +730,7 @@ async function renderDaytimeXCardV1(env, card) {
 
 async function renderDaytimeXCard(env, card) {
   const visual = card.visual;
-  if (!visual || !['comparison', 'movement', 'ranking'].includes(visual.mode) ||
+  if (!visual || !['comparison', 'movement', 'ranking', 'ride-comparison'].includes(visual.mode) ||
       !Number.isInteger(visual.now) || visual.now < 0 || visual.now > 999 ||
       (visual.mode !== 'ranking' && (!Number.isInteger(visual.past) ||
         visual.past < 0 || visual.past > 999)))
@@ -732,7 +748,22 @@ async function renderDaytimeXCard(env, card) {
     }), { left, top });
   };
   const delta = visual.now - (visual.past || 0);
-  if (visual.mode === 'ranking') {
+  if (visual.mode === 'ride-comparison') {
+    const less = delta < 0;
+    add(xCardClip(card.label, 24), english ? 730 : 765, 725,
+      english ? 25 : 27, '#455568');
+    add(xCardClip(visual.ride || '', english ? 27 : 18), 60, 802,
+      english ? 54 : 56);
+    const direction = english ? (less ? `${Math.abs(delta)} min shorter` :
+      delta > 0 ? `${delta} min longer` : 'About the same') :
+      (less ? `${Math.abs(delta)}分短め` : delta > 0 ? `${delta}分長め` : 'ほぼ同じ');
+    add(english ? `Vs prior 7 days: ${direction}` : `同時刻平均より${direction}`,
+      english ? 85 : 105, 890, english ? 51 : 57, '#008d8f');
+    add(`${visual.now}${english ? ' min' : '分'}`, 740, 1010, english ? 75 : 80);
+    add(`${visual.past}${english ? ' min' : '分'}`, 740, 1120, english ? 70 : 75);
+    add(english ? `Compared with ${visual.days} recorded days in the prior week` :
+      `過去7日間の実測${visual.days}日分と比較`, 105, 1285, english ? 35 : 40);
+  } else if (visual.mode === 'ranking') {
     add(`${card.time}${english ? ' JST' : '時点'}`, 975, 724, 27, '#455568');
     add(english ? 'Longest listed wait' : 'いま待ち時間が長い施設',
       100, 895, 65, '#008d8f');
@@ -812,6 +843,7 @@ async function renderXCard(env, card) {
   if (card.layout === 'photo-daytime-v1') return renderDaytimeXCardV1(env, card);
   if (card.layout === 'photo-daytime-v2') return renderDaytimeXCard(env, card);
   if (card.layout === 'photo-daytime-v3') return renderDaytimeXCard(env, card);
+  if (card.layout === 'photo-daytime-v4') return renderDaytimeXCard(env, card);
   if (card.layout === 'photo-recap-v1') return renderPhotoRecapCard(env, card);
   const base = await assetFetch(new Request(`https://uniba-waittimes.com/${card.language === 'en' ? 'en-x-card-base.png' : 'x-card-base.png'}`), env);
   if (!base.ok || !base.body) return new Response('Base image unavailable', { status: 503 });
@@ -846,12 +878,16 @@ function daytimeXCardAlt(card) {
       card.rows.map(row => `${row.name}: ${row.wait} min`).join('; ') + '.';
   }
   if (card.language === 'en') {
+    if (visual.mode === 'ride-comparison') return `${card.label}. ${visual.ride}: ${visual.now} minutes at posting time; ` +
+      `the prior 7-day same-time average was ${visual.past} minutes, from ${visual.days} recorded days.`;
     if (visual.mode === 'comparison') return `${card.label}. Across ${visual.rides} matched rides, ` +
       `the current average wait is ${visual.now} minutes; the prior 7-day same-time average is ${visual.past} minutes.`;
     if (visual.mode === 'movement') return `${card.label}. ${visual.ride}: ${visual.now} minutes now, ` +
       `${visual.past} minutes about 20 minutes earlier.`;
     return `${card.label}. ${visual.ride}: ${visual.now} minutes, the longest listed standby wait.`;
   }
+  if (visual.mode === 'ride-comparison') return `${card.label}。${visual.ride}の投稿時の待ち時間は` +
+    `${visual.now}分、直近7日間の同時刻平均は${visual.past}分（${visual.days}日分）。`;
   if (visual.mode === 'comparison') return `${card.label}。比較できた${visual.rides}施設の現在平均は` +
     `${visual.now}分、直近7日間の同時刻平均は${visual.past}分。`;
   if (visual.mode === 'movement') return `${card.label}。${visual.ride}の現在待ち時間は` +
@@ -957,28 +993,29 @@ async function maybePostX(env, seconds) {
   const names = rideJapaneseNames(await response.text());
   const parkAverage = currentParkAverage(rides, captured);
   let comparison = null;
-  try { comparison = await daytimeXComparison(env.DB, rides, captured); }
+  try { comparison = await daytimeXComparison(env.DB, rides, captured, true); }
   catch (error) { console.error('Daytime X comparison unavailable', error); }
   const post = xWaitPost(rides, names, fetchedAt, previous, comparison, true, slot);
   if (!post) return;
-  let imageUrl = X_POST_IMAGE;
-  let imageAlt = null;
   const card = xCardPayload(rides, names, fetchedAt, previous, post, comparison, parkAverage);
-  if (card && env.IMAGES) {
-    try {
-      const preview = await renderXCard(env, card);
-      const bytes = preview.ok && preview.headers.get('Content-Type')?.startsWith('image/png') ?
-        (await preview.arrayBuffer()).byteLength : 0;
-      if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid card image: ${preview.status}, ${bytes} bytes`);
-      await writeMeta(env.DB, xCardKey(jstDay(seconds), slot), JSON.stringify(card));
-      imageUrl = xCardUrl(jstDay(seconds), slot);
-      imageAlt = daytimeXCardAlt(card);
-    } catch (error) {
-      console.error('X card unavailable; using photo', error);
-    }
-  }
   await sendBufferPost(env, seconds, slot, post, fetchedAt,
-    xWaitReply(rides, names, fetchedAt, previous, slot), imageUrl, imageAlt);
+    xWaitReply(rides, names, fetchedAt, previous, slot), X_POST_IMAGE, null,
+    { createImage: () => japaneseXImage(env, seconds, slot, card) });
+}
+
+async function japaneseXImage(env, seconds, slot, card) {
+  if (!card || !env.IMAGES) return { url: X_POST_IMAGE, alt: null };
+  try {
+    const preview = await renderXCard(env, card);
+    const bytes = preview.ok && preview.headers.get('Content-Type')?.startsWith('image/png') ?
+      (await preview.arrayBuffer()).byteLength : 0;
+    if (bytes < 2000 || bytes > 5_000_000) throw new Error(`Invalid card image: ${preview.status}, ${bytes} bytes`);
+    await writeMeta(env.DB, xCardKey(jstDay(seconds), slot), JSON.stringify(card));
+    return { url: xCardUrl(jstDay(seconds), slot), alt: daytimeXCardAlt(card) };
+  } catch (error) {
+    console.error('X card unavailable; using photo', error);
+    return { url: X_POST_IMAGE, alt: null };
+  }
 }
 
 async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null,
@@ -988,6 +1025,11 @@ async function sendBufferPost(env, seconds, slot, post, capturedAt, reply = null
     .bind(key, JSON.stringify({ status: 'sending', captured_at: capturedAt })).run();
   if (!claimed.meta?.changes) return;
   try {
+    if (options.createImage) {
+      const image = await options.createImage();
+      imageUrl = image.url;
+      imageAlt = image.alt;
+    }
     const mutation = 'mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ' +
       '... on PostActionSuccess { post { id status } } ... on MutationError { message } } }';
     const assets = [{ image: { url: imageUrl,
@@ -1237,8 +1279,14 @@ function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null
   const highlight = focusText && post.includes(focusText) ?
     `${xCardClip(EN_X_CARD_FOCUS_NAMES.get(focus.ride.id) || englishCardName(focus.ride), 12)}: ` +
     `${Math.abs(focus.difference)} min ${focus.difference < 0 ? 'shorter' : 'longer'}` : null;
-  const comparisonFocus = comparison && post.includes('prior 7-day same-time avg');
-  const visual = comparisonFocus ? {
+  const rideFocus = daytimeRideFocus(ranked, comparison);
+  const rideComparisonFocus = rideFocus && post.includes('vs 7-day same-time avg');
+  const comparisonFocus = comparison && !rideComparisonFocus && post.includes('prior 7-day same-time avg');
+  const visual = rideComparisonFocus ? {
+    mode: 'ride-comparison', now: rideFocus.now, past: rideFocus.past,
+    days: rideFocus.days, difference: rideFocus.difference,
+    ride: EN_X_CARD_FOCUS_NAMES.get(rideFocus.ride.id) || englishCardName(rideFocus.ride),
+  } : comparisonFocus ? {
     mode: 'comparison', now: comparison.now, past: comparison.past,
     rides: comparison.rides, difference: comparison.difference,
   } : highlight ? {
@@ -1248,13 +1296,15 @@ function englishXCardPayload(rides, fetchedAt, previous, post, comparison = null
     ride: EN_X_CARD_FOCUS_NAMES.get(focus.ride.id) || englishCardName(focus.ride),
   } : { mode: 'ranking', now: ranked[0].wait_time, ride: englishCardName(ranked[0]) };
   return {
-    layout: 'photo-daytime-v3', visual, time: hhmm(captured),
+    layout: rideComparisonFocus ? 'photo-daytime-v4' : 'photo-daytime-v3', visual, time: hhmm(captured),
     language: 'en', captured_at: fetchedAt,
     label: `${englishXDate(jstDay(captured))} ${hhmm(captured)} JST`,
-    title: comparisonFocus ?
+    title: rideComparisonFocus ?
+      `${englishCardName(rideFocus.ride)}: ${rideFocus.difference >= 0 ? '+' : ''}${rideFocus.difference} min vs 7-day avg` : comparisonFocus ?
       `${comparison.difference >= 0 ? '+' : ''}${comparison.difference} min vs 7-day same time` :
       highlight || (parkAverage ? `Average wait now: ${parkAverage.average} min` : 'Longest standby waits'),
-    subtitle: comparison ? `${comparison.rides} matched: now ${comparison.now} / prior 7 days ${comparison.past} min (${comparison.difference >= 0 ? '+' : ''}${comparison.difference})` :
+    subtitle: rideComparisonFocus ? `At post time ${rideFocus.now} / prior same-time avg ${rideFocus.past} min (${rideFocus.days} days)` :
+      comparison ? `${comparison.rides} matched: now ${comparison.now} / prior 7 days ${comparison.past} min (${comparison.difference >= 0 ? '+' : ''}${comparison.difference})` :
       parkAverage ? `Average of ${parkAverage.rides} verified rides` :
         highlight ? 'Compared with ~20 min earlier' : 'Standard standby estimates',
     rows: ranked.slice(0, 3).map(ride => ({ name: englishCardName(ride), wait: ride.wait_time })),
@@ -1268,25 +1318,29 @@ function englishXPost(rides, fetchedAt, previous = null, comparison = null, post
     .sort((a, b) => b.wait_time - a.wait_time || a.id - b.id);
   if (ranked.length < 5 || ranked.slice(0, 5).some(ride => !englishRideName(ride))) return null;
   const time = hhmm(captured);
-  const focus = englishXFocus(ranked, previous);
-  const mode = focus && (['13:00', '17:00'].includes(postingSlot || time)) ? 'movement' :
-    comparison ? 'comparison' : focus ? 'movement' : 'ranking';
+  const rideFocus = daytimeRideFocus(ranked, comparison);
+  const mode = rideFocus ? 'ride-comparison' : comparison ? 'comparison' : 'ranking';
   const sign = value => value > 0 ? `+${value}` : value < 0 ? `-${Math.abs(value)}` : '±0';
-  const headline = mode === 'comparison' ?
+  const shortName = ride => EN_X_CARD_FOCUS_NAMES.get(Number(ride.id)) ||
+    xCardClip(englishRideName(ride), 18);
+  const headline = mode === 'ride-comparison' ?
+    `USJ ${time} JST | ${shortName(rideFocus.ride)} ${sign(rideFocus.difference)} min vs 7-day same-time avg` :
+    mode === 'comparison' ?
     `USJ ${time} JST | ${sign(comparison.difference)} min vs prior 7-day same-time avg` :
-    mode === 'movement' ? `USJ ${time} JST | ${englishXFocusText(focus)}` :
       `USJ ${time} JST | ${xCardClip(englishRideName(ranked[0]), 17)} ${ranked[0].wait_time} min`;
-  const lead = mode === 'comparison' ?
+  const lead = mode === 'ride-comparison' ?
+    `At post: ${rideFocus.now} / avg ${rideFocus.past} min (${rideFocus.days} days). Trends & map ↓` :
+    mode === 'comparison' ?
     `${comparison.rides} matched rides: now ${comparison.now}, prior avg ${comparison.past} min. Ride trends & map ↓` :
     'Compare each ride with ~5 and ~20 min ago; view the map ↓';
   for (const count of [3, 2, 1]) {
     const lines = ranked.slice(0, count).map((ride, index) =>
-      `${index + 1}. ${xCardClip(englishRideName(ride), 23)} ${ride.wait_time} min`);
+      `${index + 1}. ${mode === 'ride-comparison' ? shortName(ride) : xCardClip(englishRideName(ride), 23)} ${ride.wait_time} min`);
     const post = `${headline}
 ${lead}
 ${EN_X_WAIT_URL}
 
-Longest waits now
+${mode === 'ride-comparison' ? 'Top waits at posting' : 'Longest waits now'}
 ${lines.join('\n')}
 
 ${EN_X_HASHTAGS}`;
@@ -1367,14 +1421,15 @@ async function maybePostEnglishX(env, seconds) {
     .map(row => [String(row.ride_id), row])) } : null;
   const parkAverage = currentParkAverage(rides, captured);
   let comparison = null;
-  try { comparison = await daytimeXComparison(env.DB, rides, captured); }
+  try { comparison = await daytimeXComparison(env.DB, rides, captured, true); }
   catch (error) { console.error('Daytime English X comparison unavailable', error); }
   const post = englishXPost(rides, fetchedAt, previous, comparison, slot);
   if (!post) return;
   const card = englishXCardPayload(rides, fetchedAt, previous, post, comparison, parkAverage);
-  const image = await englishXImage(env, seconds, slot, card);
   await sendBufferPost(env, seconds, slot, post, fetchedAt,
-    englishXReply(rides, fetchedAt, previous, slot, post), image.url, image.alt, englishXOptions(env));
+    englishXReply(rides, fetchedAt, previous, slot, post),
+    'https://uniba-waittimes.com/og-photo.jpg', null,
+    { ...englishXOptions(env), createImage: () => englishXImage(env, seconds, slot, card) });
 }
 
 function englishXDailyPost(day, data) {

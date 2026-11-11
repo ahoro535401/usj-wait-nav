@@ -22,7 +22,7 @@ $footerFont = [System.Drawing.Font]::new('Noto Sans JP', 31, [System.Drawing.Fon
   [System.Drawing.GraphicsUnit]::Pixel)
 try {
   foreach ($lang in @('ja', 'en')) {
-    foreach ($mode in @('comparison', 'movement', 'ranking')) {
+    foreach ($mode in @('comparison', 'movement', 'ranking', 'ride-comparison')) {
       $bmp = [System.Drawing.Bitmap]::new(1200, 1500)
       $g = [System.Drawing.Graphics]::FromImage($bmp)
       try {
@@ -35,11 +35,16 @@ try {
         $g.FillRectangle($yellow, 72, 1270, 1056, 82)
         $g.DrawString($(if ($lang -eq 'ja') { 'USJ待ち時間ナビ  |  非公式' } else {
           'USJ Wait Times  |  Unofficial' }), $headerFont, $ink, 60, 711)
-        if ($mode -ne 'movement') {
+        if ($mode -ne 'movement' -and $mode -ne 'ride-comparison') {
           $g.DrawString($(if ($lang -eq 'ja') { '今日のUSJ、待ち時間は？' } else {
             'USJ waits right now' }), $titleFont, $ink, 60, 790)
         }
-        if ($mode -eq 'comparison') {
+        if ($mode -eq 'ride-comparison') {
+          $g.DrawString($(if ($lang -eq 'ja') { '投稿時点' } else { 'At post time' }),
+            $labelFont, $ink, 60, 1025)
+          $g.DrawString($(if ($lang -eq 'ja') { "直近7日間の`n同時刻平均" } else {
+            "Prior 7 days`nsame-time avg" }), $labelFont, $ink, 60, 1118)
+        } elseif ($mode -eq 'comparison') {
           $g.DrawString($(if ($lang -eq 'ja') { '今日' } else { 'Now' }),
             $labelFont, $ink, 60, 1025)
           $g.DrawString($(if ($lang -eq 'ja') { "直近7日間の`n同時刻平均" } else {

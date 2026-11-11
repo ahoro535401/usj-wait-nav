@@ -85,6 +85,10 @@ const renderedText = [
   '現在 約20分前 直近7日間の 同時刻 平均51分',
   '比較できた21施設では12分少ない 施設別の待ち時間・変化は投稿文のリンクへ',
   'いま待ち時間が長い施設 約20分前より短め 約20分前より長め 変化なし',
+  '11/11（水）15:00時点 ドンキーコング 同時刻平均より40分短め',
+  '投稿時点 直近7日間の同時刻平均 過去7日間の実測6日分と比較',
+  'At post time Prior 7 days same-time avg Vs prior 7 days: 40 min shorter',
+  'Compared with 6 recorded days in the prior week',
   ...shortNames, '現在の待ち時間 上位3施設', '20分前より短縮・増加',
 ];
 const missing = [...new Set(renderedText.join(''))]

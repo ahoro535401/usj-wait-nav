@@ -34,6 +34,7 @@ function historicalDatabase() {
     db: { prepare(sql) { return { bind(...args) { return {
       async all() { return { results: sqlite.prepare(sql).all(...args) }; },
       async first() { return sqlite.prepare(sql).get(...args) || null; },
+      async run() { const result = sqlite.prepare(sql).run(...args); return { meta: { changes: result.changes } }; },
     }; } }; } },
   };
 }
@@ -97,14 +98,105 @@ test('computed park and same-time averages use five-minute display steps', async
   sqlite.close();
 });
 
-test('midday highlights a verified movement and a Tuesday evening post explains one-tap return', () => {
+test('daytime posts and cards compare one top ride with its own seven-day history', async () => {
+  const { db, sqlite } = historicalDatabase();
+  const comparison = await context.daytimeXComparison(db, rides, at(fetchedAt), true);
+  assert.equal(comparison.ride_history.length, 6);
+  const names = new Map(ids.map((id, index) => [id, `施設${index + 1}`]));
+  const previous = { rides: { [ids[5]]: { wait_minutes: 90, is_open: 1, source: 'Queue-Times' } } };
+  const japanesePost = context.xWaitPost(rides, names, fetchedAt, previous, comparison);
+  const englishPost = context.englishXPost(rides, fetchedAt, previous, comparison);
+  assert.match(japanesePost.split('\n')[0], /直近7日間の同時刻平均より/);
+  assert.doesNotMatch(japanesePost, /約20分前比/);
+  assert.match(englishPost.split('\n')[0], /vs 7-day same-time avg/);
+  assert.match(japanesePost, /いまの上位3件/);
+  assert.match(englishPost, /3\. /);
+  assert.ok(context.xWeightedLength(japanesePost) <= 280);
+  assert.ok(context.xWeightedLength(englishPost) <= 280);
+  const jaCard = context.xCardPayload(rides, names, fetchedAt, previous, japanesePost, comparison);
+  const enCard = context.englishXCardPayload(rides, fetchedAt, previous, englishPost, comparison);
+  assert.equal(jaCard.layout, 'photo-daytime-v4');
+  assert.equal(enCard.layout, 'photo-daytime-v4');
+  assert.deepEqual(JSON.parse(JSON.stringify(jaCard.visual)),
+    { mode: 'ride-comparison', now: 70, past: 40, days: 7, difference: 30, ride: 'ヨッシー' });
+  assert.equal(enCard.visual.mode, 'ride-comparison');
+  assert.equal(enCard.visual.now, 70);
+  assert.equal(enCard.visual.past, 40);
+  assert.match(context.daytimeXCardAlt(jaCard), /7日分/);
+  assert.match(context.daytimeXCardAlt(enCard), /7 recorded days/);
+  sqlite.close();
+});
+
+test('a top ride without four matching days falls back to the next ranked ride', async () => {
+  const { db, sqlite } = historicalDatabase();
+  sqlite.exec(`DELETE FROM ride_samples WHERE ride_id=${ids[5]} AND slot IN (` +
+    `SELECT slot FROM snapshots ORDER BY slot LIMIT 4)`);
+  const comparison = await context.daytimeXComparison(db, rides, at(fetchedAt), true);
+  const names = new Map(ids.map((id, index) => [id, `施設${index + 1}`]));
+  const post = context.xWaitPost(rides, names, fetchedAt, null, comparison);
+  assert.match(post.split('\n')[0], /フライング・ダイナソーは直近7日間/);
+  const card = context.xCardPayload(rides, names, fetchedAt, null, post, comparison);
+  assert.equal(card.visual.ride, 'フライング・ダイナソー');
+  assert.equal(card.visual.days, 7);
+  sqlite.close();
+});
+
+test('the November 11 Donkey Kong example keeps three ranked waits within the free X limit', () => {
+  const when = '2026-11-11T15:00:59+09:00';
+  const live = [
+    { id: 14402, name: 'Mine Cart Madness', wait_time: 160 },
+    { id: 12061, name: 'Mario Kart', wait_time: 110 },
+    { id: 12070, name: 'Hollywood Dream Backdrop', wait_time: 85 },
+    { id: 12071, name: 'Yoshi', wait_time: 40 },
+    { id: 7077, name: 'Hollywood Dream', wait_time: 30 },
+  ].map(ride => ({ ...ride, source: 'Queue-Times', is_open: true,
+    data_unavailable: false, last_updated: when }));
+  const comparison = { now: 55, past: 65, difference: -10, rides: 22,
+    ride_history: [{ id: 14402, source: 'Queue-Times', now: 160, past: 200, days: 6 }] };
+  const ja = context.xWaitPost(live, new Map(), when, null, comparison);
+  const en = context.englishXPost(live, when, null, comparison);
+  assert.match(ja, /いまの上位3件/);
+  assert.match(ja.split('\n')[0], /ドンキーコングは直近7日間の同時刻平均より40分短め/);
+  assert.match(en, /3\. Backdrop 85 min/);
+  assert.ok(context.xWeightedLength(ja) <= 280);
+  assert.ok(context.xWeightedLength(en) <= 280);
+});
+
+test('the new photo layout renders both language cards with their ride comparison base', async () => {
+  const assets = [];
+  const draws = [];
+  const image = {
+    draw(input) { draws.push(input); return this; },
+    output() { return { response: () => new Response('png', { headers: { 'Content-Type': 'image/png' } }) }; },
+  };
+  const env = {
+    ASSETS: { fetch: async request => { assets.push(new URL(request.url).pathname); return new Response('jpg'); } },
+    IMAGES: { input: () => image, text: value => value },
+  };
+  for (const language of ['ja', 'en']) {
+    const card = { layout: 'photo-daytime-v4', language, time: '15:00',
+      label: language === 'ja' ? '11/11（水）15:00時点' : 'Nov 11 15:00 JST',
+      rows: [{ name: 'Donkey Kong', wait: 160 }, { name: 'Mario Kart', wait: 110 },
+        { name: 'Hollywood Dream', wait: 85 }],
+      visual: { mode: 'ride-comparison', now: 160, past: 200, days: 6,
+        difference: -40, ride: language === 'ja' ? 'ドンキーコング' : 'Donkey Kong' },
+    };
+    const response = await context.renderXCard(env, card);
+    assert.equal(response.status, 200);
+  }
+  assert.deepEqual(assets, ['/x-card-daytime-ride-comparison-base.jpg',
+    '/en-x-card-daytime-ride-comparison-base.jpg']);
+  assert.ok(draws.length >= 12);
+});
+
+test('Tuesday evening post explains one-tap return when ride history is unavailable', () => {
   const names = new Map(ids.map((id, index) => [id, `施設${index + 1}`]));
   const comparison = { now: 45, past: 40, difference: 5, rides: 6 };
   const previous = { rides: { [ids[5]]: { wait_minutes: 90, is_open: 1, source: 'Queue-Times' } } };
   const midday = '2026-11-10T15:00:00+09:00';
   const middayRides = rides.map(ride => ({ ...ride, last_updated: midday }));
   const movement = context.xWaitPost(middayRides, names, midday, previous, comparison);
-  assert.match(movement.split('\n')[0], /約20分前比-20分/);
+  assert.match(movement.split('\n')[0], /直近7日間の同時刻平均より\+5分/);
   assert.ok(context.xWeightedLength(movement) <= 280);
   const evening = '2026-11-10T17:00:00+09:00';
   const eveningRides = rides.map(ride => ({ ...ride, last_updated: evening }));
@@ -117,7 +209,7 @@ test('midday highlights a verified movement and a Tuesday evening post explains 
   const scheduledPost = context.xWaitPost(earlyRides, names, early, null, comparison, true, '17:00');
   assert.match(scheduledPost, /次回はホーム画面から1タップ/);
   const englishEarly = context.englishXPost(earlyRides, early, previous, comparison, '17:00');
-  assert.match(englishEarly.split('\n')[0], /shorter vs ~20 min ago/);
+  assert.match(englishEarly.split('\n')[0], /prior 7-day same-time avg/);
 });
 
 test('the current park average omits closed, unavailable, inferred and hidden-source waits', () => {
@@ -153,6 +245,7 @@ test('/api/waits exposes the verified average and matched seven-day comparison s
 test('17:00 Japanese and English posts include the comparison in images while keeping post text short', async () => {
   const sent = [];
   const rendered = [];
+  const originalSendBufferPost = context.sendBufferPost;
   const publishedAt = '2026-11-01T17:00:00+09:00';
   const currentRides = rides.map(ride => ({ ...ride, last_updated: publishedAt }));
   context.EMBEDDED_ASSETS = { '/en/index.html': '<html></html>' };
@@ -162,7 +255,10 @@ test('17:00 Japanese and English posts include the comparison in images while ke
     rendered.push(card);
     return new Response('x'.repeat(2100), { headers: { 'Content-Type': 'image/png' } });
   };
-  context.sendBufferPost = async (...args) => sent.push(args);
+  context.sendBufferPost = async (...args) => {
+    const image = await args[8]?.createImage();
+    sent.push({ args, image });
+  };
   const env = {
     DB: { prepare(sql) { return { bind(...args) { return {
       async first() {
@@ -191,9 +287,39 @@ test('17:00 Japanese and English posts include the comparison in images while ke
   assert.equal(rendered[1].title, '+5 min vs 7-day same time');
   assert.match(rendered[0].subtitle, /平均40分/);
   assert.match(rendered[1].subtitle, /prior 7 days 40 min/);
-  assert.match(sent[0][7], /同時刻平均は40分/);
-  assert.match(sent[1][7], /prior 7-day same-time average is 40 minutes/);
-  assert.ok(sent.every(args => context.xWeightedLength(args[3]) <= 280));
-  assert.match(sent[0][3].split('\n')[0], /直近7日間の同時刻平均より\+5分/);
-  assert.match(sent[1][3].split('\n')[0], /prior 7-day same-time avg/);
+  assert.match(sent[0].image.alt, /同時刻平均は40分/);
+  assert.match(sent[1].image.alt, /prior 7-day same-time average is 40 minutes/);
+  assert.ok(sent.every(({ args }) => context.xWeightedLength(args[3]) <= 280));
+  assert.match(sent[0].args[3].split('\n')[0], /直近7日間の同時刻平均より\+5分/);
+  assert.match(sent[1].args[3].split('\n')[0], /prior 7-day same-time avg/);
+  context.sendBufferPost = originalSendBufferPost;
+});
+
+test('a claimed Buffer post does not overwrite its image on a same-slot retry', async () => {
+  const { db, sqlite } = historicalDatabase();
+  const env = { DB: db, BUFFER_API_KEY: 'test', BUFFER_X_CHANNEL_ID: 'test-channel' };
+  const originalFetch = context.fetch;
+  context.fetch = async () => Response.json({ data: { createPost: { post: { id: 'post-1', status: 'sent' } } } });
+  let images = 0;
+  const createImage = async () => {
+    images++;
+    await db.prepare('INSERT INTO app_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
+      .bind('xcard_2026-11-01_1300', JSON.stringify({ image: images })).run();
+    return { url: 'https://uniba-waittimes.com/x-card/2026-11-01/1300.png', alt: 'comparison' };
+  };
+  try {
+    const seconds = at(fetchedAt);
+    await context.sendBufferPost(env, seconds, '13:00', 'Test post', fetchedAt,
+      null, 'https://uniba-waittimes.com/og-photo.jpg', null, { createImage });
+    await context.sendBufferPost(env, seconds + 300, '13:00', 'Changed post', fetchedAt,
+      null, 'https://uniba-waittimes.com/og-photo.jpg', null, { createImage });
+    assert.equal(images, 1);
+    assert.equal(JSON.parse(sqlite.prepare('SELECT value FROM app_meta WHERE key=?')
+      .get('xcard_2026-11-01_1300').value).image, 1);
+    assert.equal(JSON.parse(sqlite.prepare('SELECT value FROM app_meta WHERE key=?')
+      .get('buffer_x_2026-11-01_1300').value).post_id, 'post-1');
+  } finally {
+    context.fetch = originalFetch;
+    sqlite.close();
+  }
 });
