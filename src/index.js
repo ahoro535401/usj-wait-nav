@@ -779,12 +779,40 @@ async function renderDaytimeXCard(env, card) {
   });
 }
 
+async function renderPhotoRecapCard(env, card) {
+  const english = card.language === 'en';
+  const base = await assetFetch(new Request(`https://uniba-waittimes.com/${english ?
+    'en-' : ''}x-card-recap-base.jpg`), env);
+  if (!base.ok || !base.body) return new Response('Recap card asset unavailable', { status: 503 });
+  let image = env.IMAGES.input(base.body);
+  const add = (value, left, top, size, color = '#07183b') => {
+    image = image.draw(env.IMAGES.text(String(value), {
+      font: { url: X_CARD_FONT }, color, size,
+    }), { left, top });
+  };
+  add(xCardClip(card.title, english ? 25 : 20), 60, 788, english ? 59 : 64);
+  add(xCardClip(card.label, english ? 28 : 24), 60, 880, 36, '#455568');
+  for (let index = 0; index < card.rows.length; index++) {
+    const row = card.rows[index];
+    const top = 970 + index * 113;
+    add(xCardClip(row.name, english ? 23 : 17), 75, top + 15, english ? 35 : 37);
+    add(`${row.wait}${english ? ' min' : '分'}`, 810, top, english ? 64 : 69);
+  }
+  if (card.subtitle) add(xCardClip(card.subtitle, english ? 52 : 31),
+    95, 1355, english ? 31 : 34);
+  return (await image.output({ format: 'image/png' })).response({
+    headers: { 'Cache-Control': 'public, max-age=2592000, immutable',
+      'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' },
+  });
+}
+
 async function renderXCard(env, card) {
   if (!env.IMAGES || !card || !Array.isArray(card.rows) || card.rows.length !== 3)
     return new Response('Image rendering unavailable', { status: 503 });
   if (card.layout === 'photo-daytime-v1') return renderDaytimeXCardV1(env, card);
   if (card.layout === 'photo-daytime-v2') return renderDaytimeXCard(env, card);
   if (card.layout === 'photo-daytime-v3') return renderDaytimeXCard(env, card);
+  if (card.layout === 'photo-recap-v1') return renderPhotoRecapCard(env, card);
   const base = await assetFetch(new Request(`https://uniba-waittimes.com/${card.language === 'en' ? 'en-x-card-base.png' : 'x-card-base.png'}`), env);
   if (!base.ok || !base.body) return new Response('Base image unavailable', { status: 503 });
   let image = env.IMAGES.input(base.body);
@@ -812,7 +840,11 @@ async function renderXCard(env, card) {
 
 function daytimeXCardAlt(card) {
   const visual = card.visual;
-  if (!visual) return null;
+  if (!visual) {
+    if (card.layout !== 'photo-recap-v1') return null;
+    return `${card.label}. ${card.title}. ${card.subtitle ? `${card.subtitle}. ` : ''}` +
+      card.rows.map(row => `${row.name}: ${row.wait} min`).join('; ') + '.';
+  }
   if (card.language === 'en') {
     if (visual.mode === 'comparison') return `${card.label}. Across ${visual.rides} matched rides, ` +
       `the current average wait is ${visual.now} minutes; the prior 7-day same-time average is ${visual.past} minutes.`;
@@ -1060,10 +1092,12 @@ function xDailyCardPayload(day, data, previousDay = false) {
   const peak = ranked[ranked.length - 1];
   const comparison = recapSevenDayDifference(data);
   return {
+    layout: 'photo-recap-v1',
     captured_at: new Date(data.last_at * 1000).toISOString(),
     label: `${xDateLabel(day)}の実績`,
     title: previousDay ? '昨日の混雑実績' : '今日の混雑実績',
-    ...(comparison ? { subtitle: `直近7日平均 ${comparison.average}分 | この日 ${comparison.signed}分` } : {}),
+    subtitle: comparison ? `直近7日平均 ${comparison.average}分 | この日 ${comparison.signed}分` :
+      '過去の実績 | 時間帯別の平均',
     rows: [
       { name: 'この日の平均待ち時間', wait: roundWait5(data.average_wait) },
       { name: `混雑ピーク ${hhmm(peak.at).slice(0, 2)}時台`, wait: roundWait5(peak.average_wait) },
@@ -1389,6 +1423,7 @@ function englishDailyCardPayload(day, data, previousDay = false) {
   if (hours.length < 2) return null;
   const comparison = recapSevenDayDifference(data);
   return {
+    layout: 'photo-recap-v1',
     language: 'en', captured_at: new Date(data.last_at * 1000).toISOString(),
     label: `${englishXDate(day)} recap`, title: previousDay ? 'Yesterday at USJ' : 'Daily crowd recap',
     subtitle: comparison ? `Prior 7-day avg ${comparison.average} min | this day ${comparison.signed} min` :

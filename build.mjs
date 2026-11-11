@@ -71,6 +71,7 @@ const binaryFiles = {
   '/x-card-daytime-comparison-base.jpg': 'x-card-daytime-comparison-base.jpg',
   '/x-card-daytime-movement-base.jpg': 'x-card-daytime-movement-base.jpg',
   '/x-card-daytime-ranking-base.jpg': 'x-card-daytime-ranking-base.jpg',
+  '/x-card-recap-base.jpg': 'x-card-recap-base.jpg',
   '/x-card-bar-teal.png': 'x-card-bar-teal.png',
   '/x-card-bar-slate.png': 'x-card-bar-slate.png',
   '/x-card-font.ttf': 'x-card-font.ttf',
@@ -93,6 +94,7 @@ if (process.env.INCLUDE_EN === '1') {
   binaryFiles['/en-x-card-daytime-comparison-base.jpg'] = 'x-card-daytime-comparison-base.jpg';
   binaryFiles['/en-x-card-daytime-movement-base.jpg'] = 'x-card-daytime-movement-base.jpg';
   binaryFiles['/en-x-card-daytime-ranking-base.jpg'] = 'x-card-daytime-ranking-base.jpg';
+  binaryFiles['/en-x-card-recap-base.jpg'] = 'x-card-recap-base.jpg';
   binaryFiles['/en/apple-touch-icon-en.png'] = 'apple-touch-icon-en.png';
   binaryFiles['/en/icon-en-192.png'] = 'icon-en-192.png';
   binaryFiles['/en/icon-en-512.png'] = 'icon-en-512.png';

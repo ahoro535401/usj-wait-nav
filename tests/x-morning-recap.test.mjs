@@ -91,6 +91,10 @@ test('05:30 JST posts the previous date to both language channels', async () => 
   assert.match(sent[1][5], /quietest recorded hour was 09:00/);
   assert.equal(context.xDailyCardPayload('2026-10-13', sample, true).title, '昨日の混雑実績');
   assert.equal(context.englishDailyCardPayload('2026-10-13', sample, true).title, 'Yesterday at USJ');
+  assert.equal(context.xDailyCardPayload('2026-10-13', sample, true).layout, 'photo-recap-v1');
+  assert.equal(context.englishDailyCardPayload('2026-10-13', sample, true).layout, 'photo-recap-v1');
+  assert.equal(context.xDailyCardPayload('2026-10-13', sample).layout, 'photo-recap-v1');
+  assert.equal(context.englishDailyCardPayload('2026-10-13', sample).layout, 'photo-recap-v1');
 });
 
 test('the 05:30 cards describe yesterday in both languages', async () => {
@@ -109,8 +113,11 @@ test('the 05:30 cards describe yesterday in both languages', async () => {
   assert.deepEqual(stored.map(item => item.key), ['xcard_2026-10-14_0530', 'xcard_en_2026-10-14_0530']);
   assert.equal(stored[0].card.title, '昨日の混雑実績');
   assert.equal(stored[1].card.title, 'Yesterday at USJ');
+  assert.equal(stored[0].card.layout, 'photo-recap-v1');
+  assert.equal(stored[1].card.layout, 'photo-recap-v1');
   assert.equal(stored[0].card.rows[2].name, '比較的空いた 09時台');
   assert.equal(stored[1].card.rows[2].name, 'Quietest: 09:00');
+  assert.match(english.alt, /Daily average: 50 min/);
 });
 
 test('recap ranking excludes hours after closing and partially open hours', () => {
