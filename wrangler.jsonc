@@ -2,6 +2,9 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "usj-wait-nav",
   "main": "src/index.js",
+  "secrets": {
+    "required": ["BUFFER_API_KEY", "CRM_HASH_KEY", "OFFICIAL_API_TOKEN"]
+  },
   "compatibility_date": "2026-10-04",
   "assets": {
     "directory": "./public",

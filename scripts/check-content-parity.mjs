@@ -35,6 +35,19 @@ for (const [label, data] of [['events', events.events], ['closures', closures.cl
     if (item.end && item.end < item.start) errors.push(`${label} / ${item.title}: end date precedes start date`);
   }
 }
+if (!Array.isArray(closures.endings)) errors.push('closures: endings list is missing');
+const lastOperatingDays = extract(worker,
+  /const LAST_OPERATING_DAY = new Map\((\[[\s\S]*?\])\);/, 'LAST_OPERATING_DAY');
+if (Array.isArray(closures.endings) && lastOperatingDays) {
+  const byId = new Map(lastOperatingDays);
+  for (const item of closures.endings) {
+    requireEnglish(item.title_en, `ending / ${item.title}`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(item.last_operating_day || ''))
+      errors.push(`ending / ${item.title}: invalid last operating day`);
+    if (byId.get(item.queue_times_id) !== item.last_operating_day)
+      errors.push(`ending / ${item.title}: Worker visibility date differs`);
+  }
+}
 const japaneseShowNames = extract(worker, /const SHOW_NAMES = (\{[\s\S]*?\});/, 'SHOW_NAMES');
 if (japaneseShowNames) {
   for (const name of new Set(Object.values(japaneseShowNames))) requireEnglish(shows[name], `show / ${name}`);

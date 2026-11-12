@@ -179,6 +179,7 @@ const DISTINCT_RIDES = [
 ];
 // 個別の公式開催期間で判定し、終了後の提供元レコードを現在値に残さない。
 const LAST_OPERATING_DAY = new Map([
+  [12091, '2027-02-28'], // プレイング・ウィズおさるのジョージ（公式の運営終了日）
   [15322, '2026-11-08'], // ジュラシック・パーク・ザ・ライド ～イン・ザ・ダーク～
   [13925, '2026-11-08'], // チェンソーマン・ザ・カオス 4-D
   [17893, '2026-11-08'], // ファクトリー・オブ・フィアー
@@ -230,6 +231,12 @@ const SHOW_NAMES = {
   'usj.usj.shows.discover_u_time_2026': 'Discover U!!! タイム',
   'usj.usj.show.discover_u_time_2026': 'Discover U!!! タイム',
   'usj.usj.show.triwizard_spirit_rally': 'トライウィザード・スピリット・ラリー',
+  'usj.usj.show.triwizard_spirity_rally': 'トライウィザード・スピリット・ラリー',
+  'usj.usj.show.wand_studies': 'ワンド・スタディ',
+  'usj.usj.shows.minions_cool_winter_greeting_2026': 'ミニオン・クール・ウインター・グリーティング',
+  'usj.usj.shows.power_of_rock_holidays_2026': 'パワー・オブ・ロック ～ホリデー・ロッキン！～',
+  'usj.usj.shows.holiday_frog_choir_2026': 'ホリデー・フロッグ・クワイア',
+  'usj.usj.shows.stu_character_meet_greet_2026': 'スタジオ・スターズ・レストラン・キャラクター・ミート&グリート',
   'usj.usj.show.halloween_horror_nights_academy_15years_of_screams_2026': 'ハロウィーン・ホラー・ナイト・アカデミー ～絶叫の15年～',
 };
 
@@ -1828,16 +1835,28 @@ function parseOfficialShows(raw, day, fetchedAt) {
 }
 
 async function refreshOfficialShows(env, seconds) {
-  if (!env.OFFICIAL_API_TOKEN) return;
+  if (!env.OFFICIAL_API_TOKEN) {
+    let health = null;
+    try { health = JSON.parse(await readMeta(env.DB, 'official_shows_health')); } catch (_) { /* 初回確認 */ }
+    if (health?.status !== 'configuration_missing' ||
+        Date.now() - Date.parse(health.checked_at) > 6 * 3600 * 1000)
+      await writeMeta(env.DB, 'official_shows_health', JSON.stringify({
+        checked_at: new Date().toISOString(), status: 'configuration_missing',
+      }));
+    return;
+  }
   const db = env.DB;
   const today = jstDay(seconds);
+  let hadError = false;
+  let attempted = false;
   for (let offset = 0; offset < 7; offset++) {
     const day = jstDay(seconds + offset * 86400);
     const key = `official_shows_${day}`;
     let previous = null;
     try { previous = JSON.parse(await readMeta(db, key)); } catch (_) { /* 初回取得 */ }
-    const checkedAt = previous?.checked_at || previous?.fetched_at;
+    const checkedAt = previous?.last_attempt_at || previous?.checked_at || previous?.fetched_at;
     if (checkedAt && Date.now() - Date.parse(checkedAt) < 6 * 3600 * 1000) continue;
+    attempted = true;
     const [year, month, date] = day.split('-');
     const url = `${OFFICIAL_SHOW_API}?city=USJ&date=${encodeURIComponent(`${month}/${date}/${year}`)}`;
     const fetchedAt = new Date().toISOString();
@@ -1853,13 +1872,20 @@ async function refreshOfficialShows(env, seconds) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const parsed = parseOfficialShows(await response.json(), day, fetchedAt);
       parsed.checked_at = fetchedAt;
+      parsed.last_attempt_at = fetchedAt;
       await writeMeta(db, key, JSON.stringify(parsed));
     } catch (error) {
-      if (!previous?.shows?.length) await writeMeta(db, key, JSON.stringify({ day, shows: [],
-        unavailable: true, reason: 'source_error', fetched_at: fetchedAt, official_url: officialShowUrl(day) }));
-      else await writeMeta(db, key, JSON.stringify({ ...previous, checked_at: fetchedAt }));
+      hadError = true;
+      const failure = { day, shows: [], unavailable: true, reason: 'source_error',
+        last_attempt_at: fetchedAt, official_url: officialShowUrl(day) };
+      await writeMeta(db, key, JSON.stringify(previous?.shows?.length
+        ? { ...previous, stale: true, last_attempt_at: fetchedAt } : failure));
+      console.error(`Official show schedule ${day} refresh failed`, error);
     }
   }
+  if (attempted) await writeMeta(db, 'official_shows_health', JSON.stringify({
+    checked_at: new Date().toISOString(), status: hadError ? 'source_error' : 'ok',
+  }));
   // 過去日のキャッシュを削除し、保存量を7日分に抑える。
   await db.prepare("DELETE FROM app_meta WHERE key LIKE 'official_shows_%' AND key < ?")
     .bind(`official_shows_${today}`).run();
@@ -3453,12 +3479,21 @@ async function route(request, env) {
         jstDay(start / 1000) !== day || day < today ||
         day > jstDay(epoch() + 6 * 86400)) return json({ error: '今日から7日間の日付を指定してください' }, 400);
     const official = await readMeta(env.DB, `official_shows_${day}`);
-    if (day !== today) return json(official && env.OFFICIAL_API_TOKEN ? JSON.parse(official) : {
-      day, shows: [], unavailable: true, reason: 'external', official_url: officialShowUrl(day) });
+    if (day !== today && official) {
+      const saved = JSON.parse(official);
+      const checkedAt = Date.parse(saved.checked_at || saved.fetched_at);
+      if (!env.OFFICIAL_API_TOKEN || !Number.isFinite(checkedAt) || Date.now() - checkedAt > 8 * 3600 * 1000)
+        saved.stale = true;
+      return json(saved);
+    }
+    if (day !== today) return json({
+      day, shows: [], unavailable: true,
+      reason: env.OFFICIAL_API_TOKEN ? 'pending' : 'configuration_missing',
+      official_url: officialShowUrl(day) });
     const payload = await readMeta(env.DB, 'shows_payload');
     const parsed = payload ? JSON.parse(payload) : null;
     if (parsed?.day === today && parsed.shows?.length) return json(parsed);
-    if (official && env.OFFICIAL_API_TOKEN) return json(JSON.parse(official));
+    if (official) return json(JSON.parse(official));
     return json({ day, shows: [], unavailable: true, reason: 'pending', official_url: officialShowUrl(day) });
   }
   if (url.pathname === '/api/today') return json(await todayMatrix(env.DB, epoch()));

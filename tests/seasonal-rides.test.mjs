@@ -27,6 +27,12 @@ test('終了日の切替は日本時間の午前0時で行う', () => {
   assert.equal(vm.runInContext(`jstDay(${after})`, context), '2026-11-09');
 });
 
+test('おさるのジョージは運営終了日まで現在表示に残し翌日から除外する', () => {
+  const rides = [{ id: 12091 }, { id: 12067 }];
+  assert.deepEqual(visibleRidesForDay(rides, '2027-02-28').map(ride => ride.id), [12091, 12067]);
+  assert.deepEqual(visibleRidesForDay(rides, '2027-03-01').map(ride => ride.id), [12067]);
+});
+
 test('提供元に終了施設が残っても、翌日の取得データには保存しない', () => {
   const queue = { rides: [15322, 13925, 17893, 12067, 12324, 17894]
     .map(id => ({ id, name: String(id), is_open: true, wait_time: 20 })) };

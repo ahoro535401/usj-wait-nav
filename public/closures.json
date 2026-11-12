@@ -1,6 +1,15 @@
 {
-  "checked_at": "2026-11-08",
+  "checked_at": "2026-11-13",
   "source_url": "https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure",
+  "endings": [
+    {
+      "title": "プレイング・ウィズおさるのジョージ™",
+      "title_en": "Playing with Curious George",
+      "last_operating_day": "2027-02-28",
+      "queue_times_id": 12091,
+      "url": "https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure"
+    }
+  ],
   "closures": [
     {
       "title": "セサミストリート 4-D ムービーマジック™",

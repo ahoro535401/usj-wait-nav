@@ -1000,6 +1000,10 @@
     <h2 id="closures-title">今日のショー＆アトラクション休止情報</h2>
     <p id="closures-status" class="muted">休止予定を読み込み中…</p>
     <ul id="today-closures" class="closure-list"></ul>
+    <div id="ending-notices" hidden>
+      <h3>運営終了予定</h3>
+      <ul id="ending-list" class="closure-list"></ul>
+    </div>
     <p class="muted">休止予定は確認日現在の掲載情報です。急な中止・変更は反映されません。<a href="https://www.usj.co.jp/web/ja/jp/park-guide/schedule/attraction-closure" target="_blank" rel="noopener noreferrer">USJ公式の休止情報</a>で最新情報をご確認ください。</p>
   </section>
   <section class="weather-panel" data-only="now" aria-labelledby="weather-title">
@@ -1092,7 +1096,7 @@
   <footer>
     <p><a href="/vote">No.1アトラクション投票</a> · <a href="/install">ホーム画面に追加する方法</a> · <a href="/privacy">このサイトについて・プライバシーポリシー</a> · <a href="https://twitter.com/messages/compose?recipient_id=2108525655323459586" target="_blank" rel="noopener noreferrer">サイトへのお問い合わせ（XのDM）</a></p>
     <a href="https://queue-times.com/" target="_blank" rel="noopener noreferrer">Powered by Queue-Times.com</a> · <a href="https://www.themeparks.wiki/" target="_blank" rel="noopener noreferrer">Powered by ThemeParks.wiki</a> · 大阪府予報・大阪観測所の実測：<a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000" target="_blank" rel="noopener noreferrer">気象庁</a>（当サイトで表示を加工） · USJ付近の時間別予報：<a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">Norwegian Meteorological Institute</a>（<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer">MET Norway API</a>、<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
-    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。表示値は通常の待ち列の目安で、シングルライダーやエクスプレス・パスの所要時間ではありません。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>で確認できます。</p>
+    <p>アトラクションの待ち時間は主にQueue-Times、ジュラシックとジョーズの通常版・夜間版の現在値、および当日のショー開始時刻・営業時間はThemeParks.wikiの公開データを使用しています。表示値は通常の待ち列の目安で、シングルライダーやエクスプレス・パスの所要時間ではありません。翌日以降のショー開始時刻は<a href="https://www.usj.co.jp/web/ja/jp/attractions/show-and-attraction-schedule" target="_blank" rel="noopener noreferrer">USJ公式の日別スケジュール</a>の公開情報を取得して掲載します。変更・中止の可能性があるため、当日は公式情報もご確認ください。</p>
     <p>公表開園時刻の2時間前から閉園時刻の30分後まで、サーバーが5分おきに公開データを取得し、毎時0・20・40分ごとに、その数分後に取得した値を記録します。早期開園を考慮した取得開始時刻で、実際の開園を保証するものではありません。履歴は同じ時間帯の最大3件を平均して表示します。画面を開いたままでも約5分ごとにデータだけを更新します。ジュラシックとジョーズの通常版・夜間版はライブ情報の確認時刻、その他は提供元の更新時刻を表示します。</p>
     <p class="site-since">制作・運営：USJ待ち時間ナビ（個人運営・非公式）<br>2026年10月開設</p>
   </footer>
@@ -1634,6 +1638,21 @@
         }
       }
       closuresStatus.textContent = `USJ公式ページを${formatEventDate(closuresData.checked_at)}に確認 · 手動更新 · 今日の掲載 ${items.length}件`;
+      const endings = (closuresData.endings || []).filter(item => item.last_operating_day >= jstToday());
+      const endingBox = document.querySelector('#ending-notices');
+      const endingList = document.querySelector('#ending-list');
+      endingBox.hidden = !endings.length;
+      endingList.replaceChildren();
+      for (const item of endings) {
+        const entry = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = item.url || closuresData.source_url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = `${item.title}：${formatEventDate(item.last_operating_day)}をもって運営終了予定（USJ公式）`;
+        entry.append(link);
+        endingList.append(entry);
+      }
     }
 
     async function loadClosures() {
@@ -1701,6 +1720,12 @@
           list.append(entry);
         }
         selectedDay.append(list);
+      }
+      for (const item of closuresData?.endings || []) {
+        if (item.last_operating_day !== day) continue;
+        const ending = document.createElement('span');
+        ending.textContent = `${item.title}：この日をもって運営終了予定（USJ公式）`;
+        selectedDay.append(ending);
       }
       renderCalendar();
     }
@@ -2150,6 +2175,8 @@
           ? `${dateLabel(data.day)}の開始時刻は公式でまだ公開されていません。`
           : data.reason === 'source_error'
             ? `${dateLabel(data.day)}の公式データを取得できませんでした。後で再試行します。`
+            : data.reason === 'configuration_missing'
+              ? `${dateLabel(data.day)}の公式時刻表を取得する設定を確認中です。`
             : data.reason === 'external'
               ? `${dateLabel(data.day)}の開始時刻はUSJ公式の日別スケジュールで確認できます。`
             : `${dateLabel(data.day)}のショー時刻を確認中です。`;
@@ -2283,7 +2310,7 @@
         .filter(slot => Date.parse(slot.start) >= Date.now())
         .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
       const next = data.day === jstToday() && upcoming.length ? ` · 次の開始 ${hourMinuteFormat.format(new Date(upcoming[0].start))} ${upcoming[0].name}` : '';
-      showsStatus.textContent = `${formatEventDate(data.day)} · ${shows.length}件 · ${shows.reduce((sum, show) => sum + show.times.length, 0)}回の開始時刻 · データ確認 ${timeFormat.format(new Date(data.fetched_at))}時点${next}`;
+      showsStatus.textContent = `${formatEventDate(data.day)} · ${shows.length}件 · ${shows.reduce((sum, show) => sum + show.times.length, 0)}回の開始時刻 · データ確認 ${timeFormat.format(new Date(data.fetched_at))}時点${data.stale ? '（再取得失敗・前回確認分）' : ''}${next}`;
     }
 
     async function loadShows() {
