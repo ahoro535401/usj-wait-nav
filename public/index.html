@@ -2806,16 +2806,24 @@
     const PARTIAL_DAY_SNAPSHOTS = 18;
     function weatherInfo(weather) {
       if (!weather) return null;
+      const station = weather.station_code === '62091' ? '堺' : weather.station_code === '63518' ? '神戸' : '大阪';
       const complete = Number(weather.coverage) >= 0.9;
-      const kind = !complete ? {icon: '？', label: '不明', cls: 'wx-cloud'}
-        : weather.precip_daytime >= 1 ? {icon: '☂', label: '雨', cls: 'wx-rain'}
+      if (!complete) {
+        const percent = Number.isFinite(Number(weather.coverage))
+          ? `（有効な10分値は約${Math.round(Number(weather.coverage) * 100)}％）` : '';
+        if (weather.precip_daytime >= 1) return {icon: '☂', label: '雨', cls: 'wx-rain', station,
+          short: `${station}の観測で雨を確認${percent}`,
+          detail: `${station}の観測で雨を確認${percent}。観測が一部欠けているため、気温の最高・最低や1日分の降水量は表示しません。`};
+        return {icon: '—', label: '確認中', cls: 'wx-cloud', station, short: `${station}の記録を確認中${percent}`,
+          detail: `${station}の観測値が一部欠けています${percent}。近隣地点の実測で確認中です。`};
+      }
+      const kind = weather.precip_daytime >= 1 ? {icon: '☂', label: '雨', cls: 'wx-rain'}
         : weather.sun_hours >= 5 ? {icon: '☀', label: '晴れ', cls: 'wx-sun'}
         : {icon: '☁', label: 'くもり', cls: 'wx-cloud'};
       const temp = Number.isFinite(weather.temp_max) && Number.isFinite(weather.temp_min)
         ? `最高${weather.temp_max.toFixed(1)}℃／最低${weather.temp_min.toFixed(1)}℃` : '気温の記録なし';
-      return { ...kind, short: `${kind.label}・${temp}`,
-        detail: `${kind.label}　${temp}　降水${weather.precip_total}mm（8〜22時 ${weather.precip_daytime}mm）　日照${weather.sun_hours}時間` +
-          (complete ? '' : '　※欠測が多いため天気判定は不明') };
+      return { ...kind, station, short: `${kind.label}（${station}）・${temp}`,
+        detail: `${kind.label}（気象庁・${station}の観測値）　${temp}　降水${weather.precip_total}mm（8〜22時 ${weather.precip_daytime}mm）　日照${weather.sun_hours}時間` };
     }
     const weeklyConditions = {
       sun: { icon: '☀', label: '晴れ', cls: 'wx-sun' },
@@ -2844,7 +2852,7 @@
         heading.textContent = dateLabel(day);
         const condition = document.createElement('span');
         condition.className = 'forecast-condition';
-        condition.textContent = `${weeklyConditions[item.condition]?.icon || '？'} ${weeklyConditions[item.condition]?.label || '不明'}`;
+        condition.textContent = `${weeklyConditions[item.condition]?.icon || '—'} ${weeklyConditions[item.condition]?.label || '予報なし'}`;
         const temperature = document.createElement('span');
         temperature.className = 'forecast-temperature';
         temperature.textContent = Number.isFinite(item.temp_max) && Number.isFinite(item.temp_min)
@@ -2987,7 +2995,7 @@
         if (forecast) {
           const icon = document.createElement('span');
           icon.className = `archive-cal-weather ${weeklyConditions[forecast.condition]?.cls || 'wx-cloud'}`;
-          icon.textContent = weeklyConditions[forecast.condition]?.icon || '？';
+          icon.textContent = weeklyConditions[forecast.condition]?.icon || '—';
           icon.setAttribute('aria-hidden', 'true');
           label.append(icon);
         }
@@ -3110,7 +3118,7 @@
       }
       const note = document.createElement('p');
       note.className = 'muted';
-      note.textContent = '営業時間の上下2行は公表された開園・閉園時刻です。過去日は当時保存した予定時刻の参考表示で、実際の開園・閉園とは異なる場合があります。過去日の「分」は記録された営業中の平均待ち時間です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の観測値から当サイトで判定（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。欠測が多い日は？で表示します。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
+      note.textContent = '営業時間の上下2行は公表された開園・閉園時刻です。過去日は当時保存した予定時刻の参考表示で、実際の開園・閉園とは異なる場合があります。過去日の「分」は記録された営業中の平均待ち時間です。記録が一部の時間帯しかない日は「一部のみ」と表示し、色分けしません。天気は気象庁アメダス大阪の実測値から当サイトで判定します。大阪の10分値が不足する日は堺、次いで神戸の実測値を使います（8〜22時の降水1mm以上＝☂、それ以外で日照5時間以上＝☀、残り＝☁）。地点は日付を開いて確認できます。赤字の日付は日曜・祝日・振替休日です（祝日は内閣府「国民の祝日」に基づきます）。';
       const longTerm = closuresData ? closuresData.closures.filter(item => !item.end) : [];
       note.textContent += ' 先の日付の天気記号は大阪府の週間予報で、過去日の観測結果とは異なります。';
       const longNote = document.createElement('p');
@@ -3327,7 +3335,7 @@
       renderArchiveTicketPrice(data.day);
       const weather = weatherInfo(data.weather || archiveCalendarDays.find(item => item.day === data.day)?.weather);
       document.querySelector('#archive-weather').textContent = weather
-        ? `天気（気象庁アメダス大阪の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
+        ? `天気（気象庁の観測値を当サイトで集計）：${weather.icon} ${weather.detail}`
         : '天気：この日の記録はありません。';
       archiveDayStats.set(data.day, {average: data.average_wait, snapshots: data.snapshots});
       if (archiveCalendarDays.length) renderArchiveCalendar();

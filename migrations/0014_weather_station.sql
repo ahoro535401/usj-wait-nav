@@ -1,0 +1,1 @@
+ALTER TABLE weather_days ADD COLUMN station_code TEXT NOT NULL DEFAULT '62078';

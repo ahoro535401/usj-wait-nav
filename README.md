@@ -78,7 +78,7 @@ OGP画像、ブラウザーとホーム画面用のアイコン、Webアプリ�
 
 カレンダーの祝日・振替休日・国民の休日は、内閣府の「国民の祝日」CSVを週1回取得してD1へ保存します。取得できない場合は holidays-jp の日付JSONを予備として使います。`/api/holidays` は祝日名・種類・取得元を返します。閲覧者の操作で提供元へ取りに行くことはありません。
 
-気象庁アメダス大阪観測所の10分値を、前日分から直近8日を対象として日ごとにD1へ保存します。記録開始日は2026年10月5日で、それ以前の日は補完しません。最高・最低気温、1日と8〜22時の降水量、日照時間、取得率を記録し、カレンダーと選択日の詳細に表示します。雨・晴れ・くもりは観測値から当サイト独自に判定し、取得率が90%未満なら天気を不明と表示します。保存ジョブは営業時間外を含め15分以上の間隔で未保存日を1日ずつ処理します。カレンダーには待ち時間の保存がある日だけ表示し、天気だけの記録日は一覧に含めません。
+気象庁アメダス大阪観測所の10分値を、前日分から直近8日を対象として日ごとにD1へ保存します。大阪の有効な10分値が90％未満の日は堺、次いで神戸の実測値を使い、採用した観測地点を保存します。記録開始日は2026年10月5日で、それ以前の日は補完しません。最高・最低気温、1日と8〜22時の降水量、日照時間、取得率を記録し、カレンダーと選択日の詳細に表示します。雨・晴れ・くもりは観測値から当サイト独自に判定し、取得率が90%未満の日は直近8日間、近隣地点で再集計します。保存ジョブは営業時間外を含め15分以上の間隔で未保存日を1日ずつ処理します。カレンダーには待ち時間の保存がある日だけ表示し、天気だけの記録日は一覧に含めません。
 
 ## 英語版
 
@@ -112,7 +112,7 @@ OGP画像、ブラウザーとホーム画面用のアイコン、Webアプリ�
 - 待ち時間: [Queue-Times.com](https://queue-times.com/pages/api) と [ThemeParks.wiki](https://www.themeparks.wiki/)
 - 営業時間・休止・イベント・ショーに関する参照先: [USJ公式サイト](https://www.usj.co.jp/web/ja/jp/)
 - 天気予報: [Norwegian Meteorological Institute / MET Norway](https://api.met.no/)（[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)）
-- 大阪府予報・大阪観測所のアメダス実測値: [気象庁](https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000)（当サイトで表示形式を加工）
+- 大阪府予報・大阪／堺／神戸観測所のアメダス実測値: [気象庁](https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000)（当サイトで表示形式を加工）
 - 祝日・振替休日・国民の休日: [内閣府「国民の祝日」](https://www8.cao.go.jp/chosei/shukujitsu/gaiyou.html)、取得失敗時の予備は [holidays-jp](https://holidays-jp.github.io/)
 - 身長制限・チャイルドスイッチ: [USJ公式の身長制限](https://www.usj.co.jp/web/ja/jp/attractions/requirements/height-restriction)、[チャイルドスイッチ](https://www.usj.co.jp/web/ja/jp/attractions/how-to-fun/child-switch)
 

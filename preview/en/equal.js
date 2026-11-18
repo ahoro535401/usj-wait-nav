@@ -582,7 +582,12 @@
     $('en-archive-longest').textContent = top ? `${rideName(top.id)} · ${roundWait5(top.wait)} min average (${app.hourFmt.format(new Date(top.at*1000)).slice(0,2)}:00 hour)` : 'No comparable record';
     $('en-archive-period').textContent = data.first_at && data.last_at ? `Records from ${app.hourFmt.format(new Date(data.first_at*1000))} to ${app.hourFmt.format(new Date(data.last_at*1000))} JST. Hours without records are not included.` : 'Record times unavailable.';
     const weather = data.weather;
-    $('en-archive-weather').textContent = weather ? `Osaka Observatory observations: max ${weather.temp_max ?? '—'}°C, min ${weather.temp_min ?? '—'}°C, precipitation ${weather.precip_total ?? '—'} mm. These are not measurements inside USJ.` : 'Osaka weather observations are unavailable for this day.';
+    const weatherStation = weather?.station_code === '62091' ? 'Sakai' : weather?.station_code === '63518' ? 'Kobe' : 'Osaka';
+    $('en-archive-weather').textContent = !weather
+      ? 'Checking nearby Japan Meteorological Agency observations for this day.'
+      : Number(weather.coverage) < 0.9
+        ? `${weatherStation} observations are incomplete (about ${Math.round(Number(weather.coverage) * 100)}% of valid 10-minute records). ${weather.precip_daytime >= 1 ? 'Rain was recorded; full-day temperature and rain totals are omitted.' : 'Checking nearby stations for a complete daily summary.'}`
+        : `Japan Meteorological Agency observations at ${weatherStation}: max ${weather.temp_max ?? '—'}°C, min ${weather.temp_min ?? '—'}°C, precipitation ${weather.precip_total ?? '—'} mm. These are not measurements inside USJ.`;
     const charts = $('en-archive-charts');charts.replaceChildren();
     const ids = [...new Set((data.hours||[]).flatMap(hour=>Object.keys(hour.rides||{})))];
     const avg = id => {const values=(data.hours||[]).map(hour=>hour.rides?.[id]?.average_wait).filter(Number.isFinite);return values.length?values.reduce((a,b)=>a+b,0)/values.length:-1;};
