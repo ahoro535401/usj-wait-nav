@@ -4,7 +4,7 @@ const WIKI_SCHEDULE_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-4
 const WIKI_MAP_URL = 'https://api.themeparks.wiki/v1/entity/47f61fac-7586-41ac-ae80-61c9257cf33e/children';
 const OFFICIAL_SHOW_API = 'https://mobile-service.usj.co.jp/api/Web/ShowsAndAttractions';
 const OFFICIAL_SCHEDULE_URL = 'https://www.usj.co.jp/web/ja/jp/park-guide/schedule/park-hour';
-// USJ公式カレンダーで2026-10-23に確認。提供元の取得範囲外や旧時刻より優先する。
+// USJ公式カレンダーで確認。提供元の取得範囲外や旧時刻より優先する。
 const OFFICIAL_HOURS_OVERRIDES = [
   ['2026-11-15', '08:00', '22:00'],
   ['2026-11-23', '09:00', '20:00'],
@@ -14,9 +14,9 @@ const OFFICIAL_HOURS_OVERRIDES = [
   ['2026-11-27', '08:30', '19:00'],
   ['2026-11-28', '08:30', '22:00'],
   ['2026-11-29', '08:30', '22:00'],
-  ['2026-11-30', '08:30', '22:00'],
+  ['2026-11-30', '09:00', '20:30'],
 ].map(([day, opens, closes]) => ({ day, opens, closes, status: 'OPERATING',
-  source: 'USJ公式', checked_at: '2026-10-23' }));
+  source: 'USJ公式', checked_at: day === '2026-11-30' ? '2026-11-20' : '2026-10-23' }));
 const WEATHER_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.6654&lon=135.4334';
 const WEATHER_AGENT = 'USJWaitNav/1.0 github.com/ahoro535401/usj-wait-nav';
 const JMA_LATEST_URL = 'https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
@@ -3494,12 +3494,12 @@ async function route(request, env) {
         jstDay(start / 1000) !== day || day < today ||
         day > jstDay(epoch() + 6 * 86400)) return json({ error: '今日から7日間の日付を指定してください' }, 400);
     const official = await readMeta(env.DB, `official_shows_${day}`);
-    if (day !== today && official) {
+    if (official) {
       const saved = JSON.parse(official);
       const checkedAt = Date.parse(saved.checked_at || saved.fetched_at);
       if (!env.OFFICIAL_API_TOKEN || !Number.isFinite(checkedAt) || Date.now() - checkedAt > 8 * 3600 * 1000)
         saved.stale = true;
-      return json(saved);
+      if (day !== today || !saved.stale && !saved.unavailable && saved.shows?.length) return json(saved);
     }
     if (day !== today) return json({
       day, shows: [], unavailable: true,
@@ -3508,7 +3508,7 @@ async function route(request, env) {
     const payload = await readMeta(env.DB, 'shows_payload');
     const parsed = payload ? JSON.parse(payload) : null;
     if (parsed?.day === today && parsed.shows?.length) return json(parsed);
-    if (official) return json(JSON.parse(official));
+    if (official) return json({ ...JSON.parse(official), stale: true });
     return json({ day, shows: [], unavailable: true, reason: 'pending', official_url: officialShowUrl(day) });
   }
   if (url.pathname === '/api/today') return json(await todayMatrix(env.DB, epoch()));

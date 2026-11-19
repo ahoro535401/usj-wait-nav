@@ -1,7 +1,23 @@
 {
-  "checked_at": "2026-10-04",
+  "checked_at": "2026-11-20",
   "source_url": "https://www.usj.co.jp/web/ja/jp/search-results/filtered?attraction_experience=events&attraction_location=&attraction_interest=&filters=usj.place_types;events",
   "events": [
+    {
+      "title": "ユニバーサル・クールジャパン 2027",
+      "title_en": "Universal Cool Japan 2027",
+      "start": "2026-12-02",
+      "end": null,
+      "url": "https://www.usj.co.jp/web/ja/jp/events/universal-cool-japan-2027",
+      "url_en": "https://www.usj.co.jp/web/en/us/events/universal-cool-japan-2027"
+    },
+    {
+      "title": "名探偵コナン・ワールド",
+      "title_en": "Detective Conan: The World",
+      "start": "2027-02-10",
+      "end": "2027-06-30",
+      "url": "https://www.usj.co.jp/web/ja/jp/events/universal-cool-japan-2027/conan",
+      "url_en": "https://www.usj.co.jp/web/en/us/events/universal-cool-japan-2027"
+    },
     {
       "title": "25周年“Discover U!!!” ユニバーサル・スタジオ・ジャパン",
       "start": "2026-03-04",

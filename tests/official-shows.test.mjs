@@ -61,6 +61,29 @@ test('設定が欠けても保存済みの翌日ショー時刻を表示する',
   assert.equal(result.stale, true);
 });
 
+test('当日は新しい公式ショー予定を提供元の速報より優先する', async () => {
+  const today = evaluate('jstDay(epoch())');
+  const official = { day: today, shows: [{ name: '公式限定ショー' }], checked_at: new Date().toISOString() };
+  const wiki = { day: today, shows: [{ name: '提供元のショー' }] };
+  const db = fakeDb({ [`official_shows_${today}`]: JSON.stringify(official), shows_payload: JSON.stringify(wiki) });
+  context.__env = { DB: db, OFFICIAL_API_TOKEN: 'configured' };
+  context.__request = new Request(`https://example.com/api/shows?date=${today}`);
+  const result = await (await evaluate('route(globalThis.__request, globalThis.__env)')).json();
+  assert.equal(result.shows[0].name, '公式限定ショー');
+});
+
+test('当日の公式予定が古い場合は新しい提供元速報を使う', async () => {
+  const today = evaluate('jstDay(epoch())');
+  const official = { day: today, shows: [{ name: '古い公式ショー' }],
+    checked_at: new Date(Date.now() - 9 * 3600 * 1000).toISOString() };
+  const wiki = { day: today, shows: [{ name: '新しい提供元ショー' }] };
+  const db = fakeDb({ [`official_shows_${today}`]: JSON.stringify(official), shows_payload: JSON.stringify(wiki) });
+  context.__env = { DB: db, OFFICIAL_API_TOKEN: 'configured' };
+  context.__request = new Request(`https://example.com/api/shows?date=${today}`);
+  const result = await (await evaluate('route(globalThis.__request, globalThis.__env)')).json();
+  assert.equal(result.shows[0].name, '新しい提供元ショー');
+});
+
 test('公式設定が残っていても8時間以上古い時刻は再確認待ちと示す', async () => {
   const tomorrow = evaluate('jstDay(epoch() + 86400)');
   const payload = { day: tomorrow, shows: [{ name: 'test', times: [{ start: `${tomorrow}T01:00:00Z` }] }],

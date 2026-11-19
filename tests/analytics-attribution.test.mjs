@@ -39,7 +39,7 @@ function analyticsContext(pagePath, consent = 'granted', operator = false) {
     ['usj-wait-nav:demographics-consent', 'denied'],
     ['usj-wait-nav:analytics-operator', operator ? '1' : null],
   ]);
-  const window = {};
+  const window = { matchMedia: () => ({ matches: false }) };
   const location = new URL(`https://uniba-waittimes.com${pagePath}`);
   const document = {
     readyState: 'complete', documentElement: { lang: pagePath.startsWith('/en/') ? 'en' : 'ja' },
@@ -48,7 +48,7 @@ function analyticsContext(pagePath, consent = 'granted', operator = false) {
     addEventListener(name, callback) { listeners.set(name, callback); },
   };
   vm.runInNewContext(analyticsScript, {
-    window, document, location, URL,
+    window, document, location, URL, navigator: { standalone: false },
     localStorage: { getItem(key) { return values.get(key) ?? null; } },
   });
   return { window, listeners };

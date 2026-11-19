@@ -58,6 +58,7 @@ test('official hours survive a stale and shorter third-party schedule refresh', 
   for (let day = 23; day <= 30; day++) {
     assert.equal(rows.get(`2026-11-${day}`).source, 'USJ公式');
   }
+  assert.deepEqual([rows.get('2026-11-30').opens, rows.get('2026-11-30').closes], ['09:00', '20:30']);
   assert.equal(rows.get('2026-11-22').opens, '08:30');
   assert.equal(changed.length, 9);
   rows.set('2026-11-15', { ...rows.get('2026-11-15'), opens: '09:00', checked_at: '2026-10-24' });
@@ -87,4 +88,21 @@ test('official correction migration resists old Worker updates and deletions', a
   } finally {
     db.close();
   }
+});
+
+test('newer official hours correction supersedes old migration without undoing later revisions', async () => {
+  const oldSql = await readFile(new URL('../migrations/0013_official_hours_20261023.sql', import.meta.url), 'utf8');
+  const correction = await readFile(new URL('../migrations/0015_official_hours_20261120.sql', import.meta.url), 'utf8');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec('CREATE TABLE park_days (day TEXT PRIMARY KEY, opens TEXT, closes TEXT, status TEXT, source TEXT, checked_at TEXT)');
+    db.exec(oldSql);
+    db.exec(correction);
+    const corrected = db.prepare("SELECT opens,closes FROM park_days WHERE day='2026-11-30'").get();
+    assert.equal(corrected.opens, '09:00');
+    assert.equal(corrected.closes, '20:30');
+    db.exec("UPDATE park_days SET closes='21:00',checked_at='2026-11-21' WHERE day='2026-11-30'");
+    db.exec(correction);
+    assert.equal(db.prepare("SELECT closes FROM park_days WHERE day='2026-11-30'").get().closes, '21:00');
+  } finally { db.close(); }
 });
